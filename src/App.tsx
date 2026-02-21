@@ -1,17 +1,10 @@
+import GlobalChat from "./pages/GlobalChat";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
-
-import "./App.css";
-
+// Swap out GlobalChat for Dashboard or Profile to preview other pages
 function App() {
-
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <h1 className="text-4xl font-bold text-cyan-400">
-        Tailwind is working 🚀
-      </h1>
-    </div>
-  );
+  return <GlobalChat />;
 }
 
 export default App;
