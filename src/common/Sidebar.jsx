@@ -1,4 +1,6 @@
-export default function Sidebar({showExtras}) {
+import { Link } from "react-router-dom";
+
+export default function Sidebar({ showExtras }) {
   return (
     <aside className="w-56 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
       <div className="p-4 border-b border-gray-200">
@@ -18,15 +20,24 @@ export default function Sidebar({showExtras}) {
       </div>
 
       <nav className="p-3 space-y-1">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors">
+        <Link
+          to="/"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+        >
           <span>💬</span> Global Chat
-        </button>
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors">
+        </Link>
+        <Link
+          to="/dashboard"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+        >
           <span>🏠</span> Dashboard
-        </button>
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm shadow-sm">
+        </Link>
+        <Link
+          to="/profile"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm shadow-sm"
+        >
           <span>👤</span> Profile
-        </button>
+        </Link>
       </nav>
 
       {/* additional infos in sidebar intended for globalChatTab only */}
