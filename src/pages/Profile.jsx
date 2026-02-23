@@ -1,53 +1,8 @@
+import Sidebar from "../common/Sidebar";
 export default function Profile() {
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-      {/* ─── LEFT SIDEBAR (shared layout - will be componentized later) ─── */}
-      <aside className="w-56 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center text-white text-lg">
-              🎓
-            </div>
-            <div>
-              <p className="text-[11px] text-gray-400 font-medium leading-tight">
-                Campus
-              </p>
-              <p className="text-sm font-bold text-red-600 leading-tight">
-                Global Chat
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="p-3 space-y-1">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors">
-            <span>💬</span> Global Chat
-          </button>
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors">
-            <span>🏠</span> Dashboard
-          </button>
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm shadow-sm">
-            <span>👤</span> Profile
-          </button>
-        </nav>
-
-        <div className="flex-1" />
-
-        <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-            J
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">
-              Me (Jordan)
-            </p>
-            <p className="text-xs text-gray-500">Computer Science</p>
-          </div>
-          <button className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base">
-            ⚙️
-          </button>
-        </div>
-      </aside>
+      <Sidebar showExtras={false} />
 
       {/* ─── MAIN CONTENT ─── */}
       <main className="flex-1 flex flex-col min-w-0">
