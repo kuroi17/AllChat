@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 export default function Sidebar({ showExtras }) {
   return (
@@ -20,24 +20,37 @@ export default function Sidebar({ showExtras }) {
       </div>
 
       <nav className="p-3 space-y-1">
-        <Link
+        <NavLink
           to="/"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+          className={({ isActive }) =>
+            isActive
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+          }
         >
-          <span>💬</span> Global Chat
-        </Link>
-        <Link
+          <span>💬</span>
+          Global Chat
+        </NavLink>
+        <NavLink
           to="/dashboard"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+          className={({ isActive }) =>
+            isActive
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+          }
         >
           <span>🏠</span> Dashboard
-        </Link>
-        <Link
+        </NavLink>
+        <NavLink
           to="/profile"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm shadow-sm"
+          className={({ isActive }) =>
+            isActive
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+          }
         >
           <span>👤</span> Profile
-        </Link>
+        </NavLink>
       </nav>
 
       {/* additional infos in sidebar intended for globalChatTab only */}
