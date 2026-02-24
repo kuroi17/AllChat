@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import ForgetPage from "./pages/ForgetPage";
+import ChangePassword from "./pages/ChangePassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -25,6 +26,14 @@ export default function App() {
           element={
             <PublicRoute>
               <ForgetPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <PublicRoute>
+              <ChangePassword />
             </PublicRoute>
           }
         />
