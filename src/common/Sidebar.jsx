@@ -1,13 +1,24 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   MessageCircle,
   Home,
   User,
-  Settings,
+  LogOut,
 } from "lucide-react";
+import { supabase } from "../../utils/supabase";
 
 export default function Sidebar({ showExtras }) {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert("Error logging out: " + error.message);
+    } else {
+      navigate("/auth");
+    }
+  };
   return (
     <aside className="w-56 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
       <div className="p-4 border-b border-gray-200">
@@ -131,8 +142,12 @@ export default function Sidebar({ showExtras }) {
           </p>
           <p className="text-xs text-gray-500">Computer Science</p>
         </div>
-        <button className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base">
-          <Settings size={18} />
+        <button 
+          onClick={handleLogout}
+          className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base"
+          title="Logout"
+        >
+          <LogOut size={18} />
         </button>
       </div>
     </aside>
