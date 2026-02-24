@@ -1,4 +1,5 @@
 import Sidebar from "../common/Sidebar";
+import { MessageCircle, Users, Megaphone } from "lucide-react";
 
 export default function Dashboard() {
   return (
@@ -29,15 +30,15 @@ export default function Dashboard() {
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "Messages Today", value: "24", icon: "💬" },
-                { label: "Active Groups", value: "5", icon: "👥" },
-                { label: "New Announcements", value: "3", icon: "📢" },
+                { label: "Messages Today", value: "24", icon: MessageCircle },
+                { label: "Active Groups", value: "5", icon: Users },
+                { label: "New Announcements", value: "3", icon: Megaphone },
               ].map((s) => (
                 <div
                   key={s.label}
                   className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
                 >
-                  <div className="text-2xl mb-2">{s.icon}</div>
+                  <s.icon size={32} className="text-red-600 mb-2" />
                   <p className="text-2xl font-bold text-gray-800">{s.value}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
                 </div>

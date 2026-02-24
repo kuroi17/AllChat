@@ -1,4 +1,11 @@
 import { NavLink } from "react-router-dom";
+import {
+  GraduationCap,
+  MessageCircle,
+  Home,
+  User,
+  Settings,
+} from "lucide-react";
 
 export default function Sidebar({ showExtras }) {
   return (
@@ -6,7 +13,7 @@ export default function Sidebar({ showExtras }) {
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center text-white text-lg">
-            🎓
+            <GraduationCap size={20} />
           </div>
           <div>
             <p className="text-[11px] text-gray-400 font-medium leading-tight">
@@ -28,8 +35,7 @@ export default function Sidebar({ showExtras }) {
               : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
           }
         >
-          <span>💬</span>
-          Global Chat
+          <MessageCircle size={18} /> Global Chat
         </NavLink>
         <NavLink
           to="/dashboard"
@@ -39,7 +45,7 @@ export default function Sidebar({ showExtras }) {
               : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
           }
         >
-          <span>🏠</span> Dashboard
+          <Home size={18} /> Dashboard
         </NavLink>
         <NavLink
           to="/profile"
@@ -49,7 +55,7 @@ export default function Sidebar({ showExtras }) {
               : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
           }
         >
-          <span>👤</span> Profile
+          <User size={18} /> Profile
         </NavLink>
       </nav>
 
@@ -126,7 +132,7 @@ export default function Sidebar({ showExtras }) {
           <p className="text-xs text-gray-500">Computer Science</p>
         </div>
         <button className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base">
-          ⚙️
+          <Settings size={18} />
         </button>
       </div>
     </aside>

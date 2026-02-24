@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import { useNavigate } from "react-router-dom";
+import {
+  GraduationCap,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  MessageCircle,
+} from "lucide-react";
 export default function Auth() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
@@ -11,7 +20,7 @@ export default function Auth() {
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent form from refreshing the page
-    if (isLogin) {  
+    if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -44,7 +53,7 @@ export default function Auth() {
       <header className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="bg-red-600 p-1.5 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xl">🎓</span>
+            <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">
             Campus Global Chat
@@ -97,7 +106,7 @@ export default function Auth() {
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
-                      <span className="text-lg">✉️</span>
+                      <Mail size={18} />
                     </div>
                     <input
                       type="email"
@@ -126,7 +135,7 @@ export default function Auth() {
                   </div>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
-                      <span className="text-lg">🔒</span>
+                      <Lock size={18} />
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
@@ -140,9 +149,7 @@ export default function Auth() {
                       onClick={() => setShowPassword(!showPassword)} // Toggle password visibility
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      <span className="text-lg">
-                        {showPassword ? "👁️" : "👁️‍🗨️"}
-                      </span>
+                      {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
                   </div>
                 </div>
@@ -155,7 +162,7 @@ export default function Auth() {
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
-                        <span className="text-lg">🔒</span>
+                        <Lock size={18} />
                       </div>
                       <input
                         type="password"
@@ -172,7 +179,7 @@ export default function Auth() {
                   className=" cursor-pointer w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <span>{isLogin ? "Sign In" : "Sign Up"}</span>
-                  <span className="text-lg">→</span>
+                  <ArrowRight size={18} />
                 </button>
               </form>
 
@@ -196,9 +203,10 @@ export default function Auth() {
                   className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-600 transition-colors group"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}
-                  <span className="text-lg group-hover:translate-x-1 transition-transform">
-                    →
-                  </span>
+                  <ArrowRight
+                    size={16}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
                 </button>
               </div>
             </div>
@@ -224,9 +232,10 @@ export default function Auth() {
 
       {/* Decorative Background Element */}
       <div className="fixed bottom-0 right-0 p-8 opacity-10 pointer-events-none select-none overflow-hidden">
-        <span className="text-[240px] text-red-600 rotate-12 translate-x-20 translate-y-20">
-          💬
-        </span>
+        <MessageCircle
+          size={240}
+          className="text-red-600 rotate-12 translate-x-20 translate-y-20"
+        />
       </div>
     </div>
   );

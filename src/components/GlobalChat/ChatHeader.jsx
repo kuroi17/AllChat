@@ -1,3 +1,5 @@
+import { Search, Bell } from "lucide-react";
+
 export default function ChatHeader() {
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-5 gap-3 flex-shrink-0">
@@ -13,10 +15,10 @@ export default function ChatHeader() {
       </div>
       <div className="flex-1" />
       <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-        🔍
+        <Search size={16} />
       </button>
       <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-        🔔
+        <Bell size={16} />
       </button>
     </div>
   );
