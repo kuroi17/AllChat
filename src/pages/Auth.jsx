@@ -1,21 +1,54 @@
 import { useState } from "react";
-
+import { supabase } from "../../utils/supabase";
+import { useNavigate } from "react-router-dom";
 export default function Auth() {
-
-  
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
   const [showPassword, setShowPassword] = useState(false); // Toggle password visibility
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent form from refreshing the page
+    if (isLogin) {  
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        alert(error.message);
+      } else {
+        alert("Logged in successfully!");
+        navigate("/"); // Redirect to global chat after successful login
+      }
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) {
+        alert(error.message);
+      } else {
+        alert(
+          "Account created successfully! Please check your email to confirm your account.",
+        );
+        setIsLogin(true); // Switch to login after successful sign up
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      
       {/* ─── HEADER ─── */}
       <header className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="bg-red-600 p-1.5 rounded-lg flex items-center justify-center">
             <span className="text-white text-xl">🎓</span>
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Campus Global Chat</h1>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Campus Global Chat
+          </h1>
         </div>
         <div className="flex items-center gap-4">
           <button className="text-gray-600 text-sm font-medium hover:text-red-600 transition-colors">
@@ -30,27 +63,33 @@ export default function Auth() {
       {/* ─── MAIN CONTENT ─── */}
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          
           {/* Login/Signup Card */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-            
             {/* Card Header Banner */}
             <div className="h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(circle at 2px 2px, #dc2626 1px, transparent 0)', backgroundSize: '24px 24px'}}></div>
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 2px 2px, #dc2626 1px, transparent 0)",
+                  backgroundSize: "24px 24px",
+                }}
+              ></div>
               <div className="z-10 text-center">
                 <h2 className="text-2xl font-bold text-gray-900">
                   {isLogin ? "Welcome Back" : "Create an Account"}
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
-                  {isLogin ? "Sign in to your university workspace" : "Sign up to join your university workspace"}
+                  {isLogin
+                    ? "Sign in to your university workspace"
+                    : "Sign up to join your university workspace"}
                 </p>
               </div>
             </div>
 
             {/* Form Content */}
             <div className="p-8">
-              <form className="space-y-6">
-                
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 {/* Email Input */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
@@ -64,9 +103,10 @@ export default function Auth() {
                       type="email"
                       placeholder="name@university.edu"
                       className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
-                  
                 </div>
 
                 {/* Password Input */}
@@ -76,7 +116,10 @@ export default function Auth() {
                       Password
                     </label>
                     {isLogin && (
-                      <a href="#" className="text-xs font-medium text-red-600 hover:underline">
+                      <a
+                        href="#"
+                        className="text-xs font-medium text-red-600 hover:underline"
+                      >
                         Forgot password?
                       </a>
                     )}
@@ -89,13 +132,17 @@ export default function Auth() {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       className="block w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)} // Toggle password visibility
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      <span className="text-lg">{showPassword ? "👁️" : "👁️‍🗨️"}</span>
+                      <span className="text-lg">
+                        {showPassword ? "👁️" : "👁️‍🗨️"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -122,7 +169,7 @@ export default function Auth() {
                 {/* Sign In / Sign Up Button */}
                 <button
                   type="submit"
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className=" cursor-pointer w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <span>{isLogin ? "Sign In" : "Sign Up"}</span>
                   <span className="text-lg">→</span>
@@ -145,11 +192,13 @@ export default function Auth() {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setIsLogin(!isLogin)} // Toggle between login and signup
+                  onClick={() => setIsLogin(!isLogin)} // click the button to toggle between login and sign up
                   className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-600 transition-colors group"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}
-                  <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
+                  <span className="text-lg group-hover:translate-x-1 transition-transform">
+                    →
+                  </span>
                 </button>
               </div>
             </div>
@@ -157,10 +206,17 @@ export default function Auth() {
 
           {/* Footer */}
           <footer className="mt-8 text-center text-gray-500 text-xs">
-            <p>© 2024 Campus Global Chat Platform. All university guidelines apply.</p>
+            <p>
+              © 2024 Campus Global Chat Platform. All university guidelines
+              apply.
+            </p>
             <div className="mt-2 flex justify-center gap-4">
-              <a href="#" className="hover:underline">Privacy Policy</a>
-              <a href="#" className="hover:underline">Terms of Service</a>
+              <a href="#" className="hover:underline">
+                Privacy Policy
+              </a>
+              <a href="#" className="hover:underline">
+                Terms of Service
+              </a>
             </div>
           </footer>
         </div>
@@ -168,7 +224,9 @@ export default function Auth() {
 
       {/* Decorative Background Element */}
       <div className="fixed bottom-0 right-0 p-8 opacity-10 pointer-events-none select-none overflow-hidden">
-        <span className="text-[240px] text-red-600 rotate-12 translate-x-20 translate-y-20">💬</span>
+        <span className="text-[240px] text-red-600 rotate-12 translate-x-20 translate-y-20">
+          💬
+        </span>
       </div>
     </div>
   );
