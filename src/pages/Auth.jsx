@@ -47,6 +47,11 @@ export default function Auth() {
     }
   };
 
+const handleForget = (e) => {
+    e.preventDefault();
+    navigate("/forget");
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ─── HEADER ─── */}
@@ -128,8 +133,9 @@ export default function Auth() {
                       <a
                         href="#"
                         className="text-xs font-medium text-red-600 hover:underline"
+                        onClick={ () => navigate("/forget")}
                       >
-                        Forgot password?
+                        Forgot password?  
                       </a>
                     )}
                   </div>

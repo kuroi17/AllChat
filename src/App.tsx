@@ -3,6 +3,7 @@ import GlobalChat from "./pages/GlobalChat";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import ForgetPage from "./pages/ForgetPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 
@@ -16,6 +17,14 @@ export default function App() {
           element={
             <PublicRoute>
               <Auth />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/forget"
+          element={
+            <PublicRoute>
+              <ForgetPage />
             </PublicRoute>
           }
         />
