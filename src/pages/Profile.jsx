@@ -1,5 +1,7 @@
 import Sidebar from "../common/Sidebar";
+import {useUser} from "../common/UserContext"
 export default function Profile() {
+  const {user, profile} = useUser();
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar showExtras={false} />
@@ -14,6 +16,7 @@ export default function Profile() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto space-y-5">
+
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
@@ -44,8 +47,8 @@ export default function Profile() {
               </h3>
               <div className="space-y-3">
                 {[
-                  { label: "Username", value: "@jordan_cruz" },
-                  { label: "Email", value: "jordan.cruz@bsu.edu.ph" },
+                  { label: "Username", value: profile?.username || "Not set" },
+                  { label: "Email", value: user?.email },
                   {
                     label: "Department",
                     value: "College of Information Technology",

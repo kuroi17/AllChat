@@ -32,25 +32,35 @@ export default function Auth() {
         navigate("/"); // Redirect to global chat after successful login
       }
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
       if (error) {
         alert(error.message);
-      } else {
-        alert(
-          "Account created successfully! Please check your email to confirm your account.",
-        );
-        setIsLogin(true); // Switch to login after successful sign up
+      } else if (data.user) {
+        // Create profile entry
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          username: email.split("@")[0], // Default username from email
+          bio: "",
+          avatar_url: "",
+        });
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+        }
+
+        alert("Check your email for confirmation!");
+        setIsLogin(true);
       }
     }
   };
 
-const handleForget = (e) => {
+  const handleForget = (e) => {
     e.preventDefault();
     navigate("/forget");
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -133,9 +143,9 @@ const handleForget = (e) => {
                       <a
                         href="#"
                         className="text-xs font-medium text-red-600 hover:underline"
-                        onClick={ () => navigate("/forget")}
+                        onClick={() => navigate("/forget")}
                       >
-                        Forgot password?  
+                        Forgot password?
                       </a>
                     )}
                   </div>

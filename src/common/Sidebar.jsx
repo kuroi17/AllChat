@@ -1,15 +1,11 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import {
-  GraduationCap,
-  MessageCircle,
-  Home,
-  User,
-  LogOut,
-} from "lucide-react";
+import { GraduationCap, MessageCircle, Home, User, LogOut } from "lucide-react";
 import { supabase } from "../../utils/supabase";
+import { useUser } from "./UserContext";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();
+  const { user, profile } = useUser(); // get user and profile from context
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -132,17 +128,22 @@ export default function Sidebar({ showExtras }) {
 
       <div className="flex-1" />
 
+      {/* Bottom User Profile Section */}
       <div className="p-3 border-t border-gray-200 flex items-center gap-2">
         <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          J
+          {profile?.username?.[0]?.toUpperCase() ||
+            user?.email?.[0]?.toUpperCase() ||
+            "U"}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800 truncate">
-            Me (Jordan)
+            {profile?.username || user?.email?.split("@")[0] || "User"}
           </p>
-          <p className="text-xs text-gray-500">Computer Science</p>
+          <p className="text-xs text-gray-500">
+            {profile?.bio || "Computer Science"}
+          </p>
         </div>
-        <button 
+        <button
           onClick={handleLogout}
           className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base"
           title="Logout"
