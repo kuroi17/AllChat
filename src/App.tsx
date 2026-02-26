@@ -9,7 +9,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import UserProvider from "./common/UserContext";
 
-
 // Swap out GlobalChat for Dashboard or Profile to preview other pages
 export default function App() {
   return (
@@ -32,14 +31,7 @@ export default function App() {
               </PublicRoute>
             }
           />
-          <Route
-            path="/change-password"
-            element={
-              <PublicRoute>
-                <ChangePassword />
-              </PublicRoute>
-            }
-          />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route
             path="/"
             element={

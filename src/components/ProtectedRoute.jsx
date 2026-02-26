@@ -1,28 +1,15 @@
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "../../utils/supabase";
+import { useUser } from "../common/UserContext";
 
 export default function ProtectedRoute({ children }) {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const { user, loading } = useUser();
 
-  useEffect(() => {
-    // Check current session on mount
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    checkUser();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  console.log(
+    "[ProtectedRoute] loading:",
+    loading,
+    "user:",
+    user ? "exists" : "null",
+  );
 
   if (loading) {
     // Show loading spinner while checking auth

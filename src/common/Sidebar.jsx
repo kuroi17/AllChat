@@ -8,11 +8,18 @@ export default function Sidebar({ showExtras }) {
   const { user, profile } = useUser(); // get user and profile from context
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert("Error logging out: " + error.message);
-    } else {
-      navigate("/auth");
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error logging out:", error);
+        alert("Error logging out: " + error.message);
+      } else {
+        // Force navigation and reload to clear all state
+        window.location.href = "/auth";
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+      alert("Error logging out. Please try again.");
     }
   };
   return (

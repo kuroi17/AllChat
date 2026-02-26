@@ -9,35 +9,70 @@ export default function UserProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // get initial sessuib
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    let isMounted = true;
 
-      if (session?.user) {
-        // session?.user means if session exists and has user property
-        setUser(session.user);
-        await fetchProfile(session.user.id); // fetch profile data if user is logged in
+    // get initial session
+    const getUser = async () => {
+      console.log("[UserContext] Fetching user...");
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        console.log(
+          "[UserContext] Session:",
+          session?.user ? "Found user" : "No user",
+        );
+
+        if (isMounted) {
+          setUser(session?.user ?? null);
+          // Set loading false IMMEDIATELY - don't wait for profile
+          setLoading(false);
+          console.log("[UserContext] Loading complete");
+
+          // Fetch profile in background (non-blocking)
+          if (session?.user) {
+            console.log(
+              "[UserContext] Fetching profile for user:",
+              session.user.id,
+            );
+            fetchProfile(session.user.id).catch((err) => {
+              console.error("[UserContext] Profile fetch failed:", err);
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[UserContext] Error:", error);
+        if (isMounted) {
+          setUser(null);
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
+
     getUser();
 
     // listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
+      console.log("[UserContext] Auth changed:", event);
+      if (isMounted) {
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
+        if (session?.user) {
+          fetchProfile(session.user.id).catch((err) => {
+            console.error("[UserContext] Profile fetch failed:", err);
+          });
+        } else {
+          setProfile(null);
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId) => {
