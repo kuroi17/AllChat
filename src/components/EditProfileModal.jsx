@@ -152,7 +152,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
           {/* Avatar Upload */}
           <div className="flex flex-col items-center space-y-3 pb-4 border-b border-gray-200">
             <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-red-600 flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+              <div className="w-24 h-24 rounded-full bg-red-800 flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
@@ -168,7 +168,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-0 right-0 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full shadow-lg transition-colors"
+                className="absolute bottom-0 right-0 bg-red-800 hover:bg-red-800 text-white p-2 rounded-full shadow-lg transition-colors"
               >
                 <Camera size={16} />
               </button>
@@ -196,7 +196,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               value={formData.username}
               onChange={handleChange}
               placeholder="Enter username"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
           </div>
 
@@ -211,7 +211,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               value={formData.full_name}
               onChange={handleChange}
               placeholder="Enter full name"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
           </div>
 
@@ -226,7 +226,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               onChange={handleChange}
               placeholder="Tell us about yourself..."
               rows={3}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all resize-none"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all resize-none"
             />
           </div>
 
@@ -241,7 +241,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               value={formData.department}
               onChange={handleChange}
               placeholder="e.g., Computer Science"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
           </div>
 
@@ -254,7 +254,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               name="year_level"
               value={formData.year_level}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             >
               <option value="">Select year level</option>
               <option value="1st Year">1st Year</option>
@@ -276,13 +276,13 @@ export default function EditProfileModal({ isOpen, onClose }) {
               value={formData.student_id}
               onChange={handleChange}
               placeholder="e.g., BSU-2023-0456"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -301,7 +301,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="cursor-pointer   px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition-all flex items-center gap-2"
+            className="cursor-pointer   px-4 py-2 bg-red-800 hover:bg-red-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition-all flex items-center gap-2"
           >
             {loading ? (
               <>

@@ -36,7 +36,7 @@ export default function MessageInput() {
         <button
           type="submit"
           disabled={sending}
-          className="ml-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm disabled:opacity-60"
+          className="ml-2 bg-red-800 hover:bg-red-800 text-white px-4 py-2 rounded-full text-sm disabled:opacity-60"
         >
           {sending ? "..." : "Send"}
         </button>

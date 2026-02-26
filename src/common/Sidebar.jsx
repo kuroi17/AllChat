@@ -10,9 +10,9 @@ export default function Sidebar({ showExtras }) {
   const handleLogout = async () => {
     // Ask for confirmation before logging out
     const confirmed = window.confirm(
-      "Are you sure you want to logout? You will need to sign in again to access your account."
+      "Are you sure you want to logout? You will need to sign in again to access your account.",
     );
-    
+
     if (!confirmed) return;
 
     try {
@@ -33,14 +33,14 @@ export default function Sidebar({ showExtras }) {
     <aside className="w-56 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center text-white text-lg">
+          <div className="w-9 h-9 bg-red-800 rounded-xl flex items-center justify-center text-white text-lg">
             <GraduationCap size={20} />
           </div>
           <div>
             <p className="text-[11px] text-gray-400 font-medium leading-tight">
               Campus
             </p>
-            <p className="text-sm font-bold text-red-600 leading-tight">
+            <p className="text-sm font-bold text-red-800 leading-tight">
               Global Chat
             </p>
           </div>
@@ -52,8 +52,8 @@ export default function Sidebar({ showExtras }) {
           to="/"
           className={({ isActive }) =>
             isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
           }
         >
           <MessageCircle size={18} /> Global Chat
@@ -62,8 +62,8 @@ export default function Sidebar({ showExtras }) {
           to="/dashboard"
           className={({ isActive }) =>
             isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
           }
         >
           <Home size={18} /> Dashboard
@@ -72,8 +72,8 @@ export default function Sidebar({ showExtras }) {
           to="/profile"
           className={({ isActive }) =>
             isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 bg-red-50 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm transition-colors"
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
           }
         >
           <User size={18} /> Profile
@@ -95,7 +95,7 @@ export default function Sidebar({ showExtras }) {
               ].map((u) => (
                 <button
                   key={u.name}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-700 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
                 >
                   <div className="relative flex-shrink-0">
                     <div
@@ -125,7 +125,7 @@ export default function Sidebar({ showExtras }) {
               ].map((u) => (
                 <button
                   key={u.name}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-700 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
                 >
                   <div
                     className={`w-7 h-7 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
@@ -144,7 +144,7 @@ export default function Sidebar({ showExtras }) {
 
       {/* Bottom User Profile Section */}
       <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-        <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+        <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -167,7 +167,7 @@ export default function Sidebar({ showExtras }) {
         </div>
         <button
           onClick={handleLogout}
-          className="cursor-pointer text-gray-400 hover:text-red-600 p-1 transition-colors text-base"
+          className="cursor-pointer text-gray-400 hover:text-red-800 p-1 transition-colors text-base"
           title="Logout"
         >
           <LogOut size={18} />

@@ -23,11 +23,11 @@ export default function Profile() {
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
-              <div className="h-28 bg-linear-to-r from-red-600 to-red-400" />
+              <div className="h-28 bg-red-800" />
               {/* Avatar + Info */}
               <div className="px-6 pb-5">
                 <div className="flex items-end justify-between -mt-10 mb-4">
-                  <div className="w-20 h-20 rounded-2xl bg-red-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
+                  <div className="w-20 h-20 rounded-2xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
                     {profile?.avatar_url ? (
                       <img
                         src={profile.avatar_url}
@@ -42,7 +42,7 @@ export default function Profile() {
                   </div>
                   <button
                     onClick={() => setIsEditModalOpen(true)}
-                    className=" cursor-pointer mb-1 px-4 py-1.5 border border-red-300 text-red-600 text-xs font-semibold rounded-xl hover:bg-red-50 transition-colors"
+                    className=" cursor-pointer mb-1 px-4 py-1.5 border border-red-800 text-red-800 text-xs font-semibold rounded-xl hover:bg-red-50 hover:text-red-800 transition-colors"
                   >
                     Edit Profile
                   </button>
@@ -110,7 +110,7 @@ export default function Profile() {
                     key={s.label}
                     className="text-center bg-gray-50 rounded-xl p-3"
                   >
-                    <p className="text-xl font-bold text-red-600">{s.value}</p>
+                    <p className="text-xl font-bold text-red-800">{s.value}</p>
                     <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
                   </div>
                 ))}

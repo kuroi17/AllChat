@@ -17,11 +17,15 @@ export default function Dashboard() {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Welcome Banner */}
-            <div className="bg-red-600 rounded-2xl p-6 text-white">
+            <div className="bg-red-800 rounded-2xl p-6 text-white">
               <h1 className="text-xl font-bold mb-1">
-                Welcome back, Jordan! 👋
+                Welcome back, Jordan!
+                <MessageCircle
+                  size={18}
+                  className="inline-block ml-2 text-red-800"
+                />
               </h1>
-              <p className="text-red-100 text-sm">
+              <p className="text-red-800 text-sm">
                 Here's what's happening on campus today.
               </p>
             </div>
@@ -37,7 +41,7 @@ export default function Dashboard() {
                   key={s.label}
                   className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
                 >
-                  <s.icon size={32} className="text-red-600 mb-2" />
+                  <s.icon size={32} className="text-red-800 mb-2" />
                   <p className="text-2xl font-bold text-gray-800">{s.value}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
                 </div>

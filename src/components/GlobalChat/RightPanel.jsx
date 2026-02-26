@@ -1,4 +1,4 @@
-import { Calendar, Megaphone } from "lucide-react";
+import { Calendar, Megaphone, Coffee } from "lucide-react";
 export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-l border-gray-200 flex flex-col overflow-y-auto flex-shrink-0">
@@ -8,7 +8,7 @@ export default function Sidebar() {
           <span className="text-[10px] font-bold text-gray-400 tracking-widest">
             ONLINE NOW
           </span>
-          <button className="text-xs text-red-600 font-semibold hover:underline">
+          <button className="text-xs text-red-800 font-semibold hover:underline">
             View All
           </button>
         </div>
@@ -55,8 +55,8 @@ export default function Sidebar() {
         {/* Upcoming Event */}
         <div className="border border-gray-200 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-2">
-            <Calendar size={16} className="text-red-600" />
-            <span className="text-[10px] font-bold text-red-600 tracking-wider">
+            <Calendar size={16} className="text-red-800" />
+            <span className="text-[10px] font-bold text-red-800 tracking-wider">
               UPCOMING EVENT
             </span>
           </div>
@@ -64,7 +64,7 @@ export default function Sidebar() {
           <p className="text-xs text-gray-500 mb-3 leading-relaxed">
             Join us for 48 hours of building, learning, and free snacks!
           </p>
-          <button className="w-full py-1.5 border border-red-300 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors">
+          <button className="w-full py-1.5 border border-red-300 text-red-800 text-xs font-semibold rounded-lg hover:bg-red-50 transition-colors">
             Register Now
           </button>
         </div>
@@ -78,7 +78,8 @@ export default function Sidebar() {
             </span>
           </div>
           <p className="text-xs text-gray-600 leading-relaxed">
-            New Coffee Shop opening in the Engineering wing next Monday! ☕
+            New Coffee Shop opening in the Engineering wing next Monday!{" "}
+            <Coffee size={14} className="inline-block ml-1 text-gray-600" />
           </p>
         </div>
 
@@ -88,7 +89,7 @@ export default function Sidebar() {
             <p className="text-[10px] text-gray-400 font-semibold mb-1">
               TRENDING
             </p>
-            <p className="text-sm font-bold text-red-600">#FinalsWeek</p>
+            <p className="text-sm font-bold text-red-800">#FinalsWeek</p>
           </div>
           <div className="flex-1 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center">
             <p className="text-[10px] text-gray-400 font-semibold mb-1">

@@ -67,7 +67,7 @@ export default function Auth() {
       {/* ─── HEADER ─── */}
       <header className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="bg-red-600 p-1.5 rounded-lg flex items-center justify-center">
+          <div className="bg-red-800 p-1.5 rounded-lg flex items-center justify-center">
             <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">
@@ -75,10 +75,10 @@ export default function Auth() {
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <button className="text-gray-600 text-sm font-medium hover:text-red-600 transition-colors">
+          <button className="text-gray-600 text-sm font-medium hover:text-red-800 transition-colors">
             Help Center
           </button>
-          <button className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all">
+          <button className="bg-red-50 text-red-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all">
             System Status
           </button>
         </div>
@@ -91,14 +91,6 @@ export default function Auth() {
           <div className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
             {/* Card Header Banner */}
             <div className="h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(circle at 2px 2px, #dc2626 1px, transparent 0)",
-                  backgroundSize: "24px 24px",
-                }}
-              ></div>
               <div className="z-10 text-center">
                 <h2 className="text-2xl font-bold text-gray-900">
                   {isLogin ? "Welcome Back" : "Create an Account"}
@@ -120,13 +112,13 @@ export default function Auth() {
                     University Email
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-800 transition-colors">
                       <Mail size={18} />
                     </div>
                     <input
                       type="email"
                       placeholder="name@university.edu"
-                      className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+                      className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -150,13 +142,13 @@ export default function Auth() {
                     )}
                   </div>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-800 transition-colors">
                       <Lock size={18} />
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="block w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+                      className="block w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -177,13 +169,13 @@ export default function Auth() {
                       Confirm Password
                     </label>
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-800 transition-colors">
                         <Lock size={18} />
                       </div>
                       <input
                         type="password"
                         placeholder="••••••••"
-                        className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 transition-all"
+                        className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                       />
                     </div>
                   </div>
@@ -192,7 +184,7 @@ export default function Auth() {
                 {/* Sign In / Sign Up Button */}
                 <button
                   type="submit"
-                  className=" cursor-pointer w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className=" cursor-pointer w-full bg-red-800 hover:bg-red-800 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-800/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <span>{isLogin ? "Sign In" : "Sign Up"}</span>
                   <ArrowRight size={18} />
@@ -216,7 +208,7 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setIsLogin(!isLogin)} // click the button to toggle between login and sign up
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-600 transition-colors group"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-800 transition-colors group"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}
                   <ArrowRight
@@ -250,7 +242,7 @@ export default function Auth() {
       <div className="fixed bottom-0 right-0 p-8 opacity-10 pointer-events-none select-none overflow-hidden">
         <MessageCircle
           size={240}
-          className="text-red-600 rotate-12 translate-x-20 translate-y-20"
+          className="text-red-50 rotate-12 translate-x-20 translate-y-20"
         />
       </div>
     </div>

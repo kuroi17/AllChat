@@ -77,7 +77,7 @@ export default function MessagesList() {
         <Message
           key={msg.id}
           user={msg.profiles?.username || "User"}
-          color={"bg-red-600"}
+          color={"bg-red-800"}
           time={new Date(msg.created_at).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
