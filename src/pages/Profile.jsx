@@ -1,7 +1,7 @@
 import Sidebar from "../common/Sidebar";
-import {useUser} from "../common/UserContext"
+import { useUser } from "../common/UserContext";
 export default function Profile() {
-  const {user, profile} = useUser();
+  const { user, profile } = useUser();
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar showExtras={false} />
@@ -16,7 +16,6 @@ export default function Profile() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto space-y-5">
-
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
@@ -25,17 +24,25 @@ export default function Profile() {
               <div className="px-6 pb-5">
                 <div className="flex items-end justify-between -mt-10 mb-4">
                   <div className="w-20 h-20 rounded-2xl bg-red-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md">
-                    J
+                    {profile?.username?.[0]?.toUpperCase() ||
+                      user?.email?.[0]?.toUpperCase() ||
+                      "U"}
                   </div>
                   <button className="mb-1 px-4 py-1.5 border border-red-300 text-red-600 text-xs font-semibold rounded-xl hover:bg-red-50 transition-colors">
                     Edit Profile
                   </button>
                 </div>
-                <h2 className="text-lg font-bold text-gray-800">Jordan Cruz</h2>
-                <p className="text-sm text-gray-500">Computer Science · BSU</p>
+                <h2 className="text-lg font-bold text-gray-800">
+                  {profile?.full_name ||
+                    profile?.username ||
+                    user?.email?.split("@")[0] ||
+                    "User"}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {profile?.department || "No department yet"} · BSU
+                </p>
                 <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                  3rd year CS student 🖥️ | Coffee addict ☕ | Always down for a
-                  hackathon
+                  {profile?.bio || "No bio yet. Click Edit Profile to add one!"}
                 </p>
               </div>
             </div>
@@ -48,13 +55,19 @@ export default function Profile() {
               <div className="space-y-3">
                 {[
                   { label: "Username", value: profile?.username || "Not set" },
-                  { label: "Email", value: user?.email },
+                  { label: "Email", value: user?.email || "Not available" },
                   {
                     label: "Department",
-                    value: "College of Information Technology",
+                    value: profile?.department || "Not set",
                   },
-                  { label: "Year Level", value: "3rd Year" },
-                  { label: "Student ID", value: "BSU-2023-0456" },
+                  {
+                    label: "Year Level",
+                    value: profile?.year_level || "Not set",
+                  },
+                  {
+                    label: "Student ID",
+                    value: profile?.student_id || "Not set",
+                  },
                 ].map((f) => (
                   <div
                     key={f.label}
