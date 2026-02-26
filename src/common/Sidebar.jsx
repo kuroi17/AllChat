@@ -8,6 +8,13 @@ export default function Sidebar({ showExtras }) {
   const { user, profile } = useUser(); // get user and profile from context
 
   const handleLogout = async () => {
+    // Ask for confirmation before logging out
+    const confirmed = window.confirm(
+      "Are you sure you want to logout? You will need to sign in again to access your account."
+    );
+    
+    if (!confirmed) return;
+
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -137,10 +144,18 @@ export default function Sidebar({ showExtras }) {
 
       {/* Bottom User Profile Section */}
       <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-        <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-          {profile?.username?.[0]?.toUpperCase() ||
+        <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+          {profile?.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt="User avatar"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            profile?.username?.[0]?.toUpperCase() ||
             user?.email?.[0]?.toUpperCase() ||
-            "U"}
+            "U"
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800 truncate">
@@ -152,7 +167,7 @@ export default function Sidebar({ showExtras }) {
         </div>
         <button
           onClick={handleLogout}
-          className="text-gray-400 hover:text-red-600 p-1 transition-colors text-base"
+          className="cursor-pointer text-gray-400 hover:text-red-600 p-1 transition-colors text-base"
           title="Logout"
         >
           <LogOut size={18} />

@@ -90,24 +90,38 @@ export default function UserProvider({ children }) {
   };
 
   const updateProfile = async (updates) => {
-    if (!user) return;
+    if (!user) return { success: false, error: { message: "No user found" } };
 
+    // Use upsert to insert if not exists, or update if exists
     const { data, error } = await supabase
       .from("profiles")
-      .update(updates)
-      .eq("id", user.id)
+      .upsert(
+        {
+          id: user.id,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "id",
+        },
+      )
       .select()
       .single();
 
-    if (data) {
-      setProfile(data);
-      return { success: true };
-    } else {
+    if (error) {
+      console.error("Error updating profile:", error);
       return {
         success: false,
         error,
       };
     }
+
+    if (data) {
+      setProfile(data);
+      return { success: true };
+    }
+
+    return { success: false, error: { message: "Unknown error" } };
   };
 
   return (

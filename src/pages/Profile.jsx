@@ -1,7 +1,11 @@
+import { useState } from "react";
 import Sidebar from "../common/Sidebar";
 import { useUser } from "../common/UserContext";
+import EditProfileModal from "../components/EditProfileModal";
+
 export default function Profile() {
   const { user, profile } = useUser();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar showExtras={false} />
@@ -23,12 +27,23 @@ export default function Profile() {
               {/* Avatar + Info */}
               <div className="px-6 pb-5">
                 <div className="flex items-end justify-between -mt-10 mb-4">
-                  <div className="w-20 h-20 rounded-2xl bg-red-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md">
-                    {profile?.username?.[0]?.toUpperCase() ||
+                  <div className="w-20 h-20 rounded-2xl bg-red-600 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      profile?.username?.[0]?.toUpperCase() ||
                       user?.email?.[0]?.toUpperCase() ||
-                      "U"}
+                      "U"
+                    )}
                   </div>
-                  <button className="mb-1 px-4 py-1.5 border border-red-300 text-red-600 text-xs font-semibold rounded-xl hover:bg-red-50 transition-colors">
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className=" cursor-pointer mb-1 px-4 py-1.5 border border-red-300 text-red-600 text-xs font-semibold rounded-xl hover:bg-red-50 transition-colors"
+                  >
                     Edit Profile
                   </button>
                 </div>
@@ -104,6 +119,12 @@ export default function Profile() {
           </div>
         </div>
       </main>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      />
     </div>
   );
 }
