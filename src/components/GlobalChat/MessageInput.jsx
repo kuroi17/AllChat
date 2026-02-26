@@ -1,24 +1,46 @@
-import { Plus, Smile, Send } from "lucide-react";
+import { useState } from "react";
+import { useUser } from "../../common/UserContext";
+import { sendMessage } from "../../../utils/messages";
 
 export default function MessageInput() {
+  const { user } = useUser();
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      const inserted = await sendMessage({ userId: user.id, content: text });
+      // We already dispatch a client event from sendMessage; still clear input
+      setText("");
+    } catch (err) {
+      alert(err.message);
+    }
+    setSending(false);
+  };
+
   return (
-    <div className="bg-white border-t border-gray-200 px-5 py-3 flex-shrink-0">
-      <div className="flex items-center gap-3 bg-gray-100 rounded-2xl px-4 py-2.5">
-        <button className="text-gray-400 hover:text-red-600 transition-colors text-lg leading-none">
-          <Plus size={20} />
-        </button>
+    <form
+      onSubmit={handleSend}
+      className="bg-white border-t border-gray-200 px-5 py-3 shrink-0"
+    >
+      <div className="flex items-center gap-3">
         <input
-          type="text"
-          placeholder="Type a message to global chat..."
-          className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder-gray-400"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none"
         />
-        <button className="text-gray-400 hover:text-red-600 transition-colors">
-          <Smile size={20} />
-        </button>
-        <button className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-colors flex-shrink-0">
-          <Send size={16} />
+        <button
+          type="submit"
+          disabled={sending}
+          className="ml-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm disabled:opacity-60"
+        >
+          {sending ? "..." : "Send"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }

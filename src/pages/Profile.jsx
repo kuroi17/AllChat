@@ -13,7 +13,7 @@ export default function Profile() {
       {/* ─── MAIN CONTENT ─── */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 flex-shrink-0">
+        <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 shrink-0">
           <h2 className="font-bold text-gray-800 text-base">My Profile</h2>
         </div>
 
@@ -23,7 +23,7 @@ export default function Profile() {
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
-              <div className="h-28 bg-gradient-to-r from-red-600 to-red-400" />
+              <div className="h-28 bg-linear-to-r from-red-600 to-red-400" />
               {/* Avatar + Info */}
               <div className="px-6 pb-5">
                 <div className="flex items-end justify-between -mt-10 mb-4">

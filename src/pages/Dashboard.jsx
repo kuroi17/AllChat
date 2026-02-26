@@ -5,12 +5,11 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <Sidebar showExtras={false} />
-     
 
       {/* ─── MAIN CONTENT ─── */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 flex-shrink-0">
+        <div className="h-14 bg-white border-b border-gray-200 flex items-center px-6 shrink-0">
           <h2 className="font-bold text-gray-800 text-base">Dashboard</h2>
         </div>
 
@@ -74,7 +73,7 @@ export default function Dashboard() {
                     className="flex items-center gap-3"
                   >
                     <div
-                      className={`w-8 h-8 rounded-full ${a.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+                      className={`w-8 h-8 rounded-full ${a.color} flex items-center justify-center text-white text-xs font-bold shrink-0`}
                     >
                       {a.user[0]}
                     </div>
@@ -84,7 +83,7 @@ export default function Dashboard() {
                         {a.action}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-400 flex-shrink-0">
+                    <span className="text-xs text-gray-400 shrink-0">
                       {a.time}
                     </span>
                   </div>
