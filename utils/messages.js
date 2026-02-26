@@ -39,6 +39,40 @@ export async function fetchMessages(room = "global") {
 
 // Send a message
 export async function sendMessage({ userId, content, room = "global" }) {
+  // Ensure profile exists to satisfy FK constraint
+  try {
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      // try get user's email to derive a default username
+      let username = userId.slice(0, 6);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user?.email) username = user.email.split("@")[0];
+      } catch (e) {
+        // ignore - keep fallback username
+      }
+
+      await supabase.from("profiles").insert({
+        id: userId,
+        username,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (e) {
+    // log but continue - insertion may still fail and be handled below
+    console.warn(
+      "sendMessage: profile check/creation failed:",
+      e?.message || e,
+    );
+  }
+
   // Return the inserted row so callers can optimistically update UI.
   const { data, error } = await supabase
     .from("messages")
