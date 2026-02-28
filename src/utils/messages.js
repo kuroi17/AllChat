@@ -85,8 +85,12 @@ export async function sendMessage({ userId, content, room = "global" }) {
   // Emit a client-side event so local UI can update immediately
   try {
     window.dispatchEvent(new CustomEvent("newMessage", { detail: data }));
+    // Also broadcast to other tabs via BroadcastChannel
+    const bc = new BroadcastChannel("bsu_messages");
+    bc.postMessage(data);
+    bc.close();
   } catch (e) {
-    // ignore
+    // ignore - BroadcastChannel may not be available in all browsers
   }
 
   return data;
