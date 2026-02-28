@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useUser } from "../../common/UserContext";
-import { sendMessage } from "../../../utils/messages";
+import { useUser } from "../../contexts/UserContext";
+import { sendMessage } from "../../utils/messages";
 
 export default function MessageInput() {
   const { user } = useUser();

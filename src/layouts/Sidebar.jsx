@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { GraduationCap, MessageCircle, Home, User, LogOut } from "lucide-react";
-import { supabase } from "../../utils/supabase";
-import { useUser } from "./UserContext";
+import { supabase } from "../utils/supabase";
+import { useUser } from "../contexts/UserContext";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();

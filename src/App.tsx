@@ -7,7 +7,7 @@ import ForgetPage from "./pages/ForgetPage";
 import ChangePassword from "./pages/ChangePassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
-import UserProvider from "./common/UserContext";
+import UserProvider from "./contexts/UserContext";
 
 // Swap out GlobalChat for Dashboard or Profile to preview other pages
 export default function App() {

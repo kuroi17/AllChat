@@ -1,4 +1,4 @@
-import Sidebar from "../common/Sidebar";
+import Sidebar from "../layouts/Sidebar";
 import RightPanel from "../components/GlobalChat/RightPanel";
 import ChatHeader from "../components/GlobalChat/ChatHeader";
 import MessagesList from "../components/GlobalChat/MessagesList";

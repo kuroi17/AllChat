@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import { useUser } from "../../common/UserContext";
+import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import {
   fetchMessages,
   subscribeMessages,
   unsubscribeMessages,
-} from "../../../utils/messages";
+} from "../../utils/messages";
 
 export default function MessagesList() {
   const { user } = useUser();
@@ -30,7 +30,7 @@ export default function MessagesList() {
     channel = subscribeMessages("global", async (msg) => {
       try {
         // fetch profile for incoming message's user if not present
-        const profMap = await import("../../../utils/messages").then((m) =>
+        const profMap = await import("../../utils/messages").then((m) =>
           m.fetchProfilesByIds([msg.user_id]),
         );
         const merged = { ...msg, profiles: profMap[msg.user_id] || null };
