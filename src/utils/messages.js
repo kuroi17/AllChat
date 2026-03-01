@@ -1,16 +1,20 @@
 import { supabase } from "./supabase";
 
-// Fetch messages for a room
-export async function fetchMessages(room = "global") {
-  // Fetch messages only, then fetch profiles separately to avoid
-  // relying on a PostgREST foreign-key relationship which may not exist.
+// Fetch messages for a room (limit to last 100 for performance)
+export async function fetchMessages(room = "global", limit = 100) {
+  // Fetch only the most recent messages to keep initial load fast
+  // and save database resources. Older messages aren't loaded but still exist in DB.
   const { data: messages, error: msgErr } = await supabase
     .from("messages")
     .select("*")
     .eq("room", room)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false }) // Get newest first
+    .limit(limit);
 
   if (msgErr) throw msgErr;
+
+  // Reverse to show oldest to newest in UI
+  messages.reverse();
 
   // Collect unique user ids from messages
   const userIds = Array.from(
