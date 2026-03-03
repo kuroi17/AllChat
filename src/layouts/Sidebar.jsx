@@ -1,11 +1,53 @@
+import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { GraduationCap, MessageCircle, Home, User, LogOut } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
+import {
+  fetchFollowing,
+  fetchConversations,
+  isUserOnline,
+} from "../utils/social";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();
   const { user, profile } = useUser(); // get user and profile from context
+  const [following, setFollowing] = useState([]);
+  const [conversations, setConversations] = useState([]);
+
+  // Fetch following list
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadFollowing = async () => {
+      const followingList = await fetchFollowing(user.id);
+      setFollowing(followingList.slice(0, 5)); // Show top 5
+    };
+
+    loadFollowing();
+  }, [user?.id]);
+
+  // Fetch conversations (DMs)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadConversations = async () => {
+      const convos = await fetchConversations(user.id);
+      setConversations(convos.slice(0, 5)); // Show top 5
+    };
+
+    loadConversations();
+  }, [user?.id]);
+
+  // Avatar colors
+  const colors = [
+    "bg-blue-400",
+    "bg-pink-400",
+    "bg-purple-400",
+    "bg-green-400",
+    "bg-yellow-400",
+    "bg-red-400",
+  ];
 
   const handleLogout = async () => {
     // Ask for confirmation before logging out
@@ -30,7 +72,7 @@ export default function Sidebar({ showExtras }) {
     }
   };
   return (
-    <aside className="w-56 bg-white flex flex-col border-r border-gray-200 flex-shrink-0">
+    <aside className="w-56 bg-white flex flex-col border-r border-gray-200 shrink-0">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-red-800 rounded-xl flex items-center justify-center text-white text-lg">
@@ -89,27 +131,48 @@ export default function Sidebar({ showExtras }) {
               DIRECT MESSAGES
             </p>
             <div className="space-y-0.5">
-              {[
-                { name: "Alex Rivera", color: "bg-blue-400", online: true },
-                { name: "Sarah Jenkins", color: "bg-pink-400", online: false },
-              ].map((u) => (
-                <button
-                  key={u.name}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
-                >
-                  <div className="relative flex-shrink-0">
-                    <div
-                      className={`w-7 h-7 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-bold`}
-                    >
-                      {u.name[0]}
+              {conversations.length === 0 ? (
+                <p className="text-xs text-gray-400 px-2 py-2 text-center">
+                  No conversations yet
+                </p>
+              ) : (
+                conversations.map((conv, index) => (
+                  <button
+                    key={conv.conversationId}
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
+                    onClick={() => navigate(`/dm/${conv.conversationId}`)}
+                  >
+                    <div className="relative shrink-0">
+                      {conv.otherUser?.avatar_url ? (
+                        <img
+                          src={conv.otherUser.avatar_url}
+                          alt={conv.otherUser.username}
+                          className="w-7 h-7 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-7 h-7 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-xs font-bold`}
+                        >
+                          {conv.otherUser?.username?.[0]?.toUpperCase() || "U"}
+                        </div>
+                      )}
+                      {isUserOnline(conv.otherUser?.last_seen) && (
+                        <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-white" />
+                      )}
                     </div>
-                    {u.online && (
-                      <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-white" />
-                    )}
-                  </div>
-                  <span className="truncate">{u.name}</span>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="truncate font-medium">
+                        {conv.otherUser?.username || "User"}
+                      </p>
+                      {conv.unreadCount > 0 && (
+                        <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                          {conv.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
@@ -119,22 +182,34 @@ export default function Sidebar({ showExtras }) {
               FOLLOWING
             </p>
             <div className="space-y-0.5">
-              {[
-                { name: "Prof. Marcus", color: "bg-purple-400" },
-                { name: "Design Club", color: "bg-green-500" },
-              ].map((u) => (
-                <button
-                  key={u.name}
-                  className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
-                >
-                  <div
-                    className={`w-7 h-7 rounded-full ${u.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}
+              {following.length === 0 ? (
+                <p className="text-xs text-gray-400 px-2 py-2 text-center">
+                  Not following anyone yet
+                </p>
+              ) : (
+                following.map((u, index) => (
+                  <button
+                    key={u.id}
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-red-50 text-sm text-gray-700 hover:text-red-800 transition-colors"
+                    onClick={() => navigate(`/user/${u.id}`)}
                   >
-                    {u.name[0]}
-                  </div>
-                  <span className="truncate">{u.name}</span>
-                </button>
-              ))}
+                    {u.avatar_url ? (
+                      <img
+                        src={u.avatar_url}
+                        alt={u.username}
+                        className="w-7 h-7 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className={`w-7 h-7 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}
+                      >
+                        {u.username?.[0]?.toUpperCase() || "U"}
+                      </div>
+                    )}
+                    <span className="truncate">{u.username || "User"}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </>
@@ -144,7 +219,7 @@ export default function Sidebar({ showExtras }) {
 
       {/* Bottom User Profile Section */}
       <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-        <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+        <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}

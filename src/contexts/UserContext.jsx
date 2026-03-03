@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../utils/supabase";
+import { updatePresence } from "../utils/social";
 
 const UserContext = createContext();
 
@@ -74,6 +75,38 @@ export default function UserProvider({ children }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Track user presence (update every 2 minutes)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Update presence immediately
+    updatePresence(user.id);
+
+    // Update presence every 2 minutes
+    const interval = setInterval(
+      () => {
+        updatePresence(user.id);
+      },
+      2 * 60 * 1000,
+    ); // 2 minutes
+
+    // Update presence when user is active (mouse move, keyboard, etc.)
+    const handleActivity = () => {
+      updatePresence(user.id);
+    };
+
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("click", handleActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("click", handleActivity);
+    };
+  }, [user?.id]);
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
