@@ -84,8 +84,43 @@ export default function UserProvider({ children }) {
 
     if (data) {
       setProfile(data);
+    } else if (error && error.code === "PGRST116") {
+      // Profile doesn't exist - create one automatically (for OAuth users)
+      console.log(
+        "[UserContext] Profile not found, creating new profile for:",
+        userId,
+      );
+
+      // Get user metadata from auth
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      const username =
+        authUser?.user_metadata?.full_name ||
+        authUser?.email?.split("@")[0] ||
+        userId.slice(0, 8);
+
+      const { data: newProfile, error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          username,
+          bio: "",
+          avatar_url: authUser?.user_metadata?.avatar_url || "",
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (newProfile) {
+        console.log("[UserContext] Profile created successfully:", newProfile);
+        setProfile(newProfile);
+      } else if (insertError) {
+        console.error("[UserContext] Error creating profile:", insertError);
+      }
     } else if (error) {
-      console.error("Error fetching profile:", error);
+      console.error("[UserContext] Error fetching profile:", error);
     }
   };
 
