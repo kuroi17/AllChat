@@ -137,6 +137,7 @@ export default function MessagesList({ scrollRef }) {
         <Message
           key={msg.id}
           user={msg.profiles?.username || "User"}
+          userId={msg.user_id}
           color={"bg-red-800"}
           time={new Date(msg.created_at).toLocaleTimeString([], {
             hour: "2-digit",
