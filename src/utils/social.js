@@ -149,7 +149,7 @@ export async function fetchFollowers(userId) {
 export async function isFollowing(userId, targetUserId) {
   const { data, error } = await supabase
     .from("follows")
-    .select("id")
+    .select("follower_id")
     .eq("follower_id", userId)
     .eq("following_id", targetUserId)
     .maybeSingle();
