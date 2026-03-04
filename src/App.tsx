@@ -5,6 +5,8 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import ForgetPage from "./pages/ForgetPage";
 import ChangePassword from "./pages/ChangePassword";
+import UserProfile from "./pages/UserProfile";
+import DirectMessage from "./pages/DirectMessage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import UserProvider from "./contexts/UserContext";
@@ -53,6 +55,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/user/:userId"
+            element={
+              <ProtectedRoute>
+                <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dm/:conversationId"
+            element={
+              <ProtectedRoute>
+                <DirectMessage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dm/new"
+            element={
+              <ProtectedRoute>
+                <DirectMessage />
               </ProtectedRoute>
             }
           />
