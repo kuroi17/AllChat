@@ -2,7 +2,7 @@ import { useState } from "react";
 import Sidebar from "../layouts/Sidebar";
 import Header from "../layouts/Header";
 import { useUser } from "../contexts/UserContext";
-import EditProfileModal from "../components/EditProfileModal";
+import EditProfileModal from "../components/modals/EditProfileModal";
 
 export default function Profile() {
   const { user, profile } = useUser();

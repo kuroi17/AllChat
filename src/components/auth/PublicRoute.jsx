@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { useUser } from "../contexts/UserContext";
+import { useUser } from "../../contexts/UserContext";
 
 export default function PublicRoute({ children }) {
   const { user, loading } = useUser();

@@ -7,8 +7,8 @@ import ForgetPage from "./pages/ForgetPage";
 import ChangePassword from "./pages/ChangePassword";
 import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
-import ProtectedRoute from "./components/ProtectedRoute";
-import PublicRoute from "./components/PublicRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PublicRoute from "./components/auth/PublicRoute";
 import UserProvider from "./contexts/UserContext";
 
 // Swap out GlobalChat for Dashboard or Profile to preview other pages

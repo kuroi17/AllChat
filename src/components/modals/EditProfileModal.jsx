@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Save, Camera } from "lucide-react";
-import { useUser } from "../contexts/UserContext";
-import { supabase } from "../utils/supabase";
+import { useUser } from "../../contexts/UserContext";
+import { supabase } from "../../utils/supabase";
 
 export default function EditProfileModal({ isOpen, onClose }) {
   const { user, profile, updateProfile } = useUser();
