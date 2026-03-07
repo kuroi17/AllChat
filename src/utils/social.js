@@ -272,6 +272,22 @@ export async function fetchConversations(userId) {
  * Send a direct message
  */
 export async function sendDirectMessage({ conversationId, senderId, content }) {
+  console.log("[sendDirectMessage] Inserting:", {
+    conversationId,
+    senderId,
+    content,
+  });
+
+  // Check Supabase auth session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  console.log("[sendDirectMessage] Auth session:", {
+    hasSession: !!session,
+    sessionUserId: session?.user?.id,
+    senderIdMatches: session?.user?.id === senderId,
+  });
+
   const { data, error } = await supabase
     .from("direct_messages")
     .insert({
@@ -282,7 +298,10 @@ export async function sendDirectMessage({ conversationId, senderId, content }) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("[sendDirectMessage] Insert failed:", error);
+    throw error;
+  }
 
   // Update conversation updated_at
   await supabase

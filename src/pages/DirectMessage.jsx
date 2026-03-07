@@ -56,18 +56,29 @@ export default function DirectMessage() {
             filter: `conversation_id=eq.${conversationId}`,
           },
           (payload) => {
+            console.log(
+              "[DirectMessage] Realtime message received:",
+              payload.new,
+            );
             const newMessage = payload.new;
             setMessages((prev) => {
               // Avoid duplicates
-              if (prev.some((m) => m.id === newMessage.id)) return prev;
+              if (prev.some((m) => m.id === newMessage.id)) {
+                console.log("[DirectMessage] Duplicate message, skipping");
+                return prev;
+              }
+              console.log("[DirectMessage] Adding new message to state");
               return [...prev, newMessage];
             });
             scrollToBottom();
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log("[DirectMessage] Subscription status:", status);
+        });
 
       return () => {
+        console.log("[DirectMessage] Cleaning up realtime subscription");
         supabase.removeChannel(channel);
       };
     }
@@ -125,11 +136,11 @@ export default function DirectMessage() {
       });
     } catch (error) {
       console.error("Error initializing conversation:", error);
-      
+
       // Set user-friendly error message
-      if (error.code === '42P17') {
+      if (error.code === "42P17") {
         setError("Database not set up. Please run the migration SQL first.");
-      } else if (error.code === 'PGRST200') {
+      } else if (error.code === "PGRST200") {
         setError("Database tables are missing. Please run the migration SQL.");
       } else {
         setError("Failed to load conversation. Please try again later.");
@@ -151,14 +162,30 @@ export default function DirectMessage() {
 
   async function handleSendMessage(e) {
     e.preventDefault();
-    if (!messageText.trim() || sending || !conversationId) return;
+    const trimmedText = messageText.trim();
+    if (!trimmedText || sending || !conversationId) return;
 
     try {
       setSending(true);
-      const trimmedText = messageText.trim();
       setMessageText("");
 
-      await sendDirectMessage(conversationId, user.id, trimmedText);
+      console.log("[DirectMessage] Sending message:", {
+        conversationId,
+        senderId: user.id,
+        userId: user?.id,
+        content: trimmedText,
+      });
+
+      const sentMessage = await sendDirectMessage({
+        conversationId,
+        senderId: user.id,
+        content: trimmedText,
+      });
+
+      console.log("[DirectMessage] Message sent successfully:", sentMessage);
+
+      // Add message to UI immediately (optimistic update)
+      setMessages((prev) => [...prev, sentMessage]);
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
@@ -205,7 +232,7 @@ export default function DirectMessage() {
             </div>
             <button
               onClick={() => navigate(-1)}
-              className=" cursor-pointer px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+              className=" cursor-pointer px-6 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors"
             >
               Go back
             </button>
@@ -338,7 +365,7 @@ export default function DirectMessage() {
                         <div
                           className={`px-4 py-2.5 rounded-2xl ${
                             isMe
-                              ? "bg-red-600 text-white rounded-br-sm"
+                              ? "bg-red-800 text-white rounded-br-sm"
                               : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
                           }`}
                         >

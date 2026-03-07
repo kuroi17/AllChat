@@ -192,12 +192,7 @@ CREATE POLICY "Users can view their messages"
 -- Users can send messages to their conversations
 CREATE POLICY "Users can send messages"
   ON direct_messages FOR INSERT
-  WITH CHECK (
-    sender_id = auth.uid() AND
-    conversation_id IN (
-      SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid()
-    )
-  );
+  WITH CHECK (sender_id = auth.uid());
 
 -- ============================================
 -- STEP 13: Create RLS Policies for campus_events
