@@ -30,6 +30,7 @@ export default function DirectMessage() {
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
@@ -152,11 +153,14 @@ export default function DirectMessage() {
 
   async function loadMessages() {
     try {
+      setLoadingMessages(true);
       const msgs = await fetchDirectMessages(conversationId);
       setMessages(msgs);
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error("Error loading messages:", error);
+    } finally {
+      setLoadingMessages(false);
     }
   }
 
@@ -302,19 +306,6 @@ export default function DirectMessage() {
                 </div>
               </div>
             </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-2">
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Phone className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Video className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <MoreVertical className="w-5 h-5" />
-              </button>
-            </div>
           </div>
         </header>
 
@@ -324,7 +315,11 @@ export default function DirectMessage() {
           className="flex-1 overflow-y-auto bg-gray-50"
         >
           <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
-            {messages.length === 0 ? (
+            {loadingMessages ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">
                   No messages yet. Start the conversation!

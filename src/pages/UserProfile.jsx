@@ -224,7 +224,7 @@ export default function UserProfile() {
                       <button
                         onClick={handleFollowToggle}
                         disabled={actionLoading}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 px-6 py-2.5 bg-red-8 00 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <UserPlus className="w-5 h-5" />
                         Follow

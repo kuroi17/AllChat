@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import {
@@ -129,7 +130,13 @@ export default function MessagesList({ scrollRef }) {
     return () => clearTimeout(t);
   }, [messages.length, scrollRef, loading]);
 
-  if (loading) return <div>Loading messages...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="px-6 py-4 space-y-3">
