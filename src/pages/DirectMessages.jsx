@@ -1,9 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Search, MessageCircle } from "lucide-react";
+import { Loader2, Search, MessageCircle, Send } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import { fetchConversations, isUserOnline } from "../utils/social";
+
+// Format relative time
+function getRelativeTime(dateString) {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
 
 export default function DirectMessages() {
   const navigate = useNavigate();
@@ -49,113 +66,129 @@ export default function DirectMessages() {
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+        {/* Header with gradient */}
+        <header className="bg-gradient-to-r from-red-50 via-white to-red-50 border-b border-gray-200 px-6 py-5 shrink-0">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              Direct Messages
-            </h1>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
+                <Send className="text-white" size={20} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+                <p className="text-sm text-gray-500">
+                  {conversations.length} conversation
+                  {conversations.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
 
-            {/* Search bar */}
+            {/* Enhanced search bar */}
             <div className="relative">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                 size={20}
               />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search by username..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all shadow-sm hover:shadow-md"
               />
             </div>
           </div>
         </header>
 
         {/* Conversations list */}
-        <div className="flex-1 overflow-y-auto bg-gray-50">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100">
           <div className="max-w-4xl mx-auto p-6">
             {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-red-200 animate-pulse"></div>
+                  <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 animate-spin text-red-600" />
+                </div>
+                <p className="mt-4 text-gray-500 font-medium">
+                  Loading conversations...
+                </p>
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="text-center py-20">
-                <MessageCircle
-                  size={48}
-                  className="mx-auto text-gray-300 mb-4"
-                />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  {searchQuery
-                    ? "No conversations found"
-                    : "No conversations yet"}
+                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-100 to-pink-100 flex items-center justify-center">
+                  <MessageCircle size={48} className="text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {searchQuery ? "No matches found" : "No messages yet"}
                 </h2>
-                <p className="text-gray-500">
+                <p className="text-gray-500 max-w-sm mx-auto">
                   {searchQuery
-                    ? "Try searching for a different username"
-                    : "Start a conversation by visiting someone's profile"}
+                    ? "Try a different search term"
+                    : "Start chatting by visiting someone's profile and clicking the message button"}
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {filteredConversations.map((conv, index) => (
                   <button
                     key={conv.conversationId}
                     onClick={() => navigate(`/dm/${conv.conversationId}`)}
-                    className="w-full bg-white rounded-xl p-4 hover:shadow-md transition-all border border-gray-200 hover:border-red-200"
+                    className="w-full bg-white rounded-2xl p-5 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-gray-100 hover:border-red-200 group"
                   >
                     <div className="flex items-center gap-4">
-                      {/* Avatar */}
+                      {/* Avatar with gradient border */}
                       <div className="relative shrink-0">
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-red-400 to-pink-400 animate-pulse opacity-0 group-hover:opacity-30 transition-opacity" />
                         {conv.otherUser?.avatar_url ? (
                           <img
                             src={conv.otherUser.avatar_url}
                             alt={conv.otherUser.username}
-                            className="w-14 h-14 rounded-full object-cover"
+                            className="relative w-16 h-16 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-red-400 transition-all"
                           />
                         ) : (
                           <div
-                            className={`w-14 h-14 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-lg font-bold`}
+                            className={`relative w-16 h-16 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-xl font-bold ring-2 ring-gray-200 group-hover:ring-red-400 transition-all shadow-md`}
                           >
                             {conv.otherUser?.username?.[0]?.toUpperCase() ||
                               "U"}
                           </div>
                         )}
+                        {/* Enhanced online status */}
                         {isUserOnline(conv.otherUser?.last_seen) && (
-                          <div className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-400 border-2 border-white" />
+                          <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-green-500 border-3 border-white shadow-lg animate-pulse" />
                         )}
                       </div>
 
-                      {/* User info */}
+                      {/* User info with better layout */}
                       <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-semibold text-gray-900 truncate">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <h3 className="font-bold text-gray-900 truncate text-lg group-hover:text-red-600 transition-colors">
                             {conv.otherUser?.username || "User"}
                           </h3>
                           {conv.lastMessage?.created_at && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              {new Date(
-                                conv.lastMessage.created_at,
-                              ).toLocaleDateString([], {
-                                month: "short",
-                                day: "numeric",
-                              })}
+                            <span className="text-xs font-semibold text-gray-400 ml-2 group-hover:text-red-500 transition-colors">
+                              {getRelativeTime(conv.lastMessage.created_at)}
                             </span>
                           )}
                         </div>
 
                         {conv.lastMessage?.content && (
-                          <p className="text-sm text-gray-600 truncate">
-                            {conv.lastMessage.sender_id === user.id && "You: "}
+                          <p
+                            className={`text-sm truncate ${conv.unreadCount > 0 ? "text-gray-900 font-semibold" : "text-gray-500"}`}
+                          >
+                            {conv.lastMessage.sender_id === user.id && (
+                              <span className="text-gray-400">You: </span>
+                            )}
                             {conv.lastMessage.content}
                           </p>
                         )}
 
+                        {/* Unread badge */}
                         {conv.unreadCount > 0 && (
-                          <span className="inline-block mt-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
-                            {conv.unreadCount} new
-                          </span>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center px-3 py-1 text-xs font-bold bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full shadow-md animate-pulse">
+                              {conv.unreadCount} unread
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
