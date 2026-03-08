@@ -99,7 +99,38 @@ export async function fetchNotifications(userId, limit = 20) {
       }
     }
 
-    // 3. You could add announcements here if you have an announcements table
+    // 3. Fetch recent follows (people who followed current user)
+    const { data: follows } = await supabase
+      .from("follows")
+      .select(
+        `
+        id,
+        created_at,
+        follower_id,
+        profiles:follower_id(id, username, avatar_url)
+      `,
+      )
+      .eq("following_id", userId) // People who followed this user
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (follows) {
+      follows.forEach((follow) => {
+        notifications.push({
+          id: `follow-${follow.id}`,
+          type: "follow",
+          userId: follow.follower_id,
+          username: follow.profiles?.username || "Someone",
+          avatarUrl: follow.profiles?.avatar_url,
+          message: "started following you",
+          time: follow.created_at,
+          read: false,
+          link: `/user/${follow.follower_id}`,
+        });
+      });
+    }
+
+    // 4. You could add announcements here if you have an announcements table
     // For now, we'll skip this
 
     // Sort all notifications by time (newest first)
