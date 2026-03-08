@@ -7,6 +7,7 @@ import ForgetPage from "./pages/ForgetPage";
 import ChangePassword from "./pages/ChangePassword";
 import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
+import DirectMessages from "./pages/DirectMessages";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 import UserProvider from "./contexts/UserContext";
@@ -63,6 +64,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <UserProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dms"
+            element={
+              <ProtectedRoute>
+                <DirectMessages />
               </ProtectedRoute>
             }
           />

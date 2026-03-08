@@ -15,7 +15,7 @@ export default function Sidebar() {
   // Fetch online users
   useEffect(() => {
     const loadOnlineUsers = async () => {
-      const users = await fetchOnlineUsers(3); // Get top 3 online users
+      const users = await fetchOnlineUsers(15); // Get up to 15 online users
       setOnlineUsers(users);
     };
 
@@ -64,11 +64,11 @@ export default function Sidebar() {
           <span className="text-[10px] font-bold text-gray-400 tracking-widest">
             ONLINE NOW
           </span>
-          <button className="text-xs text-red-800 font-semibold hover:underline">
-            View All
-          </button>
+          <span className="text-xs text-red-800 font-semibold">
+            {onlineUsers.length} online
+          </span>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
           {onlineUsers.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-2">
               No one online right now
