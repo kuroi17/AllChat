@@ -7,6 +7,8 @@ import {
   Phone,
   Video,
   Loader2,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
@@ -17,6 +19,11 @@ import {
   sendDirectMessage,
   markConversationAsRead,
   isUserOnline,
+  isFollowing,
+  followUser,
+  unfollowUser,
+  fetchFollowers,
+  fetchFollowing,
 } from "../utils/social";
 
 export default function DirectMessage() {
@@ -33,6 +40,10 @@ export default function DirectMessage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [following, setFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
@@ -135,6 +146,16 @@ export default function DirectMessage() {
         ...profile,
         isOnline: isUserOnline(profile.last_seen),
       });
+
+      // Load follow status and counts
+      const [followStatus, followers, followingList] = await Promise.all([
+        isFollowing(user.id, otherUserId),
+        fetchFollowers(otherUserId),
+        fetchFollowing(otherUserId),
+      ]);
+      setFollowing(followStatus);
+      setFollowerCount(followers.length);
+      setFollowingCount(followingList.length);
     } catch (error) {
       console.error("Error initializing conversation:", error);
 
@@ -196,6 +217,27 @@ export default function DirectMessage() {
       setMessageText(trimmedText); // Restore message on error
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleFollowToggle() {
+    if (!user || !otherUser || actionLoading) return;
+
+    try {
+      setActionLoading(true);
+      if (following) {
+        await unfollowUser(otherUser.id);
+        setFollowing(false);
+        setFollowerCount((prev) => prev - 1);
+      } else {
+        await followUser(otherUser.id);
+        setFollowing(true);
+        setFollowerCount((prev) => prev + 1);
+      }
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -446,9 +488,52 @@ export default function DirectMessage() {
             <h3 className="text-xl font-bold text-gray-900 mb-1">
               {otherUser.username}
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 mb-3">
               {otherUser.isOnline ? "Active now" : "Offline"}
             </p>
+
+            {/* Follower/Following counts */}
+            <div className="flex items-center justify-center gap-6 mb-4 text-sm">
+              <div>
+                <span className="font-bold text-gray-900">{followerCount}</span>
+                <span className="text-gray-600"> Followers</span>
+              </div>
+              <div>
+                <span className="font-bold text-gray-900">
+                  {followingCount}
+                </span>
+                <span className="text-gray-600"> Following</span>
+              </div>
+            </div>
+
+            {/* Follow button */}
+            {following ? (
+              <button
+                onClick={handleFollowToggle}
+                disabled={actionLoading}
+                className="w-full mb-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserMinus className="w-4 h-4" />
+                )}
+                Unfollow
+              </button>
+            ) : (
+              <button
+                onClick={handleFollowToggle}
+                disabled={actionLoading}
+                className="w-full mb-2 px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                Follow
+              </button>
+            )}
 
             <button
               onClick={() => navigate(`/user/${otherUser.id}`)}
