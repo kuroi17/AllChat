@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { GraduationCap, MessageCircle, Home, User, LogOut } from "lucide-react";
+import { GraduationCap, MessageCircle, User, LogOut } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
 import {
@@ -99,16 +99,6 @@ export default function Sidebar({ showExtras }) {
           }
         >
           <MessageCircle size={18} /> Global Chat
-        </NavLink>
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
-          }
-        >
-          <Home size={18} /> Dashboard
         </NavLink>
         <NavLink
           to="/profile"
