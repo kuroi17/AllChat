@@ -239,12 +239,39 @@ export default function UserProfile() {
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
                   {profileData.username || "Anonymous"}
                 </h1>
+                <p className="text-gray-500 text-base mb-4">
+                  {profileData.department || "Department"} · BSU
+                </p>
                 {profileData.bio && (
-                  <p className="text-gray-600 text-lg leading-relaxed mb-6">
+                  <p className="text-gray-600 text-base leading-relaxed mb-4">
                     {profileData.bio}
                   </p>
                 )}
               </div>
+
+              {/* Account Information */}
+              {(profileData.year_level || profileData.student_id) && (
+                <div className="mt-4 pb-4 border-b border-gray-200">
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    {profileData.year_level && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-semibold text-gray-900">
+                          Year Level:
+                        </span>
+                        <span>{profileData.year_level}</span>
+                      </div>
+                    )}
+                    {profileData.student_id && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <span className="font-semibold text-gray-900">
+                          Student ID:
+                        </span>
+                        <span>{profileData.student_id}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Stats */}
               <div className="flex items-center gap-8 py-4 border-t border-gray-200">
