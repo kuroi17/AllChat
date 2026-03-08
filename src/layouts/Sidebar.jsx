@@ -1,12 +1,37 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { GraduationCap, MessageCircle, User, LogOut, Mail } from "lucide-react";
+import {
+  GraduationCap,
+  MessageCircle,
+  User,
+  LogOut,
+  Mail,
+  Settings,
+  ChevronUp,
+} from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();
   const { user, profile } = useUser(); // get user and profile from context
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showUserMenu]);
 
   const handleLogout = async () => {
     // Ask for confirmation before logging out
@@ -69,49 +94,85 @@ export default function Sidebar({ showExtras }) {
         >
           <Mail size={18} /> Direct Messages
         </NavLink>
-        <NavLink
-          to="/profile"
-          className={({ isActive }) =>
-            isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
-          }
-        >
-          <User size={18} /> Profile
-        </NavLink>
       </nav>
 
       <div className="flex-1" />
 
-      {/* Bottom User Profile Section */}
-      <div className="p-3 border-t border-gray-200 flex items-center gap-2">
-        <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt="User avatar"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            profile?.username?.[0]?.toUpperCase() ||
-            user?.email?.[0]?.toUpperCase() ||
-            "U"
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-800 truncate">
-            {profile?.username || user?.email?.split("@")[0] || "User"}
-          </p>
-          <p className="text-xs text-gray-500">
-            {profile?.bio || "Computer Science"}
-          </p>
-        </div>
+      {/* Bottom User Profile Section with Dropdown */}
+      <div className="relative" ref={userMenuRef}>
+        {/* Dropdown Menu */}
+        {showUserMenu && (
+          <div className="absolute bottom-full left-0 right-0 mb-2 mx-3 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            <button
+              onClick={() => {
+                navigate("/profile");
+                setShowUserMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+            >
+              <User size={18} className="text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">
+                View Profile
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                // Navigate to settings when page is created
+                // navigate("/settings");
+                setShowUserMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-t border-gray-100"
+            >
+              <Settings size={18} className="text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">
+                Settings
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setShowUserMenu(false);
+                handleLogout();
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-colors text-left border-t border-gray-100"
+            >
+              <LogOut size={18} className="text-red-600" />
+              <span className="text-sm font-medium text-red-600">Logout</span>
+            </button>
+          </div>
+        )}
+
+        {/* User Profile Button */}
         <button
-          onClick={handleLogout}
-          className="cursor-pointer text-gray-400 hover:text-red-800 p-1 transition-colors text-base"
-          title="Logout"
+          onClick={() => setShowUserMenu(!showUserMenu)}
+          className="w-full p-3 border-t border-gray-200 flex items-center gap-2 hover:bg-gray-50 transition-colors"
         >
-          <LogOut size={18} />
+          <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="User avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              profile?.username?.[0]?.toUpperCase() ||
+              user?.email?.[0]?.toUpperCase() ||
+              "U"
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-semibold text-gray-800 truncate">
+              {profile?.username || user?.email?.split("@")[0] || "User"}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {profile?.bio || "Computer Science"}
+            </p>
+          </div>
+          <ChevronUp
+            size={18}
+            className={`text-gray-400 transition-transform ${
+              showUserMenu ? "rotate-180" : ""
+            }`}
+          />
         </button>
       </div>
     </aside>

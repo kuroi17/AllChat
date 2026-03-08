@@ -31,9 +31,7 @@ export default function DirectMessages() {
   }
 
   const filteredConversations = conversations.filter((conv) =>
-    conv.otherUser?.username
-      ?.toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    conv.otherUser?.username?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const colors = [
@@ -57,10 +55,13 @@ export default function DirectMessages() {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               Direct Messages
             </h1>
-            
+
             {/* Search bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={20}
+              />
               <input
                 type="text"
                 placeholder="Search conversations..."
@@ -81,7 +82,10 @@ export default function DirectMessages() {
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="text-center py-20">
-                <MessageCircle size={48} className="mx-auto text-gray-300 mb-4" />
+                <MessageCircle
+                  size={48}
+                  className="mx-auto text-gray-300 mb-4"
+                />
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
                   {searchQuery
                     ? "No conversations found"
@@ -114,7 +118,8 @@ export default function DirectMessages() {
                           <div
                             className={`w-14 h-14 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-lg font-bold`}
                           >
-                            {conv.otherUser?.username?.[0]?.toUpperCase() || "U"}
+                            {conv.otherUser?.username?.[0]?.toUpperCase() ||
+                              "U"}
                           </div>
                         )}
                         {isUserOnline(conv.otherUser?.last_seen) && (
@@ -131,7 +136,7 @@ export default function DirectMessages() {
                           {conv.lastMessage?.created_at && (
                             <span className="text-xs text-gray-500 ml-2">
                               {new Date(
-                                conv.lastMessage.created_at
+                                conv.lastMessage.created_at,
                               ).toLocaleDateString([], {
                                 month: "short",
                                 day: "numeric",
@@ -139,14 +144,14 @@ export default function DirectMessages() {
                             </span>
                           )}
                         </div>
-                        
+
                         {conv.lastMessage?.content && (
                           <p className="text-sm text-gray-600 truncate">
                             {conv.lastMessage.sender_id === user.id && "You: "}
                             {conv.lastMessage.content}
                           </p>
                         )}
-                        
+
                         {conv.unreadCount > 0 && (
                           <span className="inline-block mt-2 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
                             {conv.unreadCount} new
