@@ -6,11 +6,13 @@ import {
   fetchNotifications,
   formatNotificationTime,
 } from "../../utils/notifications";
+import { fetchOnlineUsers } from "../../utils/social";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [onlineCount, setOnlineCount] = useState(0);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const { user } = useUser();
@@ -36,6 +38,24 @@ export default function ChatHeader() {
       loadNotifications();
     }
   }, [showNotifications, user?.id]);
+
+  // Fetch online users count
+  useEffect(() => {
+    const loadOnlineCount = async () => {
+      try {
+        const users = await fetchOnlineUsers(1000); // Fetch all online users
+        setOnlineCount(users.length);
+      } catch (error) {
+        console.error("[ChatHeader] Error loading online count:", error);
+      }
+    };
+
+    loadOnlineCount();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(loadOnlineCount, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function loadNotifications() {
     if (!user?.id) return;
@@ -66,9 +86,9 @@ export default function ChatHeader() {
       </span>
       <h2 className="font-bold text-gray-800 text-base">Campus Global Chat</h2>
       <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
-        <div className="w-2 h-2 rounded-full bg-green-500" />
+        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
         <span className="text-xs text-green-600 font-semibold">
-          1,248 ONLINE
+          {onlineCount} ONLINE
         </span>
       </div>
       <div className="flex-1" />
