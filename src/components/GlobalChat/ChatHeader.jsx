@@ -1,9 +1,19 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Bell, X } from "lucide-react";
+import { useUser } from "../../contexts/UserContext";
+import {
+  fetchNotifications,
+  formatNotificationTime,
+} from "../../utils/notifications";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const { user } = useUser();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -15,37 +25,37 @@ export default function ChatHeader() {
 
     if (showNotifications) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showNotifications]);
 
-  // Sample notifications - in production, fetch from Supabase
-  const notifications = [
-    {
-      id: 1,
-      type: "mention",
-      user: "Alex Rivera",
-      message: "mentioned you in Global Chat",
-      time: "2m ago",
-      read: false,
-    },
-    {
-      id: 2,
-      type: "dm",
-      user: "Sarah Jenkins",
-      message: "sent you a direct message",
-      time: "3h ago",
-      read: false,
-    },
-    {
-      id: 3,
-      type: "announcement",
-      user: "Design Club",
-      message: "posted a new announcement",
-      time: "1h ago",
-      read: true,
-    },
-  ];
+  // Load notifications when dropdown opens
+  useEffect(() => {
+    if (showNotifications && user?.id) {
+      loadNotifications();
+    }
+  }, [showNotifications, user?.id]);
+
+  async function loadNotifications() {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const notifs = await fetchNotifications(user.id);
+      setNotifications(notifs);
+    } catch (error) {
+      console.error("[ChatHeader] Error loading notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleNotificationClick(notif) {
+    if (notif.link) {
+      navigate(notif.link);
+      setShowNotifications(false);
+    }
+  }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -65,7 +75,7 @@ export default function ChatHeader() {
       <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors">
         <Search size={16} />
       </button>
-      
+
       {/* Notification Bell with Dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
@@ -96,7 +106,11 @@ export default function ChatHeader() {
 
             {/* Notifications List */}
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {loading ? (
+                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                  Loading notifications...
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500 text-sm">
                   No notifications yet
                 </div>
@@ -104,22 +118,35 @@ export default function ChatHeader() {
                 notifications.map((notif) => (
                   <button
                     key={notif.id}
+                    onClick={() => handleNotificationClick(notif)}
                     className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
                       !notif.read ? "bg-red-50/50" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Avatar placeholder */}
-                      <div className="w-10 h-10 rounded-full bg-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                        {notif.user.charAt(0)}
-                      </div>
-                      
+                      {/* Avatar */}
+                      {notif.avatarUrl ? (
+                        <img
+                          src={notif.avatarUrl}
+                          alt={notif.username}
+                          className="w-10 h-10 rounded-full object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-red-800 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                          {notif.username.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-900">
-                          <span className="font-semibold">{notif.user}</span>{" "}
+                          <span className="font-semibold">
+                            {notif.username}
+                          </span>{" "}
                           <span className="text-gray-600">{notif.message}</span>
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatNotificationTime(notif.time)}
+                        </p>
                       </div>
 
                       {/* Unread indicator */}
