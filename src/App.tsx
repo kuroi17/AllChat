@@ -8,6 +8,7 @@ import ChangePassword from "./pages/ChangePassword";
 import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
 import DirectMessages from "./pages/DirectMessages";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 import UserProvider from "./contexts/UserContext";
@@ -88,6 +89,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DirectMessage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />

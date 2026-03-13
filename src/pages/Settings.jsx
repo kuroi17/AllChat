@@ -1,0 +1,259 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Bell,
+  Volume2,
+  Monitor,
+  Shield,
+  RotateCcw,
+  KeyRound,
+  User,
+} from "lucide-react";
+import Sidebar from "../layouts/Sidebar";
+import { useUser } from "../contexts/UserContext";
+
+const SETTINGS_STORAGE_KEY = "bsu_chat_settings";
+
+const defaultSettings = {
+  desktopNotifications: true,
+  soundEffects: true,
+  showOnlineStatus: true,
+  compactConversationCards: false,
+};
+
+function ToggleRow({ icon: Icon, title, description, checked, onChange }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{title}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+          checked ? "bg-red-600" : "bg-gray-300"
+        }`}
+        aria-pressed={checked}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+            checked ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+export default function Settings() {
+  const navigate = useNavigate();
+  const { user, profile } = useUser();
+  const [settings, setSettings] = useState(defaultSettings);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setSettings({ ...defaultSettings, ...parsed });
+    } catch (error) {
+      console.error("Failed to load user settings:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }, [settings]);
+
+  const accountLabel = useMemo(() => {
+    return profile?.username || user?.email?.split("@")[0] || "User";
+  }, [profile?.username, user?.email]);
+
+  async function handleDesktopNotificationsToggle(enabled) {
+    if (enabled && "Notification" in window) {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        alert("Desktop notifications are blocked in your browser settings.");
+        setSettings((prev) => ({ ...prev, desktopNotifications: false }));
+        return;
+      }
+    }
+
+    setSettings((prev) => ({ ...prev, desktopNotifications: enabled }));
+  }
+
+  function handleSimpleToggle(key) {
+    return (value) => {
+      setSettings((prev) => ({ ...prev, [key]: value }));
+    };
+  }
+
+  function resetSettings() {
+    const confirmed = window.confirm(
+      "Reset all chat settings to default values?",
+    );
+    if (!confirmed) return;
+
+    setSettings(defaultSettings);
+  }
+
+  return (
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      <Sidebar showExtras={false} />
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+            <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="w-9 h-9 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                  <p className="text-sm text-gray-500">
+                    Personalize your chat experience
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <section className="space-y-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  Account
+                </h2>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 text-red-700 flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {accountLabel}
+                      </p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/profile")}
+                    className="px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    View Profile
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
+                      <KeyRound className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Password & Security
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Change your account password anytime.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/change-password")}
+                    className="px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Change Password
+                  </button>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  Preferences
+                </h2>
+
+                <ToggleRow
+                  icon={Bell}
+                  title="Desktop Notifications"
+                  description="Allow browser pop-up alerts for new chat activity."
+                  checked={settings.desktopNotifications}
+                  onChange={handleDesktopNotificationsToggle}
+                />
+
+                <ToggleRow
+                  icon={Volume2}
+                  title="Message Sound Effects"
+                  description="Play an alert sound when new direct messages arrive."
+                  checked={settings.soundEffects}
+                  onChange={handleSimpleToggle("soundEffects")}
+                />
+
+                <ToggleRow
+                  icon={Shield}
+                  title="Show My Online Status"
+                  description="Display your active status to other users."
+                  checked={settings.showOnlineStatus}
+                  onChange={handleSimpleToggle("showOnlineStatus")}
+                />
+
+                <ToggleRow
+                  icon={Monitor}
+                  title="Compact Conversation Cards"
+                  description="Use tighter spacing in the direct messages conversation list."
+                  checked={settings.compactConversationCards}
+                  onChange={handleSimpleToggle("compactConversationCards")}
+                />
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  Maintenance
+                </h2>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
+                      <RotateCcw className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Reset App Preferences
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Revert all settings here back to defaults.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetSettings}
+                    className="px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

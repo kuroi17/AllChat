@@ -186,8 +186,7 @@ export default function Sidebar({ showExtras }) {
             </button>
             <button
               onClick={() => {
-                // Navigate to settings when page is created
-                // navigate("/settings");
+                navigate("/settings");
                 setShowUserMenu(false);
               }}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-t border-gray-100"
