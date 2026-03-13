@@ -3,6 +3,7 @@ import Sidebar from "../layouts/Sidebar";
 import Header from "../layouts/Header";
 import { useUser } from "../contexts/UserContext";
 import EditProfileModal from "../components/modals/EditProfileModal";
+import ProfileBanner from "../components/profile/ProfileBanner";
 import { fetchFollowers, fetchFollowing } from "../utils/social";
 import { Users } from "lucide-react";
 
@@ -44,19 +45,14 @@ export default function Profile() {
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
-              <div className="h-28 bg-red-800 relative overflow-hidden">
-                {profile?.banner_url && (
-                  <img
-                    src={profile.banner_url}
-                    alt="Profile cover"
-                    className="w-full h-full object-cover"
-                  />
-                )}
-                <div className="absolute inset-0 bg-black/10" />
-              </div>
+              <ProfileBanner
+                imageUrl={profile?.banner_url}
+                alt="Profile cover"
+                className="h-36"
+              />
               {/* Avatar + Info */}
               <div className="px-6 pb-5">
-                <div className="flex items-end justify-between -mt-10 mb-4">
+                <div className="flex items-end justify-between -mt-12 mb-4">
                   <div className="w-20 h-20 rounded-2xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
                     {profile?.avatar_url ? (
                       <img

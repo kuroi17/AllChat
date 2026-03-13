@@ -209,13 +209,21 @@ export default function EditProfileModal({ isOpen, onClose }) {
               Cover Photo
             </label>
 
-            <div className="relative h-24 rounded-xl overflow-hidden border border-gray-200 bg-red-800">
+            <div className="relative h-28 rounded-xl overflow-hidden border border-gray-200 bg-linear-to-r from-red-700 via-red-600 to-orange-500">
               {bannerPreview && (
-                <img
-                  src={bannerPreview}
-                  alt="Banner preview"
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={bannerPreview}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
+                  />
+                  <img
+                    src={bannerPreview}
+                    alt="Banner preview"
+                    className="relative z-10 w-full h-full object-contain p-1"
+                  />
+                </>
               )}
 
               <button
@@ -236,7 +244,9 @@ export default function EditProfileModal({ isOpen, onClose }) {
               />
             </div>
 
-            <p className="text-xs text-gray-500">Recommended size: 1200x400</p>
+            <p className="text-xs text-gray-500">
+              Recommended size: 1200x400 (wide image works best)
+            </p>
           </div>
 
           {/* Avatar Upload */}

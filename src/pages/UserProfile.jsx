@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../layouts/Sidebar";
+import ProfileBanner from "../components/profile/ProfileBanner";
 import { useUser } from "../contexts/UserContext";
 import { supabase } from "../utils/supabase";
 import {
@@ -175,16 +176,11 @@ export default function UserProfile() {
           {/* Profile Card */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             {/* Cover section with gradient */}
-            <div className="h-32 bg-linear-to-r from-red-500 to-red-700 relative overflow-hidden">
-              {profileData.banner_url && (
-                <img
-                  src={profileData.banner_url}
-                  alt="Profile cover"
-                  className="w-full h-full object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-black/10" />
-            </div>
+            <ProfileBanner
+              imageUrl={profileData.banner_url}
+              alt={`${profileData.username || "User"} cover`}
+              className="h-40"
+            />
 
             {/* Profile info section */}
             <div className="px-8 pb-8">
