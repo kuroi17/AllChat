@@ -9,20 +9,21 @@ export default function ProfileBanner({
     >
       {imageUrl ? (
         <>
-          {/* Soft blurred layer fills the area while preserving full image in front */}
+          {/* Blurred base to make odd aspect-ratio banners look intentional */}
           <img
             src={imageUrl}
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover scale-110 blur-xl opacity-65"
+            className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-45"
           />
-          <div className="absolute inset-0 bg-black/25" />
 
           <img
             src={imageUrl}
             alt={alt}
-            className="relative z-10 h-full w-full object-contain p-1"
+            className="relative z-10 h-full w-full object-cover"
           />
+
+          <div className="absolute inset-0 z-20 bg-linear-to-r from-black/15 via-transparent to-black/10" />
         </>
       ) : (
         <>
