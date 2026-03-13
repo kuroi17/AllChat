@@ -4,6 +4,7 @@ import Header from "../layouts/Header";
 import { useUser } from "../contexts/UserContext";
 import EditProfileModal from "../components/modals/EditProfileModal";
 import ProfileBanner from "../components/profile/ProfileBanner";
+import ProfileSocialLinks from "../components/profile/ProfileSocialLinks";
 import { fetchFollowers, fetchFollowing } from "../utils/social";
 import { Users } from "lucide-react";
 
@@ -85,6 +86,14 @@ export default function Profile() {
                 <p className="text-sm text-gray-600 leading-relaxed mb-4">
                   {profile?.bio || "No bio yet. Click Edit Profile to add one!"}
                 </p>
+
+                <div className="mb-4">
+                  <ProfileSocialLinks
+                    profile={profile}
+                    title="Where To Find Me"
+                    emptyMessage="Add Instagram/Spotify links so classmates can connect with you."
+                  />
+                </div>
 
                 {/* Followers/Following Stats */}
                 <div className="flex items-center gap-6 pt-3 border-t border-gray-100">

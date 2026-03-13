@@ -9,6 +9,9 @@ export default function EditProfileModal({ isOpen, onClose }) {
     username: "",
     full_name: "",
     bio: "",
+    instagram_url: "",
+    spotify_url: "",
+    website_url: "",
     department: "",
     year_level: "",
     student_id: "",
@@ -30,6 +33,9 @@ export default function EditProfileModal({ isOpen, onClose }) {
         username: profile.username || "",
         full_name: profile.full_name || "",
         bio: profile.bio || "",
+        instagram_url: profile.instagram_url || "",
+        spotify_url: profile.spotify_url || "",
+        website_url: profile.website_url || "",
         department: profile.department || "",
         year_level: profile.year_level || "",
         student_id: profile.student_id || "",
@@ -47,6 +53,31 @@ export default function EditProfileModal({ isOpen, onClose }) {
       [e.target.name]: e.target.value,
     });
   };
+
+  function normalizeLinkInput(rawValue, type) {
+    const value = (rawValue || "").trim();
+    if (!value) return "";
+
+    if (/^https?:\/\//i.test(value)) return value;
+
+    if (type === "instagram") {
+      const cleaned = value
+        .replace(/^@/, "")
+        .replace(/^instagram\.com\//i, "")
+        .replace(/^www\.instagram\.com\//i, "")
+        .replace(/\/+$/, "");
+      return cleaned ? `https://instagram.com/${cleaned}` : "";
+    }
+
+    if (type === "spotify") {
+      const cleaned = value
+        .replace(/^spotify\.com\//i, "")
+        .replace(/^open\.spotify\.com\//i, "open.spotify.com/");
+      return `https://${cleaned}`;
+    }
+
+    return `https://${value}`;
+  }
   function validateImageFile(file, maxSizeInMb) {
     if (!file) return false;
 
@@ -154,9 +185,16 @@ export default function EditProfileModal({ isOpen, onClose }) {
         bannerUrl = await uploadBanner();
       }
 
+      const normalizedSocialLinks = {
+        instagram_url: normalizeLinkInput(formData.instagram_url, "instagram"),
+        spotify_url: normalizeLinkInput(formData.spotify_url, "spotify"),
+        website_url: normalizeLinkInput(formData.website_url, "website"),
+      };
+
       // Update profile with avatar and banner URL
       const result = await updateProfile({
         ...formData,
+        ...normalizedSocialLinks,
         avatar_url: avatarUrl,
         banner_url: bannerUrl,
       });
@@ -172,7 +210,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
       console.error("Error updating profile:", err);
       if (err?.code === "42703") {
         setError(
-          "Profile banner column is missing. Run database/add_profile_banner_support.sql first.",
+          "Profile columns are missing. Run database/add_profile_banner_support.sql and database/add_profile_social_links.sql first.",
         );
         setLoading(false);
         return;
@@ -328,6 +366,57 @@ export default function EditProfileModal({ isOpen, onClose }) {
               rows={3}
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all resize-none"
             />
+          </div>
+
+          {/* Social Links */}
+          <div className="pt-2 border-t border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">
+              Social Links
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                  Instagram
+                </label>
+                <input
+                  type="text"
+                  name="instagram_url"
+                  value={formData.instagram_url}
+                  onChange={handleChange}
+                  placeholder="@username or full URL"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                  Spotify
+                </label>
+                <input
+                  type="text"
+                  name="spotify_url"
+                  value={formData.spotify_url}
+                  onChange={handleChange}
+                  placeholder="Artist/playlist profile URL"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                  Website
+                </label>
+                <input
+                  type="text"
+                  name="website_url"
+                  value={formData.website_url}
+                  onChange={handleChange}
+                  placeholder="Portfolio, Linktree, or personal site"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Department */}

@@ -10,6 +10,16 @@ ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE profiles
 ADD COLUMN IF NOT EXISTS banner_url TEXT;
 
+-- Add profile social link columns if they don't exist
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS instagram_url TEXT;
+
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS spotify_url TEXT;
+
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS website_url TEXT;
+
 -- ============================================
 -- STEP 2: Create follows table with proper FK
 -- ============================================

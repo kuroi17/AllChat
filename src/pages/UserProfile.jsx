@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../layouts/Sidebar";
 import ProfileBanner from "../components/profile/ProfileBanner";
+import ProfileSocialLinks from "../components/profile/ProfileSocialLinks";
 import { useUser } from "../contexts/UserContext";
 import { supabase } from "../utils/supabase";
 import {
@@ -252,6 +253,14 @@ export default function UserProfile() {
                     {profileData.bio}
                   </p>
                 )}
+
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mb-4">
+                  <ProfileSocialLinks
+                    profile={profileData}
+                    title={`Connect with ${profileData.username || "this user"}`}
+                    emptyMessage="This user has not shared social links yet."
+                  />
+                </div>
               </div>
 
               {/* Account Information */}
