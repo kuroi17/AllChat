@@ -44,7 +44,16 @@ export default function Profile() {
             {/* Profile Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {/* Cover */}
-              <div className="h-28 bg-red-800" />
+              <div className="h-28 bg-red-800 relative overflow-hidden">
+                {profile?.banner_url && (
+                  <img
+                    src={profile.banner_url}
+                    alt="Profile cover"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                <div className="absolute inset-0 bg-black/10" />
+              </div>
               {/* Avatar + Info */}
               <div className="px-6 pb-5">
                 <div className="flex items-end justify-between -mt-10 mb-4">

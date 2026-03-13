@@ -16,9 +16,12 @@ export default function EditProfileModal({ isOpen, onClose }) {
   // Avatar states
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null); // To trigger file input click from custom button
+  const bannerInputRef = useRef(null);
 
   // Populate form with existing profile data when modal opens
   useEffect(() => {
@@ -33,6 +36,8 @@ export default function EditProfileModal({ isOpen, onClose }) {
       });
       setAvatarPreview(profile.avatar_url || null);
       setAvatarFile(null);
+      setBannerPreview(profile.banner_url || null);
+      setBannerFile(null);
     }
   }, [isOpen, profile]);
 
@@ -42,29 +47,40 @@ export default function EditProfileModal({ isOpen, onClose }) {
       [e.target.name]: e.target.value,
     });
   };
-  //
+  function validateImageFile(file, maxSizeInMb) {
+    if (!file) return false;
+
+    if (file.size > maxSizeInMb * 1024 * 1024) {
+      setError(`Image size should be less than ${maxSizeInMb}MB`);
+      return false;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file");
+      return false;
+    }
+
+    return true;
+  }
+
   // Handle avatar file selection
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Check file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image size should be less than 2MB");
-        return;
-      }
+    if (!validateImageFile(file, 2)) return;
 
-      // Check file type
-      if (!file.type.startsWith("image/")) {
-        setError("Please upload an image file");
-        return;
-      }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setError("");
+  };
 
-      setAvatarFile(file);
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setAvatarPreview(previewUrl);
-      setError("");
-    }
+  // Handle banner file selection
+  const handleBannerChange = (e) => {
+    const file = e.target.files[0];
+    if (!validateImageFile(file, 5)) return;
+
+    setBannerFile(file);
+    setBannerPreview(URL.createObjectURL(file));
+    setError("");
   };
 
   const uploadAvatar = async () => {
@@ -94,6 +110,31 @@ export default function EditProfileModal({ isOpen, onClose }) {
     return publicUrl;
   };
 
+  const uploadBanner = async () => {
+    if (!bannerFile) return null;
+
+    const fileExt = bannerFile.name.split(".").pop();
+    const fileName = `banner-${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("profile-banners")
+      .upload(filePath, bannerFile, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("profile-banners").getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -102,16 +143,22 @@ export default function EditProfileModal({ isOpen, onClose }) {
     try {
       // try to upload new avatar if selected, otherwise keep existing URL
       let avatarUrl = profile?.avatar_url;
+      let bannerUrl = profile?.banner_url;
 
       // Upload avatar if a new one was selected
       if (avatarFile) {
         avatarUrl = await uploadAvatar();
       }
 
-      // Update profile with avatar URL
+      if (bannerFile) {
+        bannerUrl = await uploadBanner();
+      }
+
+      // Update profile with avatar and banner URL
       const result = await updateProfile({
         ...formData,
         avatar_url: avatarUrl,
+        banner_url: bannerUrl,
       });
 
       setLoading(false);
@@ -123,7 +170,14 @@ export default function EditProfileModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error("Error updating profile:", err);
-      setError(err.message || "Failed to upload avatar");
+      if (err?.code === "42703") {
+        setError(
+          "Profile banner column is missing. Run database/add_profile_banner_support.sql first.",
+        );
+        setLoading(false);
+        return;
+      }
+      setError(err.message || "Failed to upload profile media");
       setLoading(false);
     }
   };
@@ -149,6 +203,42 @@ export default function EditProfileModal({ isOpen, onClose }) {
           onSubmit={handleSubmit}
           className="p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]"
         >
+          {/* Banner Upload */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Cover Photo
+            </label>
+
+            <div className="relative h-24 rounded-xl overflow-hidden border border-gray-200 bg-red-800">
+              {bannerPreview && (
+                <img
+                  src={bannerPreview}
+                  alt="Banner preview"
+                  className="w-full h-full object-cover"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => bannerInputRef.current?.click()}
+                className="absolute right-2 bottom-2 bg-black/70 hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <Camera size={14} />
+                Change Cover
+              </button>
+
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBannerChange}
+                className="hidden"
+              />
+            </div>
+
+            <p className="text-xs text-gray-500">Recommended size: 1200x400</p>
+          </div>
+
           {/* Avatar Upload */}
           <div className="flex flex-col items-center space-y-3 pb-4 border-b border-gray-200">
             <div className="relative">

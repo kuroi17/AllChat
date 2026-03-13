@@ -6,6 +6,10 @@
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ DEFAULT NOW();
 
+-- Add profile banner URL column if it doesn't exist
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS banner_url TEXT;
+
 -- ============================================
 -- STEP 2: Create follows table with proper FK
 -- ============================================
