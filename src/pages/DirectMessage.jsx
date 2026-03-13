@@ -11,6 +11,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
+import EmojiPickerButton from "../components/common/EmojiPickerButton";
 import { useUser } from "../contexts/UserContext";
 import { supabase } from "../utils/supabase";
 import {
@@ -377,6 +378,10 @@ export default function DirectMessage() {
     setSelectedImage(file);
     setImagePreviewUrl(URL.createObjectURL(file));
     event.target.value = "";
+  }
+
+  function handleInsertEmoji(emoji) {
+    setMessageText((prev) => `${prev}${emoji}`);
   }
 
   async function handleSendMessage(e) {
@@ -760,6 +765,11 @@ export default function DirectMessage() {
               >
                 <ImagePlus className="w-5 h-5" />
               </button>
+
+              <EmojiPickerButton
+                onSelect={handleInsertEmoji}
+                disabled={sending || uploadingImage}
+              />
 
               <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-red-500 transition-all">
                 <textarea

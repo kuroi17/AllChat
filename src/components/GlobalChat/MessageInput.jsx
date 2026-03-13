@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useUser } from "../../contexts/UserContext";
 import { sendMessage } from "../../utils/messages";
+import EmojiPickerButton from "../common/EmojiPickerButton";
 
 export default function MessageInput() {
   const { user } = useUser();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+
+  const handleInsertEmoji = (emoji) => {
+    setText((prev) => `${prev}${emoji}`);
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -27,6 +32,12 @@ export default function MessageInput() {
       className="bg-white border-t border-gray-200 px-5 py-3 shrink-0"
     >
       <div className="flex items-center gap-3">
+        <EmojiPickerButton
+          onSelect={handleInsertEmoji}
+          disabled={sending}
+          align="left"
+        />
+
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
