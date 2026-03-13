@@ -382,6 +382,36 @@ export async function markConversationAsRead(conversationId, userId) {
   if (error) console.error("[DM] Mark as read failed:", error);
 }
 
+/**
+ * Delete a conversation the current user is part of
+ */
+export async function deleteConversation(conversationId, userId) {
+  if (!conversationId || !userId) {
+    throw new Error("Missing conversation ID or user ID");
+  }
+
+  const { data: participant, error: participantError } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (participantError) throw participantError;
+  if (!participant) {
+    throw new Error("You are not allowed to delete this conversation");
+  }
+
+  const { error: deleteError } = await supabase
+    .from("conversations")
+    .delete()
+    .eq("id", conversationId);
+
+  if (deleteError) throw deleteError;
+
+  return true;
+}
+
 // ==================== CAMPUS INFO ====================
 
 /**

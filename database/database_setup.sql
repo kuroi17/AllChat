@@ -137,6 +137,7 @@ CREATE POLICY "Users can unfollow"
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Users can view their conversations" ON conversations;
 DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
+DROP POLICY IF EXISTS "Users can delete their conversations" ON conversations;
 
 -- Users can view their conversations
 CREATE POLICY "Users can view their conversations"
@@ -147,6 +148,17 @@ CREATE POLICY "Users can view their conversations"
 CREATE POLICY "Users can create conversations"
   ON conversations FOR INSERT
   WITH CHECK (true);
+
+-- Users can delete conversations they participate in
+CREATE POLICY "Users can delete their conversations"
+  ON conversations FOR DELETE
+  USING (
+    id IN (
+      SELECT conversation_id
+      FROM conversation_participants
+      WHERE user_id = auth.uid()
+    )
+  );
 
 -- ============================================
 -- STEP 11: Create RLS Policies for conversation_participants
