@@ -184,18 +184,18 @@ export default function UserProfile() {
             />
 
             {/* Profile info section */}
-            <div className="px-8 pb-8">
-              {/* Avatar overlapping cover */}
-              <div className="flex items-end justify-between -mt-16 mb-4">
+            <div className="px-8 pb-8 pt-6">
+              {/* Avatar and actions */}
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   {profileData.avatar_url ? (
                     <img
                       src={profileData.avatar_url}
                       alt={profileData.username}
-                      className="w-32 h-32 rounded-full border-4 border-white shadow-xl object-cover"
+                      className="h-28 w-28 rounded-full border-4 border-white shadow-xl object-cover md:h-32 md:w-32"
                     />
                   ) : (
-                    <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold">
+                    <div className="h-28 w-28 rounded-full border-4 border-white shadow-xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold md:h-32 md:w-32">
                       {profileData.username.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -203,11 +203,11 @@ export default function UserProfile() {
 
                 {/* Action buttons */}
                 {!isOwnProfile && (
-                  <div className="flex gap-3 mt-20">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       onClick={handleMessage}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-red-600 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-red-600 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {actionLoading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -221,7 +221,7 @@ export default function UserProfile() {
                       <button
                         onClick={handleFollowToggle}
                         disabled={actionLoading}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <UserMinus className="w-5 h-5" />
                         Unfollow
@@ -230,7 +230,7 @@ export default function UserProfile() {
                       <button
                         onClick={handleFollowToggle}
                         disabled={actionLoading}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <UserPlus className="w-5 h-5" />
                         Follow

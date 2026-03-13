@@ -14,16 +14,16 @@ export default function ProfileBanner({
             src={imageUrl}
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-45"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-35"
           />
 
           <img
             src={imageUrl}
             alt={alt}
-            className="relative z-10 h-full w-full object-cover"
+            className="pointer-events-none relative z-10 h-full w-full object-contain p-1"
           />
 
-          <div className="absolute inset-0 z-20 bg-linear-to-r from-black/15 via-transparent to-black/10" />
+          <div className="pointer-events-none absolute inset-0 z-20 bg-linear-to-r from-black/10 via-transparent to-black/5" />
         </>
       ) : (
         <>
@@ -32,7 +32,7 @@ export default function ProfileBanner({
         </>
       )}
 
-      <div className="absolute inset-0 ring-1 ring-black/10 pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 ring-1 ring-black/10" />
     </div>
   );
 }

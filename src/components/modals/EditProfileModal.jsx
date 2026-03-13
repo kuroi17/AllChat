@@ -254,12 +254,12 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     src={bannerPreview}
                     alt=""
                     aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
+                    className="pointer-events-none absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
                   />
                   <img
                     src={bannerPreview}
                     alt="Banner preview"
-                    className="relative z-10 w-full h-full object-contain p-1"
+                    className="pointer-events-none relative z-10 w-full h-full object-contain p-1"
                   />
                 </>
               )}
@@ -267,7 +267,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               <button
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
-                className="absolute right-2 bottom-2 bg-black/70 hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                className="absolute right-2 bottom-2 z-30 cursor-pointer bg-black/70 hover:bg-black/80 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
               >
                 <Camera size={14} />
                 Change Cover

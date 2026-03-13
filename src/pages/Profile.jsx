@@ -49,12 +49,12 @@ export default function Profile() {
               <ProfileBanner
                 imageUrl={profile?.banner_url}
                 alt="Profile cover"
-                className="h-36"
+                className="h-40"
               />
               {/* Avatar + Info */}
-              <div className="px-6 pb-5">
-                <div className="flex items-end justify-between -mt-12 mb-4">
-                  <div className="w-20 h-20 rounded-2xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
+              <div className="px-6 pb-5 pt-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div className="w-24 h-24 rounded-2xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-md overflow-hidden">
                     {profile?.avatar_url ? (
                       <img
                         src={profile.avatar_url}
@@ -69,7 +69,7 @@ export default function Profile() {
                   </div>
                   <button
                     onClick={() => setIsEditModalOpen(true)}
-                    className=" cursor-pointer mb-1 px-4 py-1.5 border border-red-800 text-red-800 text-xs font-semibold rounded-xl hover:bg-red-50 hover:text-red-800 transition-colors"
+                    className="cursor-pointer px-4 py-1.5 border border-red-800 text-red-800 text-xs font-semibold rounded-xl hover:bg-red-50 hover:text-red-800 transition-colors"
                   >
                     Edit Profile
                   </button>
