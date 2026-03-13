@@ -12,13 +12,29 @@ import {
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
 import { fetchUnreadDirectMessageCount } from "../utils/social";
+import {
+  defaultSettings,
+  playNotificationSoundEffect,
+  subscribeChatSettings,
+} from "../utils/settings";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();
   const { user, profile } = useUser(); // get user and profile from context
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [unreadDmCount, setUnreadDmCount] = useState(0);
+  const [chatSettings, setChatSettings] = useState(defaultSettings);
   const userMenuRef = useRef(null);
+  const settingsRef = useRef(defaultSettings);
+
+  useEffect(() => {
+    settingsRef.current = chatSettings;
+  }, [chatSettings]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeChatSettings(setChatSettings);
+    return unsubscribe;
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -64,8 +80,27 @@ export default function Sidebar({ showExtras }) {
           schema: "public",
           table: "direct_messages",
         },
-        () => {
+        (payload) => {
           loadUnreadCount();
+
+          if (payload.new?.sender_id === user.id) return;
+
+          const currentSettings = settingsRef.current;
+
+          if (currentSettings.soundEffects) {
+            playNotificationSoundEffect();
+          }
+
+          if (
+            currentSettings.desktopNotifications &&
+            document.visibilityState === "hidden" &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            new Notification("New direct message", {
+              body: "Someone sent you a message.",
+            });
+          }
         },
       )
       .on(

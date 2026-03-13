@@ -12,15 +12,11 @@ import {
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
-
-const SETTINGS_STORAGE_KEY = "bsu_chat_settings";
-
-const defaultSettings = {
-  desktopNotifications: true,
-  soundEffects: true,
-  showOnlineStatus: true,
-  compactConversationCards: false,
-};
+import {
+  defaultSettings,
+  getChatSettings,
+  setChatSettings,
+} from "../utils/settings";
 
 function ToggleRow({ icon: Icon, title, description, checked, onChange }) {
   return (
@@ -59,18 +55,11 @@ export default function Settings() {
   const [settings, setSettings] = useState(defaultSettings);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setSettings({ ...defaultSettings, ...parsed });
-    } catch (error) {
-      console.error("Failed to load user settings:", error);
-    }
+    setSettings(getChatSettings());
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    setChatSettings(settings);
   }, [settings]);
 
   const accountLabel = useMemo(() => {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
+import { defaultSettings, subscribeChatSettings } from "../utils/settings";
 import {
   fetchConversations,
   isUserOnline,
@@ -41,10 +42,16 @@ export default function DirectMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [deletingConversationId, setDeletingConversationId] = useState(null);
+  const [chatSettings, setChatSettings] = useState(defaultSettings);
 
   useEffect(() => {
     loadConversations();
   }, [user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeChatSettings(setChatSettings);
+    return unsubscribe;
+  }, []);
 
   async function loadConversations() {
     if (!user?.id) return;
@@ -96,6 +103,8 @@ export default function DirectMessages() {
   const filteredConversations = conversations.filter((conv) =>
     conv.otherUser?.username?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const compactCards = chatSettings.compactConversationCards;
 
   const colors = [
     "bg-blue-400",
@@ -178,7 +187,7 @@ export default function DirectMessages() {
                   <div key={conv.conversationId} className="relative group">
                     <button
                       onClick={() => navigate(`/dm/${conv.conversationId}`)}
-                      className="w-full bg-white rounded-2xl p-5 pr-16 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-gray-100 hover:border-red-200"
+                      className={`w-full bg-white rounded-2xl ${compactCards ? "p-3 pr-14" : "p-5 pr-16"} hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border-2 border-gray-100 hover:border-red-200`}
                     >
                       <div className="flex items-center gap-4">
                         {/* Avatar with gradient border */}
@@ -188,11 +197,11 @@ export default function DirectMessages() {
                             <img
                               src={conv.otherUser.avatar_url}
                               alt={conv.otherUser.username}
-                              className="relative w-16 h-16 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-red-400 transition-all"
+                              className={`relative ${compactCards ? "w-12 h-12" : "w-16 h-16"} rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-red-400 transition-all`}
                             />
                           ) : (
                             <div
-                              className={`relative w-16 h-16 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white text-xl font-bold ring-2 ring-gray-200 group-hover:ring-red-400 transition-all shadow-md`}
+                              className={`relative ${compactCards ? "w-12 h-12 text-base" : "w-16 h-16 text-xl"} rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white font-bold ring-2 ring-gray-200 group-hover:ring-red-400 transition-all shadow-md`}
                             >
                               {conv.otherUser?.username?.[0]?.toUpperCase() ||
                                 "U"}
@@ -207,7 +216,9 @@ export default function DirectMessages() {
                         {/* User info with better layout */}
                         <div className="flex-1 min-w-0 text-left">
                           <div className="flex items-center justify-between mb-1.5">
-                            <h3 className="font-bold text-gray-900 truncate text-lg group-hover:text-red-600 transition-colors">
+                            <h3
+                              className={`font-bold text-gray-900 truncate ${compactCards ? "text-base" : "text-lg"} group-hover:text-red-600 transition-colors`}
+                            >
                               {conv.otherUser?.username || "User"}
                             </h3>
                             {conv.lastMessage?.created_at && (

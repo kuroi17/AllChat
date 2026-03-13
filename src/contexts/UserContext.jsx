@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../utils/supabase";
 import { updatePresence } from "../utils/social";
+import { defaultSettings, subscribeChatSettings } from "../utils/settings";
 
 const UserContext = createContext();
 
@@ -8,6 +9,9 @@ export default function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showOnlineStatus, setShowOnlineStatus] = useState(
+    defaultSettings.showOnlineStatus,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -76,9 +80,30 @@ export default function UserProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeChatSettings((settings) => {
+      setShowOnlineStatus(settings.showOnlineStatus);
+    });
+
+    return unsubscribe;
+  }, []);
+
   // Track user presence (update every 2 minutes)
   useEffect(() => {
     if (!user?.id) return;
+
+    if (!showOnlineStatus) {
+      supabase
+        .from("profiles")
+        .update({ last_seen: null })
+        .eq("id", user.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error("[Presence] Failed to hide online status:", error);
+          }
+        });
+      return;
+    }
 
     // Update presence immediately
     updatePresence(user.id);
@@ -106,7 +131,7 @@ export default function UserProvider({ children }) {
       window.removeEventListener("keydown", handleActivity);
       window.removeEventListener("click", handleActivity);
     };
-  }, [user?.id]);
+  }, [user?.id, showOnlineStatus]);
 
   const fetchProfile = async (userId) => {
     const { data, error } = await supabase
