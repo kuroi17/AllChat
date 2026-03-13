@@ -253,7 +253,8 @@ export async function fetchConversations(userId) {
         .from("direct_messages")
         .select("id", { count: "exact", head: true })
         .eq("conversation_id", conv.conversation_id)
-        .gt("created_at", conv.last_read_at || "1970-01-01");
+        .gt("created_at", conv.last_read_at || "1970-01-01")
+        .neq("sender_id", userId);
 
       return {
         conversationId: conv.conversation_id,
@@ -266,6 +267,38 @@ export async function fetchConversations(userId) {
   );
 
   return enriched.filter((c) => c.otherUser);
+}
+
+/**
+ * Fetch total unread direct messages for a user (across all conversations)
+ */
+export async function fetchUnreadDirectMessageCount(userId) {
+  if (!userId) return 0;
+
+  const { data: conversations, error: conversationsError } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id, last_read_at")
+    .eq("user_id", userId);
+
+  if (conversationsError) {
+    console.error("[DM] Fetch unread count failed:", conversationsError);
+    return 0;
+  }
+
+  const counts = await Promise.all(
+    (conversations || []).map(async (conv) => {
+      const { count } = await supabase
+        .from("direct_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("conversation_id", conv.conversation_id)
+        .gt("created_at", conv.last_read_at || "1970-01-01")
+        .neq("sender_id", userId);
+
+      return count || 0;
+    }),
+  );
+
+  return counts.reduce((sum, count) => sum + count, 0);
 }
 
 /**

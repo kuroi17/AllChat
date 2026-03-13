@@ -5,8 +5,10 @@ import { useUser } from "../../contexts/UserContext";
 import {
   fetchNotifications,
   formatNotificationTime,
+  markNotificationRead,
 } from "../../utils/notifications";
 import { fetchOnlineUsers } from "../../utils/social";
+import { supabase } from "../../utils/supabase";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -39,6 +41,64 @@ export default function ChatHeader() {
     }
   }, [showNotifications, user?.id]);
 
+  // Keep notification badge up to date even when dropdown is closed
+  useEffect(() => {
+    if (!user?.id) return;
+
+    loadNotifications();
+
+    const interval = setInterval(loadNotifications, 20000);
+    const handleFocus = () => loadNotifications();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [user?.id]);
+
+  // Realtime updates for follows, DMs, and read-state changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`chat-header-notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+        },
+        () => loadNotifications(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "follows",
+          filter: `following_id=eq.${user.id}`,
+        },
+        () => loadNotifications(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_participants",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => loadNotifications(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   // Fetch online users count
   useEffect(() => {
     const loadOnlineCount = async () => {
@@ -70,7 +130,9 @@ export default function ChatHeader() {
     }
   }
 
-  function handleNotificationClick(notif) {
+  async function handleNotificationClick(notif) {
+    await markNotificationRead(notif.id, notif.type);
+
     if (notif.link) {
       navigate(notif.link);
       setShowNotifications(false);

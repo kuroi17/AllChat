@@ -11,11 +11,13 @@ import {
 } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
+import { fetchUnreadDirectMessageCount } from "../utils/social";
 
 export default function Sidebar({ showExtras }) {
   const navigate = useNavigate();
   const { user, profile } = useUser(); // get user and profile from context
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [unreadDmCount, setUnreadDmCount] = useState(0);
   const userMenuRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -32,6 +34,67 @@ export default function Sidebar({ showExtras }) {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showUserMenu]);
+
+  // Keep unread DM badge in sync for the sidebar nav
+  useEffect(() => {
+    if (!user?.id) {
+      setUnreadDmCount(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadUnreadCount = async () => {
+      const count = await fetchUnreadDirectMessageCount(user.id);
+      if (isMounted) {
+        setUnreadDmCount(count);
+      }
+    };
+
+    loadUnreadCount();
+
+    const interval = setInterval(loadUnreadCount, 15000);
+
+    const channel = supabase
+      .channel(`sidebar-dm-indicator-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+        },
+        () => {
+          loadUnreadCount();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_participants",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadUnreadCount();
+        },
+      )
+      .subscribe();
+
+    const handleFocus = () => {
+      loadUnreadCount();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const handleLogout = async () => {
     // Ask for confirmation before logging out
@@ -92,7 +155,13 @@ export default function Sidebar({ showExtras }) {
               : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
           }
         >
-          <Mail size={18} /> Direct Messages
+          <Mail size={18} />
+          <span className="flex-1">Direct Messages</span>
+          {unreadDmCount > 0 && (
+            <span className="inline-flex min-w-5 h-5 px-1 items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
+              {unreadDmCount > 99 ? "99+" : unreadDmCount}
+            </span>
+          )}
         </NavLink>
       </nav>
 

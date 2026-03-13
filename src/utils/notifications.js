@@ -10,51 +10,64 @@ export async function fetchNotifications(userId, limit = 20) {
   try {
     const notifications = [];
 
-    // 1. Fetch recent DMs sent to the user (from different conversations)
-    const { data: dmMessages } = await supabase
-      .from("direct_messages")
-      .select(
-        `
-        id,
-        content,
-        created_at,
-        sender_id,
-        conversation_id,
-        read,
-        profiles:sender_id(id, username, avatar_url)
-      `,
-      )
-      .neq("sender_id", userId) // Not sent by current user
-      .order("created_at", { ascending: false })
-      .limit(10);
+    // 1. Fetch unread DMs (based on each participant's last_read_at)
+    const { data: userConversations, error: convError } = await supabase
+      .from("conversation_participants")
+      .select("conversation_id, last_read_at")
+      .eq("user_id", userId);
 
-    // Filter to only include messages where user is a participant
-    if (dmMessages && dmMessages.length > 0) {
-      // Get conversations where user is a participant
-      const { data: userConversations } = await supabase
-        .from("conversation_participants")
-        .select("conversation_id")
-        .eq("user_id", userId);
+    if (convError) throw convError;
 
-      const userConvoIds = new Set(
-        (userConversations || []).map((c) => c.conversation_id),
-      );
+    const conversationIds = (userConversations || []).map(
+      (c) => c.conversation_id,
+    );
+    const lastReadByConversation = new Map(
+      (userConversations || []).map((c) => [
+        c.conversation_id,
+        c.last_read_at ? new Date(c.last_read_at).getTime() : 0,
+      ]),
+    );
 
-      dmMessages
-        .filter((msg) => userConvoIds.has(msg.conversation_id))
-        .forEach((msg) => {
-          notifications.push({
-            id: `dm-${msg.id}`,
-            type: "dm",
-            userId: msg.sender_id,
-            username: msg.profiles?.username || "Someone",
-            avatarUrl: msg.profiles?.avatar_url,
-            message: "sent you a direct message",
-            time: msg.created_at,
-            read: msg.read || false,
-            link: `/dm/${msg.conversation_id}`,
-          });
+    if (conversationIds.length > 0) {
+      const { data: dmMessages, error: dmError } = await supabase
+        .from("direct_messages")
+        .select(
+          `
+          id,
+          content,
+          created_at,
+          sender_id,
+          conversation_id,
+          profiles!direct_messages_sender_id_fkey(id, username, avatar_url)
+        `,
+        )
+        .in("conversation_id", conversationIds)
+        .neq("sender_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (dmError) throw dmError;
+
+      (dmMessages || []).forEach((msg) => {
+        const messageTime = new Date(msg.created_at).getTime();
+        const lastReadTime =
+          lastReadByConversation.get(msg.conversation_id) || 0;
+        const isUnread = messageTime > lastReadTime;
+
+        if (!isUnread) return;
+
+        notifications.push({
+          id: `dm-${msg.id}`,
+          type: "dm",
+          userId: msg.sender_id,
+          username: msg.profiles?.username || "Someone",
+          avatarUrl: msg.profiles?.avatar_url,
+          message: "sent you a direct message",
+          time: msg.created_at,
+          read: false,
+          link: `/dm/${msg.conversation_id}`,
         });
+      });
     }
 
     // 2. Fetch recent mentions in global chat
@@ -100,24 +113,25 @@ export async function fetchNotifications(userId, limit = 20) {
     }
 
     // 3. Fetch recent follows (people who followed current user)
-    const { data: follows } = await supabase
+    const { data: follows, error: followsError } = await supabase
       .from("follows")
       .select(
         `
-        id,
         created_at,
         follower_id,
-        profiles:follower_id(id, username, avatar_url)
+        profiles!follows_follower_id_fkey(id, username, avatar_url)
       `,
       )
       .eq("following_id", userId) // People who followed this user
       .order("created_at", { ascending: false })
       .limit(10);
 
+    if (followsError) throw followsError;
+
     if (follows) {
       follows.forEach((follow) => {
         notifications.push({
-          id: `follow-${follow.id}`,
+          id: `follow-${follow.follower_id}-${follow.created_at}`,
           type: "follow",
           userId: follow.follower_id,
           username: follow.profiles?.username || "Someone",
@@ -169,10 +183,25 @@ export function formatNotificationTime(timestamp) {
 export async function markNotificationRead(notificationId, type) {
   if (type === "dm") {
     const messageId = notificationId.replace("dm-", "");
-    await supabase
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user?.id) return;
+
+    const { data: message } = await supabase
       .from("direct_messages")
-      .update({ read: true })
-      .eq("id", messageId);
+      .select("conversation_id")
+      .eq("id", messageId)
+      .maybeSingle();
+
+    if (!message?.conversation_id) return;
+
+    await supabase
+      .from("conversation_participants")
+      .update({ last_read_at: new Date().toISOString() })
+      .eq("conversation_id", message.conversation_id)
+      .eq("user_id", user.id);
   }
   // For mentions and other types, you might want to create a separate notifications table
 }
