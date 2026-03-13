@@ -195,6 +195,7 @@ CREATE POLICY "Users can update their participation"
 -- Drop existing policies if they exist
 DROP POLICY IF EXISTS "Users can view their messages" ON direct_messages;
 DROP POLICY IF EXISTS "Users can send messages" ON direct_messages;
+DROP POLICY IF EXISTS "Users can delete their sent messages" ON direct_messages;
 
 -- Users can view messages in their conversations
 CREATE POLICY "Users can view their messages"
@@ -209,6 +210,11 @@ CREATE POLICY "Users can view their messages"
 CREATE POLICY "Users can send messages"
   ON direct_messages FOR INSERT
   WITH CHECK (sender_id = auth.uid());
+
+-- Users can delete (unsend) only messages they sent
+CREATE POLICY "Users can delete their sent messages"
+  ON direct_messages FOR DELETE
+  USING (sender_id = auth.uid());
 
 -- ============================================
 -- STEP 13: Create RLS Policies for campus_events

@@ -8,6 +8,7 @@ import {
   UserMinus,
   ImagePlus,
   X,
+  MoreVertical,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
@@ -19,6 +20,7 @@ import {
   sendDirectMessage,
   uploadDirectMessageImage,
   markConversationAsRead,
+  unsendDirectMessageForEveryone,
   isUserOnline,
   isFollowing,
   followUser,
@@ -49,9 +51,25 @@ export default function DirectMessage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [sharedMedia, setSharedMedia] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeMessageMenuId, setActiveMessageMenuId] = useState(null);
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
+  const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const imageInputRef = useRef(null);
+
+  const hiddenMessageStorageKey =
+    user?.id && conversationId
+      ? `dm_hidden_messages:${user.id}:${conversationId}`
+      : null;
+
+  const visibleMessages = messages.filter(
+    (msg) => !hiddenMessageIds.includes(msg.id),
+  );
+
+  const visibleSharedMedia = sharedMedia.filter(
+    (item) => !hiddenMessageIds.includes(item.id),
+  );
 
   useEffect(() => {
     initializeConversation();
@@ -66,6 +84,29 @@ export default function DirectMessage() {
       // Subscribe to new messages
       const channel = supabase
         .channel(`dm:${conversationId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "direct_messages",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          (payload) => {
+            const deletedMessageId = payload.old?.id;
+            if (!deletedMessageId) return;
+
+            setMessages((prev) =>
+              prev.filter((m) => m.id !== deletedMessageId),
+            );
+            setSharedMedia((prev) =>
+              prev.filter((item) => item.id !== deletedMessageId),
+            );
+            setActiveMessageMenuId((prev) =>
+              prev === deletedMessageId ? null : prev,
+            );
+          },
+        )
         .on(
           "postgres_changes",
           {
@@ -111,6 +152,40 @@ export default function DirectMessage() {
       };
     }
   }, [conversationId, user]);
+
+  useEffect(() => {
+    if (!hiddenMessageStorageKey) {
+      setHiddenMessageIds([]);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(hiddenMessageStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+
+      if (Array.isArray(parsed)) {
+        setHiddenMessageIds(parsed);
+      } else {
+        setHiddenMessageIds([]);
+      }
+    } catch (error) {
+      console.error("Failed to load hidden DM messages:", error);
+      setHiddenMessageIds([]);
+    }
+  }, [hiddenMessageStorageKey]);
+
+  useEffect(() => {
+    if (!activeMessageMenuId) return;
+
+    const handleDocumentClick = () => {
+      setActiveMessageMenuId(null);
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [activeMessageMenuId]);
 
   useEffect(() => {
     return () => {
@@ -223,6 +298,62 @@ export default function DirectMessage() {
 
     setSelectedImage(null);
     setImagePreviewUrl("");
+  }
+
+  function persistHiddenMessageIds(nextHiddenIds) {
+    if (!hiddenMessageStorageKey) return;
+
+    localStorage.setItem(
+      hiddenMessageStorageKey,
+      JSON.stringify(nextHiddenIds),
+    );
+  }
+
+  function handleUnsendForYou(messageId) {
+    setHiddenMessageIds((prev) => {
+      if (prev.includes(messageId)) return prev;
+
+      const nextHiddenIds = [...prev, messageId];
+      persistHiddenMessageIds(nextHiddenIds);
+      return nextHiddenIds;
+    });
+
+    setActiveMessageMenuId(null);
+  }
+
+  async function handleUnsendForEveryone(messageId) {
+    if (!user?.id || deletingMessageId) return;
+
+    const confirmed = window.confirm(
+      "Unsend this message for everyone in this conversation?",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingMessageId(messageId);
+      await unsendDirectMessageForEveryone({
+        messageId,
+        senderId: user.id,
+      });
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      setSharedMedia((prev) => prev.filter((item) => item.id !== messageId));
+
+      setHiddenMessageIds((prev) => {
+        if (!prev.includes(messageId)) return prev;
+
+        const nextHiddenIds = prev.filter((id) => id !== messageId);
+        persistHiddenMessageIds(nextHiddenIds);
+        return nextHiddenIds;
+      });
+    } catch (error) {
+      console.error("Error unsending message for everyone:", error);
+      alert(error.message || "Failed to unsend message for everyone.");
+    } finally {
+      setDeletingMessageId(null);
+      setActiveMessageMenuId(null);
+    }
   }
 
   function handleImageChange(event) {
@@ -448,22 +579,23 @@ export default function DirectMessage() {
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-red-600" />
               </div>
-            ) : messages.length === 0 ? (
+            ) : visibleMessages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">
                   No messages yet. Start the conversation!
                 </p>
               </div>
             ) : (
-              messages.map((msg) => {
+              visibleMessages.map((msg) => {
                 const isMe = msg.sender_id === user.id;
+                const isMenuOpen = activeMessageMenuId === msg.id;
                 return (
                   <div
                     key={msg.id}
                     className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`flex gap-3 max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                      className={`group relative flex gap-3 max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
                     >
                       {/* Avatar (only for other user) */}
                       {!isMe && (
@@ -485,7 +617,54 @@ export default function DirectMessage() {
                       )}
 
                       {/* Message bubble */}
-                      <div>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setActiveMessageMenuId((prev) =>
+                              prev === msg.id ? null : msg.id,
+                            );
+                          }}
+                          className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center ${
+                            isMe ? "-left-9" : "-right-9"
+                          } ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                          aria-label="Message options"
+                          title="Message options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {isMenuOpen && (
+                          <div
+                            onClick={(event) => event.stopPropagation()}
+                            className={`absolute top-8 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+                              isMe ? "left-0" : "right-0"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleUnsendForYou(msg.id)}
+                              className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              Unsend for you
+                            </button>
+
+                            {isMe && (
+                              <button
+                                type="button"
+                                onClick={() => handleUnsendForEveryone(msg.id)}
+                                disabled={deletingMessageId === msg.id}
+                                className="w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {deletingMessageId === msg.id
+                                  ? "Unsending..."
+                                  : "Unsend for everyone"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         <div
                           className={`px-4 py-2.5 rounded-2xl ${
                             isMe
@@ -700,13 +879,13 @@ export default function DirectMessage() {
             <h4 className="text-sm font-semibold text-gray-900 mb-3">
               Shared Media
             </h4>
-            {sharedMedia.length === 0 ? (
+            {visibleSharedMedia.length === 0 ? (
               <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-xs text-gray-500 text-center">
                 No images shared in this conversation yet.
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {sharedMedia.map((item) => (
+                {visibleSharedMedia.map((item) => (
                   <a
                     key={item.id}
                     href={item.image_url}
@@ -726,7 +905,7 @@ export default function DirectMessage() {
             )}
           </div>
 
-          {/* Options */}
+          {/* Options
           <div className="mt-8 space-y-2">
             <button className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
               Search in Conversation
@@ -737,7 +916,7 @@ export default function DirectMessage() {
             <button className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
               Block User
             </button>
-          </div>
+          </div> */}
         </div>
       </aside>
     </div>

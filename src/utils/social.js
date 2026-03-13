@@ -411,6 +411,27 @@ export async function sendDirectMessage({
 }
 
 /**
+ * Unsend a direct message for everyone (sender only)
+ */
+export async function unsendDirectMessageForEveryone({ messageId, senderId }) {
+  if (!messageId || !senderId) {
+    throw new Error("Missing message ID or sender ID");
+  }
+
+  const { error } = await supabase
+    .from("direct_messages")
+    .delete()
+    .eq("id", messageId)
+    .eq("sender_id", senderId);
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
+/**
  * Fetch messages in a conversation
  */
 export async function fetchDirectMessages(conversationId, limit = 100) {
