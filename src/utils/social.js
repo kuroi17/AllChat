@@ -242,7 +242,7 @@ export async function fetchConversations(userId) {
       // Get last message
       const { data: lastMsg } = await supabase
         .from("direct_messages")
-        .select("content, created_at, sender_id")
+        .select("*")
         .eq("conversation_id", conv.conversation_id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -302,13 +302,66 @@ export async function fetchUnreadDirectMessageCount(userId) {
 }
 
 /**
+ * Upload an image to the DM media storage bucket
+ */
+export async function uploadDirectMessageImage({
+  file,
+  conversationId,
+  userId,
+}) {
+  if (!file) throw new Error("No image selected");
+  if (!conversationId || !userId)
+    throw new Error("Missing conversation context");
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Only image files are allowed");
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("Image size must be 8MB or less");
+  }
+
+  const extension = file.name.split(".").pop() || "jpg";
+  const safeExtension = extension.toLowerCase();
+  const filePath = `${conversationId}/${userId}-${Date.now()}.${safeExtension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("dm-media")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("dm-media").getPublicUrl(filePath);
+
+  return publicUrl;
+}
+
+/**
  * Send a direct message
  */
-export async function sendDirectMessage({ conversationId, senderId, content }) {
+export async function sendDirectMessage({
+  conversationId,
+  senderId,
+  content,
+  imageUrl = null,
+}) {
+  const cleanedContent = content?.trim() || null;
+  const contentForInsert = cleanedContent || "";
+
+  if (!cleanedContent && !imageUrl) {
+    throw new Error("Message must include text or an image");
+  }
+
   console.log("[sendDirectMessage] Inserting:", {
     conversationId,
     senderId,
-    content,
+    content: cleanedContent,
+    imageUrl,
   });
 
   // Check Supabase auth session
@@ -321,17 +374,29 @@ export async function sendDirectMessage({ conversationId, senderId, content }) {
     senderIdMatches: session?.user?.id === senderId,
   });
 
+  const insertPayload = {
+    conversation_id: conversationId,
+    sender_id: senderId,
+    content: contentForInsert,
+  };
+
+  if (imageUrl) {
+    insertPayload.image_url = imageUrl;
+  }
+
   const { data, error } = await supabase
     .from("direct_messages")
-    .insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      content,
-    })
+    .insert(insertPayload)
     .select()
     .single();
 
   if (error) {
+    if (error.code === "42703" && imageUrl) {
+      throw new Error(
+        "DM image column is not ready. Run database/add_dm_media_support.sql first.",
+      );
+    }
+
     console.error("[sendDirectMessage] Insert failed:", error);
     throw error;
   }
@@ -367,6 +432,32 @@ export async function fetchDirectMessages(conversationId, limit = 100) {
   }
 
   return (data || []).reverse(); // Oldest first
+}
+
+/**
+ * Fetch image media shared in a conversation
+ */
+export async function fetchDirectMessageMedia(conversationId, limit = 12) {
+  const { data, error } = await supabase
+    .from("direct_messages")
+    .select("id, conversation_id, sender_id, image_url, created_at")
+    .eq("conversation_id", conversationId)
+    .not("image_url", "is", null)
+    .neq("image_url", "")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    // Allow app to keep working even before migration is applied
+    if (error.code === "42703") {
+      return [];
+    }
+
+    console.error("[DM] Fetch shared media failed:", error);
+    return [];
+  }
+
+  return data || [];
 }
 
 /**

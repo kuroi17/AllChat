@@ -217,14 +217,15 @@ export default function DirectMessages() {
                             )}
                           </div>
 
-                          {conv.lastMessage?.content && (
+                          {(conv.lastMessage?.content ||
+                            conv.lastMessage?.image_url) && (
                             <p
                               className={`text-sm truncate ${conv.unreadCount > 0 ? "text-gray-900 font-semibold" : "text-gray-500"}`}
                             >
-                              {conv.lastMessage.sender_id === user.id && (
+                              {conv.lastMessage.sender_id === user.id ? (
                                 <span className="text-gray-400">You: </span>
-                              )}
-                              {conv.lastMessage.content}
+                              ) : null}
+                              {conv.lastMessage.content || "Sent a photo"}
                             </p>
                           )}
 

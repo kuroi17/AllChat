@@ -56,12 +56,16 @@ CREATE TABLE IF NOT EXISTS direct_messages (
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_dm_conversation ON direct_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_dm_sender ON direct_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_dm_created_at ON direct_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dm_media_by_conversation
+  ON direct_messages(conversation_id, created_at DESC)
+  WHERE image_url IS NOT NULL;
 
 -- ============================================
 -- STEP 6: Create campus_events table

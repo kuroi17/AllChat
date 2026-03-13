@@ -3,12 +3,11 @@ import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Send,
-  MoreVertical,
-  Phone,
-  Video,
   Loader2,
   UserPlus,
   UserMinus,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
@@ -16,7 +15,9 @@ import { supabase } from "../utils/supabase";
 import {
   getOrCreateConversation,
   fetchDirectMessages,
+  fetchDirectMessageMedia,
   sendDirectMessage,
+  uploadDirectMessageImage,
   markConversationAsRead,
   isUserOnline,
   isFollowing,
@@ -44,8 +45,13 @@ export default function DirectMessage() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [sharedMedia, setSharedMedia] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   useEffect(() => {
     initializeConversation();
@@ -54,6 +60,7 @@ export default function DirectMessage() {
   useEffect(() => {
     if (conversationId && user) {
       loadMessages();
+      loadSharedMedia(conversationId);
       markConversationAsRead(conversationId, user.id);
 
       // Subscribe to new messages
@@ -82,6 +89,15 @@ export default function DirectMessage() {
               console.log("[DirectMessage] Adding new message to state");
               return [...prev, newMessage];
             });
+
+            if (newMessage.image_url) {
+              setSharedMedia((prev) => {
+                if (prev.some((item) => item.id === newMessage.id)) return prev;
+                return [newMessage, ...prev].slice(0, 12);
+              });
+            }
+
+            markConversationAsRead(conversationId, user.id);
             scrollToBottom();
           },
         )
@@ -95,6 +111,14 @@ export default function DirectMessage() {
       };
     }
   }, [conversationId, user]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   async function initializeConversation() {
     try {
@@ -185,38 +209,101 @@ export default function DirectMessage() {
     }
   }
 
+  async function loadSharedMedia(targetConversationId) {
+    if (!targetConversationId) return;
+
+    const media = await fetchDirectMessageMedia(targetConversationId, 12);
+    setSharedMedia(media);
+  }
+
+  function clearSelectedImage() {
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+
+    setSelectedImage(null);
+    setImagePreviewUrl("");
+  }
+
+  function handleImageChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file.");
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Image size must be 8MB or less.");
+      return;
+    }
+
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+
+    setSelectedImage(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+    event.target.value = "";
+  }
+
   async function handleSendMessage(e) {
     e.preventDefault();
     const trimmedText = messageText.trim();
-    if (!trimmedText || sending || !conversationId) return;
+    if ((!trimmedText && !selectedImage) || sending || !conversationId) return;
 
     try {
       setSending(true);
+      setUploadingImage(!!selectedImage);
       setMessageText("");
+
+      let imageUrl = null;
+
+      if (selectedImage) {
+        imageUrl = await uploadDirectMessageImage({
+          file: selectedImage,
+          conversationId,
+          userId: user.id,
+        });
+      }
 
       console.log("[DirectMessage] Sending message:", {
         conversationId,
         senderId: user.id,
         userId: user?.id,
         content: trimmedText,
+        imageUrl,
       });
 
       const sentMessage = await sendDirectMessage({
         conversationId,
         senderId: user.id,
         content: trimmedText,
+        imageUrl,
       });
 
       console.log("[DirectMessage] Message sent successfully:", sentMessage);
 
       // Add message to UI immediately (optimistic update)
       setMessages((prev) => [...prev, sentMessage]);
+
+      if (sentMessage.image_url) {
+        setSharedMedia((prev) => {
+          if (prev.some((item) => item.id === sentMessage.id)) return prev;
+          return [sentMessage, ...prev].slice(0, 12);
+        });
+      }
+
+      clearSelectedImage();
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
       setMessageText(trimmedText); // Restore message on error
+      alert(error.message || "Failed to send message");
     } finally {
       setSending(false);
+      setUploadingImage(false);
     }
   }
 
@@ -406,9 +493,26 @@ export default function DirectMessage() {
                               : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
                           }`}
                         >
-                          <p className="text-sm leading-relaxed wrap-break-word">
-                            {msg.content}
-                          </p>
+                          {msg.image_url && (
+                            <a
+                              href={msg.image_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block"
+                            >
+                              <img
+                                src={msg.image_url}
+                                alt="Shared media"
+                                className="rounded-xl w-full max-w-[260px] max-h-[300px] object-cover mb-2"
+                              />
+                            </a>
+                          )}
+
+                          {msg.content && (
+                            <p className="text-sm leading-relaxed break-words">
+                              {msg.content}
+                            </p>
+                          )}
                         </div>
                         <p
                           className={`text-xs text-gray-500 mt-1 ${
@@ -433,7 +537,51 @@ export default function DirectMessage() {
         {/* Message Input - fixed at bottom */}
         <div className="bg-white border-t border-gray-200 px-6 py-4 shrink-0">
           <div className="max-w-4xl mx-auto">
+            {imagePreviewUrl && (
+              <div className="mb-3 inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Selected attachment"
+                  className="w-14 h-14 rounded-lg object-cover"
+                />
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">
+                    Image ready to send
+                  </p>
+                  <p className="text-xs text-gray-500 truncate max-w-[220px]">
+                    {selectedImage?.name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelectedImage}
+                  className="w-7 h-7 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="p-3 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-red-700 transition-colors shrink-0"
+                title="Attach image"
+                aria-label="Attach image"
+                disabled={sending || uploadingImage}
+              >
+                <ImagePlus className="w-5 h-5" />
+              </button>
+
               <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-red-500 transition-all">
                 <textarea
                   value={messageText}
@@ -448,15 +596,19 @@ export default function DirectMessage() {
                   rows="1"
                   className="w-full bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500"
                   style={{ maxHeight: "120px" }}
-                  disabled={sending}
+                  disabled={sending || uploadingImage}
                 />
               </div>
               <button
                 type="submit"
-                disabled={!messageText.trim() || sending}
+                disabled={
+                  (!messageText.trim() && !selectedImage) ||
+                  sending ||
+                  uploadingImage
+                }
                 className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {sending ? (
+                {sending || uploadingImage ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <Send className="w-5 h-5" />
@@ -548,14 +700,30 @@ export default function DirectMessage() {
             <h4 className="text-sm font-semibold text-gray-900 mb-3">
               Shared Media
             </h4>
-            <div className="grid grid-cols-3 gap-2">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div
-                  key={item}
-                  className="aspect-square bg-gray-200 rounded-lg"
-                ></div>
-              ))}
-            </div>
+            {sharedMedia.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                No images shared in this conversation yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {sharedMedia.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.image_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
+                    title="Open image"
+                  >
+                    <img
+                      src={item.image_url}
+                      alt="Conversation media"
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Options */}
