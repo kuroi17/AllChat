@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Bell, X } from "lucide-react";
+import { Bell, X } from "lucide-react";
+import MobileNavMenuButton from "../navigation/MobileNavMenuButton";
 import { useUser } from "../../contexts/UserContext";
 import {
   fetchNotifications,
@@ -143,6 +144,7 @@ export default function ChatHeader() {
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 sm:px-5 gap-2 sm:gap-3 shrink-0">
+      <MobileNavMenuButton showExtras={true} />
       <span className="text-red-800 text-lg font-extrabold leading-none">
         #
       </span>
@@ -156,9 +158,6 @@ export default function ChatHeader() {
         </span>
       </div>
       <div className="flex-1" />
-      <button className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors">
-        <Search size={16} />
-      </button>
 
       {/* Notification Bell with Dropdown */}
       <div className="relative" ref={dropdownRef}>
