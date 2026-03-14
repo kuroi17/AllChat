@@ -84,16 +84,16 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ─── HEADER ─── */}
-      <header className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="w-full px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="bg-red-800 p-1.5 rounded-lg flex items-center justify-center">
             <GraduationCap className="text-white" size={20} />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
             Campus Global Chat
           </h1>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4">
           <button className="text-gray-600 text-sm font-medium hover:text-red-800 transition-colors">
             Help Center
           </button>
@@ -104,17 +104,17 @@ export default function Auth() {
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6">
         <div className="w-full max-w-md">
           {/* Login/Signup Card */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
             {/* Card Header Banner */}
-            <div className="h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
+            <div className="h-28 sm:h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
               <div className="z-10 text-center">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   {isLogin ? "Welcome Back" : "Create an Account"}
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">
+                <p className="text-gray-500 text-xs sm:text-sm mt-1 px-3">
                   {isLogin
                     ? "Sign in to your university workspace"
                     : "Sign up to join your university workspace"}
@@ -123,8 +123,8 @@ export default function Auth() {
             </div>
 
             {/* Form Content */}
-            <div className="p-8">
-              <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="p-4 sm:p-8">
+              <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit}>
                 {/* Email Input */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
@@ -203,7 +203,7 @@ export default function Auth() {
                 {/* Sign In / Sign Up Button */}
                 <button
                   type="submit"
-                  className=" cursor-pointer w-full bg-red-800 hover:bg-red-800 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-800/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="cursor-pointer w-full bg-red-800 hover:bg-red-800 text-white font-bold py-3 sm:py-3.5 rounded-lg shadow-lg shadow-red-800/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <span>{isLogin ? "Sign In" : "Sign Up"}</span>
                   <ArrowRight size={18} />
@@ -211,7 +211,7 @@ export default function Auth() {
               </form>
 
               {/* Divider */}
-              <div className="relative my-8">
+              <div className="relative my-6 sm:my-8">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
@@ -250,7 +250,7 @@ export default function Auth() {
               </button>
 
               {/* Divider */}
-              <div className="relative my-8">
+              <div className="relative my-6 sm:my-8">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
@@ -279,7 +279,7 @@ export default function Auth() {
           </div>
 
           {/* Footer */}
-          <footer className="mt-8 text-center text-gray-500 text-xs">
+          <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
             <p>
               © 2024 Campus Global Chat Platform. All university guidelines
               apply.

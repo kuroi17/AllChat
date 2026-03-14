@@ -36,18 +36,18 @@ export default function ForgetPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ─── HEADER ─── */}
-      <header className="w-full px-6 py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="w-full px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <div className="bg-red-600 p-1.5 rounded-lg flex items-center justify-center">
             <GraduationCap className="text-white" size={20} />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
             Campus Global Chat
           </h1>
         </div>
         <Link
           to="/auth"
-          className="flex items-center gap-2 text-gray-600 text-sm font-medium hover:text-red-600 transition-colors"
+          className="hidden sm:flex items-center gap-2 text-gray-600 text-sm font-medium hover:text-red-600 transition-colors"
         >
           <ArrowLeft size={16} />
           Back to Login
@@ -55,12 +55,12 @@ export default function ForgetPage() {
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6">
         <div className="w-full max-w-md">
           {/* Reset Password Card */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
             {/* Card Header */}
-            <div className="h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
+            <div className="h-28 sm:h-32 bg-red-50 flex items-center justify-center relative overflow-hidden">
               <div
                 className="absolute inset-0 opacity-10"
                 style={{
@@ -70,17 +70,17 @@ export default function ForgetPage() {
                 }}
               ></div>
               <div className="z-10 text-center">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   Reset Password
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">
+                <p className="text-gray-500 text-xs sm:text-sm mt-1 px-3">
                   {sent ? "Check your email" : "Enter your university email"}
                 </p>
               </div>
             </div>
 
             {/* Form Content */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               {sent ? (
                 // Success State
                 <div className="text-center space-y-4">
@@ -148,7 +148,7 @@ export default function ForgetPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 sm:py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
@@ -179,7 +179,7 @@ export default function ForgetPage() {
           </div>
 
           {/* Footer */}
-          <footer className="mt-8 text-center text-gray-500 text-xs">
+          <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
             <p>
               © 2024 Campus Global Chat Platform. All university guidelines
               apply.

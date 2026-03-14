@@ -73,12 +73,12 @@ export default function ProfileSocialLinks({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+      <h3 className="text-[11px] sm:text-xs font-semibold text-gray-400 uppercase tracking-wide">
         {title}
       </h3>
 
       {links.length === 0 ? (
-        <p className="text-sm text-gray-500">{emptyMessage}</p>
+        <p className="text-sm text-gray-500 leading-relaxed">{emptyMessage}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {links.map((item) => {
@@ -89,11 +89,11 @@ export default function ProfileSocialLinks({
                 href={item.href}
                 target="_blank"
                 rel="noreferrer"
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition-colors hover:brightness-95 ${item.bg} ${item.color}`}
+                className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-medium transition-colors hover:brightness-95 ${item.bg} ${item.color}`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>{item.label}</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </a>
             );
           })}

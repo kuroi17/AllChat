@@ -79,18 +79,18 @@ export default function EmojiPickerButton({
 
       {open && (
         <div
-          className={`absolute bottom-full mb-2 z-30 w-64 rounded-2xl border border-gray-200 bg-white shadow-xl p-3 ${
+          className={`absolute bottom-full mb-2 z-30 w-56 sm:w-64 rounded-2xl border border-gray-200 bg-white shadow-xl p-2.5 sm:p-3 ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
           <p className="text-xs font-semibold text-gray-600 mb-2">Emojis</p>
-          <div className="grid grid-cols-8 gap-1">
+          <div className="grid grid-cols-7 sm:grid-cols-8 gap-1">
             {EMOJI_SET.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => handleEmojiSelect(emoji)}
-                className="h-7 w-7 rounded-md hover:bg-red-50 transition-colors text-lg leading-none flex items-center justify-center"
+                className="h-7 w-7 rounded-md hover:bg-red-50 transition-colors text-base sm:text-lg leading-none flex items-center justify-center"
                 aria-label={`Insert ${emoji}`}
               >
                 {emoji}

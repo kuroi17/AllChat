@@ -29,9 +29,9 @@ export default function MessageInput() {
   return (
     <form
       onSubmit={handleSend}
-      className="bg-white border-t border-gray-200 px-5 py-3 shrink-0"
+      className="bg-white border-t border-gray-200 px-2 sm:px-5 py-2 sm:py-3 shrink-0"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <EmojiPickerButton
           onSelect={handleInsertEmoji}
           disabled={sending}
@@ -42,12 +42,12 @@ export default function MessageInput() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Type your message..."
-          className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none"
+          className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-3 sm:px-4 py-2 text-sm sm:text-base focus:outline-none"
         />
         <button
           type="submit"
           disabled={sending}
-          className="ml-2 bg-red-800 hover:bg-red-800 text-white px-4 py-2 rounded-full text-sm disabled:opacity-60"
+          className="bg-red-800 hover:bg-red-800 text-white px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base disabled:opacity-60"
         >
           {sending ? "..." : "Send"}
         </button>

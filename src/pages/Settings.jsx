@@ -20,14 +20,16 @@ import {
 
 function ToggleRow({ icon: Icon, title, description, checked, onChange }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4">
-      <div className="flex items-start gap-3">
+    <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4">
+      <div className="flex items-start gap-3 min-w-0">
         <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
           <Icon className="w-5 h-5" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-gray-900">{title}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+            {description}
+          </p>
         </div>
       </div>
 
@@ -96,12 +98,14 @@ export default function Settings() {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      <Sidebar showExtras={false} />
+      <div className="hidden md:block">
+        <Sidebar showExtras={false} />
+      </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-3 sm:p-6 pb-20 md:pb-6">
           <div className="rounded-3xl border border-gray-200 bg-white shadow-sm">
-            <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -111,43 +115,47 @@ export default function Settings() {
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-                  <p className="text-sm text-gray-500">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    Settings
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Personalize your chat experience
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
               <section className="space-y-3">
                 <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                   Account
                 </h2>
 
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-red-50 text-red-700 flex items-center justify-center">
                       <User className="w-5 h-5" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
                         {accountLabel}
                       </p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {user?.email}
+                      </p>
                     </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => navigate("/profile")}
-                    className="px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full sm:w-auto px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     View Profile
                   </button>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
                       <KeyRound className="w-5 h-5" />
@@ -165,7 +173,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => navigate("/change-password")}
-                    className="px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
+                    className="w-full sm:w-auto px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors"
                   >
                     Change Password
                   </button>
@@ -215,7 +223,7 @@ export default function Settings() {
                   Maintenance
                 </h2>
 
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex items-center justify-between gap-4">
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
                       <RotateCcw className="w-5 h-5" />
@@ -233,7 +241,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={resetSettings}
-                    className="px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full sm:w-auto px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     Reset
                   </button>

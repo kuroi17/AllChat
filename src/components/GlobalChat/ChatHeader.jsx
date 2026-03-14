@@ -142,12 +142,14 @@ export default function ChatHeader() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="h-14 bg-white border-b border-gray-200 flex items-center px-5 gap-3 shrink-0">
+    <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 sm:px-5 gap-2 sm:gap-3 shrink-0">
       <span className="text-red-800 text-lg font-extrabold leading-none">
         #
       </span>
-      <h2 className="font-bold text-gray-800 text-base">Campus Global Chat</h2>
-      <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
+      <h2 className="font-bold text-gray-800 text-sm sm:text-base truncate">
+        Campus Global Chat
+      </h2>
+      <div className="hidden sm:flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
         <span className="text-xs text-green-600 font-semibold">
           {onlineCount} ONLINE
@@ -174,7 +176,7 @@ export default function ChatHeader() {
 
         {/* Notification Dropdown */}
         {showNotifications && (
-          <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="absolute right-0 mt-2 w-[18rem] sm:w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <h3 className="font-bold text-gray-900">Notifications</h3>

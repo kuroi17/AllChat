@@ -1,7 +1,7 @@
 export default function ProfileBanner({
   imageUrl,
   alt = "Profile cover",
-  className = "h-32",
+  className = "h-28 sm:h-32",
 }) {
   return (
     <div
@@ -20,15 +20,15 @@ export default function ProfileBanner({
           <img
             src={imageUrl}
             alt={alt}
-            className="pointer-events-none relative z-10 h-full w-full object-contain p-1"
+            className="pointer-events-none relative z-10 h-full w-full object-contain p-0.5 sm:p-1"
           />
 
           <div className="pointer-events-none absolute inset-0 z-20 bg-linear-to-r from-black/10 via-transparent to-black/5" />
         </>
       ) : (
         <>
-          <div className="absolute -left-8 -top-10 h-28 w-28 rounded-full bg-white/15 blur-sm" />
-          <div className="absolute right-8 bottom-2 h-16 w-16 rounded-full bg-orange-300/20 blur-sm" />
+          <div className="absolute -left-8 -top-10 h-20 w-20 sm:h-28 sm:w-28 rounded-full bg-white/15 blur-sm" />
+          <div className="absolute right-8 bottom-2 h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-orange-300/20 blur-sm" />
         </>
       )}
 

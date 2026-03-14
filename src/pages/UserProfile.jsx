@@ -127,7 +127,9 @@ export default function UserProfile() {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <Sidebar showExtras={false} />
+        <div className="hidden md:block">
+          <Sidebar showExtras={false} />
+        </div>
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </main>
@@ -138,7 +140,9 @@ export default function UserProfile() {
   if (!profileData) {
     return (
       <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <Sidebar showExtras={false} />
+        <div className="hidden md:block">
+          <Sidebar showExtras={false} />
+        </div>
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -160,15 +164,17 @@ export default function UserProfile() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-      <Sidebar showExtras={false} />
+      <div className="hidden md:block">
+        <Sidebar showExtras={false} />
+      </div>
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto p-3 sm:p-6 pb-20 md:pb-6">
           {/* Back button */}
           <button
             onClick={() => navigate(-1)}
-            className="cursor-pointer flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+            className="cursor-pointer flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 sm:mb-6 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -180,22 +186,22 @@ export default function UserProfile() {
             <ProfileBanner
               imageUrl={profileData.banner_url}
               alt={`${profileData.username || "User"} cover`}
-              className="h-40"
+              className="h-28 sm:h-40"
             />
 
             {/* Profile info section */}
-            <div className="px-8 pb-8 pt-6">
+            <div className="px-4 sm:px-8 pb-5 sm:pb-8 pt-4 sm:pt-6">
               {/* Avatar and actions */}
-              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="mb-4 sm:mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   {profileData.avatar_url ? (
                     <img
                       src={profileData.avatar_url}
                       alt={profileData.username}
-                      className="h-28 w-28 rounded-full border-4 border-white shadow-xl object-cover md:h-32 md:w-32"
+                      className="h-20 w-20 sm:h-28 sm:w-28 rounded-full border-4 border-white shadow-xl object-cover md:h-32 md:w-32"
                     />
                   ) : (
-                    <div className="h-28 w-28 rounded-full border-4 border-white shadow-xl bg-red-800 flex items-center justify-center text-white text-3xl font-bold md:h-32 md:w-32">
+                    <div className="h-20 w-20 sm:h-28 sm:w-28 rounded-full border-4 border-white shadow-xl bg-red-800 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold md:h-32 md:w-32">
                       {profileData.username.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -203,11 +209,11 @@ export default function UserProfile() {
 
                 {/* Action buttons */}
                 {!isOwnProfile && (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
                     <button
                       onClick={handleMessage}
                       disabled={actionLoading}
-                      className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-red-600 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="cursor-pointer flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border-2 border-red-600 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {actionLoading ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -221,7 +227,7 @@ export default function UserProfile() {
                       <button
                         onClick={handleFollowToggle}
                         disabled={actionLoading}
-                        className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <UserMinus className="w-5 h-5" />
                         Unfollow
@@ -230,7 +236,7 @@ export default function UserProfile() {
                       <button
                         onClick={handleFollowToggle}
                         disabled={actionLoading}
-                        className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="cursor-pointer flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <UserPlus className="w-5 h-5" />
                         Follow
@@ -242,19 +248,19 @@ export default function UserProfile() {
 
               {/* Username and bio */}
               <div className="mt-4">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
                   {profileData.username || "Anonymous"}
                 </h1>
-                <p className="text-gray-500 text-base mb-4">
+                <p className="text-gray-500 text-sm sm:text-base mb-2 sm:mb-4">
                   {profileData.department || "Department"} · BSU
                 </p>
                 {profileData.bio && (
-                  <p className="text-gray-600 text-base leading-relaxed mb-4">
+                  <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-2 sm:mb-4">
                     {profileData.bio}
                   </p>
                 )}
 
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mb-4">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4 mb-3 sm:mb-4">
                   <ProfileSocialLinks
                     profile={profileData}
                     title={`Connect with ${profileData.username || "this user"}`}
@@ -265,8 +271,8 @@ export default function UserProfile() {
 
               {/* Account Information */}
               {(profileData.year_level || profileData.student_id) && (
-                <div className="mt-4 pb-4 border-b border-gray-200">
-                  <div className="flex flex-wrap gap-4 text-sm">
+                <div className="mt-3 sm:mt-4 pb-3 sm:pb-4 border-b border-gray-200">
+                  <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
                     {profileData.year_level && (
                       <div className="flex items-center gap-2 text-gray-600">
                         <span className="font-semibold text-gray-900">
@@ -288,11 +294,11 @@ export default function UserProfile() {
               )}
 
               {/* Stats */}
-              <div className="flex items-center gap-8 py-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-8 py-3 sm:py-4 border-t border-gray-200">
                 {profileData.created_at && (
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-5 h-5" />
-                    <span className="text-sm">
+                    <span className="text-xs sm:text-sm">
                       Joined{" "}
                       {new Date(profileData.created_at).toLocaleDateString(
                         "en-US",
@@ -307,7 +313,7 @@ export default function UserProfile() {
 
                 <div className="flex items-center gap-2 text-gray-600">
                   <Users className="w-5 h-5" />
-                  <span className="text-sm">
+                  <span className="text-xs sm:text-sm">
                     <strong className="text-gray-900">{followerCount}</strong>{" "}
                     Followers
                   </span>
@@ -315,7 +321,7 @@ export default function UserProfile() {
 
                 <div className="flex items-center gap-2 text-gray-600">
                   <Users className="w-5 h-5" />
-                  <span className="text-sm">
+                  <span className="text-xs sm:text-sm">
                     <strong className="text-gray-900">{followingCount}</strong>{" "}
                     Following
                   </span>
@@ -325,28 +331,28 @@ export default function UserProfile() {
           </div>
 
           {/* Recent Activity Section */}
-          <div className="mt-6 bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <div className="mt-4 sm:mt-6 bg-white rounded-2xl shadow-lg p-3 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-4">
               Recent Activity
             </h2>
 
             {/* Recent messages */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {recentMessages.length > 0 ? (
                 recentMessages.map((msg) => (
                   <div
                     key={msg.id}
-                    className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                    className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
                     onClick={() => navigate("/")}
                   >
-                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                       <MessageCircle className="w-5 h-5 text-red-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-gray-700 mb-1 line-clamp-2">
+                      <p className="text-gray-700 mb-1 line-clamp-2 text-sm sm:text-base">
                         {msg.content}
                       </p>
-                      <p className="text-gray-500 text-sm">
+                      <p className="text-gray-500 text-xs sm:text-sm">
                         {new Date(msg.created_at).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -361,7 +367,7 @@ export default function UserProfile() {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 text-center py-6 sm:py-8 text-sm">
                   No recent activity
                 </p>
               )}

@@ -474,7 +474,9 @@ export default function DirectMessage() {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <Sidebar showExtras={false} />
+        <div className="hidden md:block">
+          <Sidebar showExtras={false} />
+        </div>
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </main>
@@ -485,9 +487,11 @@ export default function DirectMessage() {
   if (!loading && error) {
     return (
       <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <Sidebar showExtras={false} />
+        <div className="hidden md:block">
+          <Sidebar showExtras={false} />
+        </div>
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-center max-w-md mx-auto p-4 sm:p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Conversation not found
             </h2>
@@ -514,7 +518,9 @@ export default function DirectMessage() {
   if (!otherUser) {
     return (
       <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <Sidebar showExtras={false} />
+        <div className="hidden md:block">
+          <Sidebar showExtras={false} />
+        </div>
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </main>
@@ -524,24 +530,26 @@ export default function DirectMessage() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-      <Sidebar showExtras={false} />
+      <div className="hidden md:block">
+        <Sidebar showExtras={false} />
+      </div>
 
       {/* Main DM chat area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* DM Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+        <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               {/* Back button */}
               <button
                 onClick={() => navigate(-1)}
                 className="cursor-pointer text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
               {/* Other user info */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <div
                   className="relative cursor-pointer"
                   onClick={() => navigate(`/user/${otherUser.id}`)}
@@ -550,10 +558,10 @@ export default function DirectMessage() {
                     <img
                       src={otherUser.avatar_url}
                       alt={otherUser.username}
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-red-800 flex items-center justify-center text-white font-bold">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-800 flex items-center justify-center text-white font-bold">
                       {(otherUser.username || "U").charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -561,11 +569,11 @@ export default function DirectMessage() {
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                   )}
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                     {otherUser.username || "Anonymous"}
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     {otherUser.isOnline ? "Active now" : "Offline"}
                   </p>
                 </div>
@@ -579,7 +587,7 @@ export default function DirectMessage() {
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto bg-gray-50"
         >
-          <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
+          <div className="max-w-4xl mx-auto px-2 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
             {loadingMessages ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-red-600" />
@@ -600,7 +608,7 @@ export default function DirectMessage() {
                     className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`group relative flex gap-3 max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                      className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
                     >
                       {/* Avatar (only for other user) */}
                       {!isMe && (
@@ -632,7 +640,7 @@ export default function DirectMessage() {
                             );
                           }}
                           className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center ${
-                            isMe ? "-left-9" : "-right-9"
+                            isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
                           } ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                           aria-label="Message options"
                           title="Message options"
@@ -671,7 +679,7 @@ export default function DirectMessage() {
                         )}
 
                         <div
-                          className={`px-4 py-2.5 rounded-2xl ${
+                          className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
                             isMe
                               ? "bg-red-800 text-white rounded-br-sm"
                               : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
@@ -687,13 +695,13 @@ export default function DirectMessage() {
                               <img
                                 src={msg.image_url}
                                 alt="Shared media"
-                                className="rounded-xl w-full max-w-[260px] max-h-[300px] object-cover mb-2"
+                                className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
                               />
                             </a>
                           )}
 
                           {msg.content && (
-                            <p className="text-sm leading-relaxed break-words">
+                            <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
                               {msg.content}
                             </p>
                           )}
@@ -719,20 +727,20 @@ export default function DirectMessage() {
         </div>
 
         {/* Message Input - fixed at bottom */}
-        <div className="bg-white border-t border-gray-200 px-6 py-4 shrink-0">
+        <div className="bg-white border-t border-gray-200 px-2 sm:px-6 py-2 sm:py-4 shrink-0">
           <div className="max-w-4xl mx-auto">
             {imagePreviewUrl && (
-              <div className="mb-3 inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+              <div className="mb-2 sm:mb-3 inline-flex items-center gap-2 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 px-2 sm:px-3 py-2 max-w-full">
                 <img
                   src={imagePreviewUrl}
                   alt="Selected attachment"
-                  className="w-14 h-14 rounded-lg object-cover"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0"
                 />
                 <div>
                   <p className="text-xs font-semibold text-gray-700">
                     Image ready to send
                   </p>
-                  <p className="text-xs text-gray-500 truncate max-w-[220px]">
+                  <p className="text-xs text-gray-500 truncate max-w-55">
                     {selectedImage?.name}
                   </p>
                 </div>
@@ -746,7 +754,10 @@ export default function DirectMessage() {
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+            <form
+              onSubmit={handleSendMessage}
+              className="flex items-end gap-2 sm:gap-3"
+            >
               <input
                 ref={imageInputRef}
                 type="file"
@@ -758,7 +769,7 @@ export default function DirectMessage() {
               <button
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
-                className="p-3 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-red-700 transition-colors shrink-0"
+                className="p-2.5 sm:p-3 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-red-700 transition-colors shrink-0"
                 title="Attach image"
                 aria-label="Attach image"
                 disabled={sending || uploadingImage}
@@ -771,7 +782,7 @@ export default function DirectMessage() {
                 disabled={sending || uploadingImage}
               />
 
-              <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-red-500 transition-all">
+              <div className="flex-1 bg-gray-100 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 focus-within:ring-2 focus-within:ring-red-500 transition-all">
                 <textarea
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
@@ -783,7 +794,7 @@ export default function DirectMessage() {
                   }}
                   placeholder={`Message ${otherUser.username || "user"}...`}
                   rows="1"
-                  className="w-full bg-transparent border-none outline-none resize-none text-gray-900 placeholder-gray-500"
+                  className="w-full bg-transparent border-none outline-none resize-none text-sm sm:text-base text-gray-900 placeholder-gray-500"
                   style={{ maxHeight: "120px" }}
                   disabled={sending || uploadingImage}
                 />
@@ -795,7 +806,7 @@ export default function DirectMessage() {
                   sending ||
                   uploadingImage
                 }
-                className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2.5 sm:p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {sending || uploadingImage ? (
                   <Loader2 className="w-5 h-5 animate-spin" />

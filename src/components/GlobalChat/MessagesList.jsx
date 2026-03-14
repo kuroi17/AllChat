@@ -139,7 +139,10 @@ export default function MessagesList({ scrollRef }) {
   }
 
   return (
-    <div ref={containerRef} className="px-6 py-4 space-y-3">
+    <div
+      ref={containerRef}
+      className="px-2 sm:px-6 py-3 sm:py-4 space-y-2 sm:space-y-3"
+    >
       {messages.map((msg) => (
         <Message
           key={msg.id}
