@@ -6,6 +6,7 @@ import {
   Loader2,
   UserPlus,
   UserMinus,
+  Info,
   ImagePlus,
   X,
   MoreVertical,
@@ -56,6 +57,7 @@ export default function DirectMessage() {
   const [activeMessageMenuId, setActiveMessageMenuId] = useState(null);
   const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
+  const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -582,6 +584,16 @@ export default function DirectMessage() {
                 </div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMobileInfoPanel(true)}
+              className="xl:hidden w-9 h-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center"
+              aria-label="Open conversation info"
+              title="Conversation info"
+            >
+              <Info className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
@@ -821,6 +833,141 @@ export default function DirectMessage() {
           </div>
         </div>
       </main>
+
+      {showMobileInfoPanel && (
+        <div className="fixed inset-0 z-70 xl:hidden">
+          <button
+            type="button"
+            onClick={() => setShowMobileInfoPanel(false)}
+            className="absolute inset-0 bg-black/45"
+            aria-label="Close conversation info"
+          />
+
+          <aside className="absolute right-0 top-0 h-full w-80 max-w-full bg-white border-l border-gray-200 overflow-y-auto">
+            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900">
+                Conversation Info
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowMobileInfoPanel(false)}
+                className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center"
+                aria-label="Close conversation info"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <div className="text-center">
+                <div className="mx-auto w-20 h-20 mb-3">
+                  {otherUser.avatar_url ? (
+                    <img
+                      src={otherUser.avatar_url}
+                      alt={otherUser.username}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-red-800 flex items-center justify-center text-white text-2xl font-bold">
+                      {otherUser.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                  {otherUser.username}
+                </h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  {otherUser.isOnline ? "Active now" : "Offline"}
+                </p>
+
+                <div className="flex items-center justify-center gap-5 mb-4 text-sm">
+                  <div>
+                    <span className="font-bold text-gray-900">
+                      {followerCount}
+                    </span>
+                    <span className="text-gray-600"> Followers</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-900">
+                      {followingCount}
+                    </span>
+                    <span className="text-gray-600"> Following</span>
+                  </div>
+                </div>
+
+                {following ? (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={actionLoading}
+                    className="w-full mb-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserMinus className="w-4 h-4" />
+                    )}
+                    Unfollow
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={actionLoading}
+                    className="w-full mb-2 px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-4 h-4" />
+                    )}
+                    Follow
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowMobileInfoPanel(false);
+                    navigate(`/user/${otherUser.id}`);
+                  }}
+                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                >
+                  View Profile
+                </button>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                  Shared Media
+                </h4>
+                {visibleSharedMedia.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                    No images shared in this conversation yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {visibleSharedMedia.map((item) => (
+                      <a
+                        key={item.id}
+                        href={item.image_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
+                        title="Open image"
+                      >
+                        <img
+                          src={item.image_url}
+                          alt="Conversation media"
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Right sidebar - optional user info panel */}
       <aside className="w-80 bg-white border-l border-gray-200 overflow-y-auto hidden xl:block">
