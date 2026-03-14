@@ -18,7 +18,7 @@ import {
   subscribeChatSettings,
 } from "../utils/settings";
 
-export default function Sidebar({ showExtras }) {
+export default function Sidebar({ showExtras, onNavigate }) {
   const navigate = useNavigate();
   const { user, profile } = useUser(); // get user and profile from context
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -154,7 +154,7 @@ export default function Sidebar({ showExtras }) {
     }
   };
   return (
-    <aside className="w-56 bg-white flex flex-col border-r border-gray-200 shrink-0">
+    <aside className="h-full w-56 bg-white flex flex-col border-r border-gray-200 shrink-0">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 bg-red-800 rounded-xl flex items-center justify-center text-white text-lg">
@@ -174,6 +174,7 @@ export default function Sidebar({ showExtras }) {
       <nav className="p-3 space-y-1">
         <NavLink
           to="/"
+          onClick={onNavigate}
           className={({ isActive }) =>
             isActive
               ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
@@ -184,6 +185,7 @@ export default function Sidebar({ showExtras }) {
         </NavLink>
         <NavLink
           to="/dms"
+          onClick={onNavigate}
           className={({ isActive }) =>
             isActive
               ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
@@ -200,10 +202,8 @@ export default function Sidebar({ showExtras }) {
         </NavLink>
       </nav>
 
-      <div className="flex-1" />
-
       {/* Bottom User Profile Section with Dropdown */}
-      <div className="relative" ref={userMenuRef}>
+      <div className="relative mt-auto" ref={userMenuRef}>
         {/* Dropdown Menu */}
         {showUserMenu && (
           <div className="absolute bottom-full left-0 right-0 mb-2 mx-3 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
@@ -211,6 +211,7 @@ export default function Sidebar({ showExtras }) {
               onClick={() => {
                 navigate("/profile");
                 setShowUserMenu(false);
+                onNavigate?.();
               }}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
             >
@@ -223,6 +224,7 @@ export default function Sidebar({ showExtras }) {
               onClick={() => {
                 navigate("/settings");
                 setShowUserMenu(false);
+                onNavigate?.();
               }}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left border-t border-gray-100"
             >
