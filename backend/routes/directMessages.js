@@ -1,8 +1,26 @@
 const express = require("express");
 const { supabase } = require("../utils/supabase");
 const { verifyToken } = require("../middleware/auth");
+const {
+  createRateLimiter,
+  createAntiSpamGuard,
+} = require("../middleware/chatGuards");
 
 const router = express.Router();
+
+const createDirectMessageRateLimiter = createRateLimiter({
+  scope: "direct-message-send",
+  windowMs: 10000,
+  maxRequests: 10,
+  errorMessage:
+    "Too many direct messages sent. Please wait a moment and try again.",
+});
+
+const createDirectMessageAntiSpamGuard = createAntiSpamGuard({
+  scope: "direct-message-spam",
+  minIntervalMs: 500,
+  duplicateWindowMs: 10000,
+});
 
 // this function is used to parse and validate the "limit" query parameter for pagination
 // it ensures the limit is a positive number and doesn't exceed the maximum allowed value
@@ -377,66 +395,72 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
 });
 
 // POST new direct message
-router.post("/", verifyToken, async (req, res) => {
-  try {
-    const { conversationId, content, imageUrl } = req.body;
-    const senderId = req.userId;
-    const db = req.supabase || supabase;
-    const cleanedContent = typeof content === "string" ? content.trim() : "";
+router.post(
+  "/",
+  verifyToken,
+  createDirectMessageRateLimiter,
+  createDirectMessageAntiSpamGuard,
+  async (req, res) => {
+    try {
+      const { conversationId, content, imageUrl } = req.body;
+      const senderId = req.userId;
+      const db = req.supabase || supabase;
+      const cleanedContent = typeof content === "string" ? content.trim() : "";
 
-    if (!conversationId) {
-      return res.status(400).json({ error: "conversationId is required" });
+      if (!conversationId) {
+        return res.status(400).json({ error: "conversationId is required" });
+      }
+
+      if (!cleanedContent && !imageUrl) {
+        return res
+          .status(400)
+          .json({ error: "Message must include text or an image" });
+      }
+
+      if (cleanedContent.length > 4000) {
+        return res.status(400).json({ error: "Message is too long" });
+      }
+
+      // Verify sender belongs to the conversation.
+      const { data: participant, error: participantError } = await db
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", senderId)
+        .maybeSingle();
+
+      if (participantError) throw participantError;
+
+      if (!participant) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { data, error } = await db
+        .from("direct_messages")
+        .insert([
+          {
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: cleanedContent || "",
+            image_url: imageUrl || null,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+      const createdMessage = data[0];
+
+      const io = req.app.get("io");
+      if (io) {
+        io.to(`dm:${conversationId}`).emit("dm:new", createdMessage);
+      }
+
+      res.status(201).json(createdMessage);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    if (!cleanedContent && !imageUrl) {
-      return res
-        .status(400)
-        .json({ error: "Message must include text or an image" });
-    }
-
-    if (cleanedContent.length > 4000) {
-      return res.status(400).json({ error: "Message is too long" });
-    }
-
-    // Verify sender belongs to the conversation.
-    const { data: participant, error: participantError } = await db
-      .from("conversation_participants")
-      .select("conversation_id")
-      .eq("conversation_id", conversationId)
-      .eq("user_id", senderId)
-      .maybeSingle();
-
-    if (participantError) throw participantError;
-
-    if (!participant) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    const { data, error } = await db
-      .from("direct_messages")
-      .insert([
-        {
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content: cleanedContent || "",
-          image_url: imageUrl || null,
-        },
-      ])
-      .select();
-
-    if (error) throw error;
-    const createdMessage = data[0];
-
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`dm:${conversationId}`).emit("dm:new", createdMessage);
-    }
-
-    res.status(201).json(createdMessage);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // DELETE direct message
 router.delete("/:messageId", verifyToken, async (req, res) => {

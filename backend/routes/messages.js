@@ -1,8 +1,25 @@
 const express = require("express");
 const { supabase } = require("../utils/supabase");
 const { verifyToken } = require("../middleware/auth");
+const {
+  createRateLimiter,
+  createAntiSpamGuard,
+} = require("../middleware/chatGuards");
 
 const router = express.Router();
+
+const createMessageRateLimiter = createRateLimiter({
+  scope: "global-message-send",
+  windowMs: 10000,
+  maxRequests: 8,
+  errorMessage: "Too many messages sent. Please wait a moment and try again.",
+});
+
+const createMessageAntiSpamGuard = createAntiSpamGuard({
+  scope: "global-message-spam",
+  minIntervalMs: 700,
+  duplicateWindowMs: 12000,
+});
 
 // GET recent messages from global chat
 router.get("/", async (req, res) => {
@@ -39,68 +56,74 @@ router.get("/:room", async (req, res) => {
 });
 
 // POST new message (requires authentication)
-router.post("/", verifyToken, async (req, res) => {
-  try {
-    const { content, room } = req.body;
-    const userId = req.userId;
-    const db = req.supabase || supabase;
-    const cleanedContent = typeof content === "string" ? content.trim() : "";
-    const targetRoom =
-      typeof room === "string" && room.trim() ? room.trim() : "global";
+router.post(
+  "/",
+  verifyToken,
+  createMessageRateLimiter,
+  createMessageAntiSpamGuard,
+  async (req, res) => {
+    try {
+      const { content, room } = req.body;
+      const userId = req.userId;
+      const db = req.supabase || supabase;
+      const cleanedContent = typeof content === "string" ? content.trim() : "";
+      const targetRoom =
+        typeof room === "string" && room.trim() ? room.trim() : "global";
 
-    // Validation
-    if (!cleanedContent) {
-      return res.status(400).json({ error: "Content is required" });
-    }
-
-    if (cleanedContent.length > 2000) {
-      return res.status(400).json({ error: "Message is too long" });
-    }
-
-    // Ensure a profile row exists to satisfy FK constraints.
-    const { data: existingProfile, error: profileError } = await db
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (profileError) throw profileError;
-
-    if (!existingProfile) {
-      const { error: createProfileError } = await db
-        .from("profiles")
-        .insert([{ id: userId }]);
-
-      // Ignore race-condition duplicates and continue.
-      if (createProfileError && createProfileError.code !== "23505") {
-        throw createProfileError;
+      // Validation
+      if (!cleanedContent) {
+        return res.status(400).json({ error: "Content is required" });
       }
+
+      if (cleanedContent.length > 2000) {
+        return res.status(400).json({ error: "Message is too long" });
+      }
+
+      // Ensure a profile row exists to satisfy FK constraints.
+      const { data: existingProfile, error: profileError } = await db
+        .from("profiles")
+        .select("id")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (!existingProfile) {
+        const { error: createProfileError } = await db
+          .from("profiles")
+          .insert([{ id: userId }]);
+
+        // Ignore race-condition duplicates and continue.
+        if (createProfileError && createProfileError.code !== "23505") {
+          throw createProfileError;
+        }
+      }
+
+      const { data, error } = await db
+        .from("messages")
+        .insert([
+          {
+            user_id: userId,
+            content: cleanedContent,
+            room: targetRoom,
+          },
+        ])
+        .select();
+
+      if (error) throw error;
+      const createdMessage = data[0];
+
+      const io = req.app.get("io");
+      if (io) {
+        io.to(`room:${targetRoom}`).emit("message:new", createdMessage);
+      }
+
+      res.status(201).json(createdMessage);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    const { data, error } = await db
-      .from("messages")
-      .insert([
-        {
-          user_id: userId,
-          content: cleanedContent,
-          room: targetRoom,
-        },
-      ])
-      .select();
-
-    if (error) throw error;
-    const createdMessage = data[0];
-
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`room:${targetRoom}`).emit("message:new", createdMessage);
-    }
-
-    res.status(201).json(createdMessage);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // DELETE message (only sender can delete)
 router.delete("/:id", verifyToken, async (req, res) => {
