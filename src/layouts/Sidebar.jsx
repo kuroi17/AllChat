@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
-import { fetchUnreadDirectMessageCount } from "../utils/social";
+import {
+  fetchUnreadDirectMessageCount,
+  subscribeUserRealtime,
+  unsubscribeUserRealtime,
+} from "../utils/social";
 import {
   defaultSettings,
   playNotificationSoundEffect,
@@ -71,51 +75,40 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
     const interval = setInterval(loadUnreadCount, 15000);
 
-    const channel = supabase
-      .channel(`sidebar-dm-indicator-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        (payload) => {
-          loadUnreadCount();
+    let subscription;
 
-          if (payload.new?.sender_id === user.id) return;
+    const setupRealtime = async () => {
+      try {
+        subscription = await subscribeUserRealtime(user.id, {
+          onDirectMessageNotification: (payload) => {
+            loadUnreadCount();
 
-          const currentSettings = settingsRef.current;
+            if (payload?.senderId === user.id) return;
 
-          if (currentSettings.soundEffects) {
-            playNotificationSoundEffect();
-          }
+            const currentSettings = settingsRef.current;
 
-          if (
-            currentSettings.desktopNotifications &&
-            document.visibilityState === "hidden" &&
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-            new Notification("New direct message", {
-              body: "Someone sent you a message.",
-            });
-          }
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "conversation_participants",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          loadUnreadCount();
-        },
-      )
-      .subscribe();
+            if (currentSettings.soundEffects) {
+              playNotificationSoundEffect();
+            }
+
+            if (
+              currentSettings.desktopNotifications &&
+              document.visibilityState === "hidden" &&
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("New direct message", {
+                body: "Someone sent you a message.",
+              });
+            }
+          },
+        });
+      } catch (error) {
+        console.error("[Sidebar] Realtime subscription failed:", error);
+      }
+    };
+
+    setupRealtime();
 
     const handleFocus = () => {
       loadUnreadCount();
@@ -127,7 +120,9 @@ export default function Sidebar({ showExtras, onNavigate }) {
       isMounted = false;
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
-      supabase.removeChannel(channel);
+      if (subscription) {
+        unsubscribeUserRealtime(subscription);
+      }
     };
   }, [user?.id]);
 

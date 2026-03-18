@@ -8,8 +8,11 @@ import {
   formatNotificationTime,
   markNotificationRead,
 } from "../../utils/notifications";
-import { fetchOnlineUsers } from "../../utils/social";
-import { supabase } from "../../utils/supabase";
+import {
+  fetchOnlineUsers,
+  subscribeUserRealtime,
+  unsubscribeUserRealtime,
+} from "../../utils/social";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -62,41 +65,29 @@ export default function ChatHeader() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`chat-header-notifications-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "direct_messages",
-        },
-        () => loadNotifications(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "follows",
-          filter: `following_id=eq.${user.id}`,
-        },
-        () => loadNotifications(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "conversation_participants",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => loadNotifications(),
-      )
-      .subscribe();
+    let subscription;
+
+    const setupRealtime = async () => {
+      try {
+        subscription = await subscribeUserRealtime(user.id, {
+          onDirectMessageNotification: () => {
+            loadNotifications();
+          },
+          onFollowNotification: () => {
+            loadNotifications();
+          },
+        });
+      } catch (error) {
+        console.error("[ChatHeader] Realtime subscription failed:", error);
+      }
+    };
+
+    setupRealtime();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (subscription) {
+        unsubscribeUserRealtime(subscription);
+      }
     };
   }, [user?.id]);
 

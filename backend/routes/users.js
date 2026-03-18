@@ -204,6 +204,16 @@ router.post("/:userId/follow", verifyToken, async (req, res) => {
       .insert([{ follower_id: followerId, following_id: userId }]);
 
     if (error) throw error;
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`user:${userId}`).emit("follow:notify", {
+        followerId,
+        followingId: userId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
     res.status(201).json({ message: "Followed" });
   } catch (err) {
     res.status(500).json({ error: err.message });

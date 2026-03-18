@@ -453,6 +453,22 @@ router.post(
       const io = req.app.get("io");
       if (io) {
         io.to(`dm:${conversationId}`).emit("dm:new", createdMessage);
+
+        // Notify participants outside the active conversation room so badges can refresh.
+        const { data: participants } = await db
+          .from("conversation_participants")
+          .select("user_id")
+          .eq("conversation_id", conversationId)
+          .neq("user_id", senderId);
+
+        (participants || []).forEach((participant) => {
+          io.to(`user:${participant.user_id}`).emit("dm:notify", {
+            conversationId,
+            messageId: createdMessage.id,
+            senderId,
+            recipientId: participant.user_id,
+          });
+        });
       }
 
       res.status(201).json(createdMessage);

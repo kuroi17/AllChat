@@ -51,6 +51,8 @@ io.use(async (socket, next) => {
 
 // Handle Socket.IO connections and room management
 io.on("connection", (socket) => {
+  socket.join(`user:${socket.userId}`);
+
   socket.on("room:join", (payload) => {
     const room = payload?.room || "global";
     socket.join("room:" + room);

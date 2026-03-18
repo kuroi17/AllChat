@@ -427,6 +427,57 @@ export async function deleteConversation(conversationId, userId) {
   return true;
 }
 
+export async function subscribeUserRealtime(
+  userId,
+  { onDirectMessageNotification, onFollowNotification } = {},
+) {
+  if (!userId) {
+    throw new Error("Missing user ID");
+  }
+
+  const socket = await getChatSocket();
+
+  const handleDirectMessageNotification = (payload) => {
+    if (
+      payload?.recipientId === userId &&
+      typeof onDirectMessageNotification === "function"
+    ) {
+      onDirectMessageNotification(payload);
+    }
+  };
+
+  const handleFollowNotification = (payload) => {
+    if (
+      payload?.followingId === userId &&
+      typeof onFollowNotification === "function"
+    ) {
+      onFollowNotification(payload);
+    }
+  };
+
+  socket.on("dm:notify", handleDirectMessageNotification);
+  socket.on("follow:notify", handleFollowNotification);
+
+  return {
+    socket,
+    handleDirectMessageNotification,
+    handleFollowNotification,
+  };
+}
+
+export function unsubscribeUserRealtime(subscription) {
+  if (!subscription) return;
+
+  subscription.socket.off(
+    "dm:notify",
+    subscription.handleDirectMessageNotification,
+  );
+  subscription.socket.off(
+    "follow:notify",
+    subscription.handleFollowNotification,
+  );
+}
+
 export async function subscribeConversationRealtime(
   conversationId,
   { onInsert, onDelete } = {},
