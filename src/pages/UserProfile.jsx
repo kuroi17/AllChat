@@ -113,9 +113,9 @@ export default function UserProfile() {
 
     try {
       setActionLoading(true);
-      const conversation = await getOrCreateConversation(user.id, userId);
-      if (conversation) {
-        navigate(`/dm/${conversation.id}`);
+      const conversationId = await getOrCreateConversation(user.id, userId);
+      if (conversationId) {
+        navigate(`/dm/${conversationId}`);
       }
     } catch (error) {
       console.error("Error creating conversation:", error);
