@@ -1,90 +1,77 @@
 import { supabase } from "./supabase";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+async function readErrorResponse(response, fallbackMessage) {
+  try {
+    const data = await response.json();
+    return data?.error || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
 // Fetch messages for a room (limit to last 100 for performance)
 export async function fetchMessages(room = "global", limit = 100) {
-  // Fetch only the most recent messages to keep initial load fast
-  // and save database resources. Older messages aren't loaded but still exist in DB.
-  const { data: messages, error: msgErr } = await supabase
-    .from("messages")
-    .select("*")
-    .eq("room", room)
-    .order("created_at", { ascending: false }) // Get newest first
-    .limit(limit);
+  const encodedRoom = encodeURIComponent(room);
+  const response = await fetch(`${API_BASE_URL}/api/messages/${encodedRoom}`);
 
-  if (msgErr) throw msgErr;
-
-  // Reverse to show oldest to newest in UI
-  messages.reverse();
-
-  // Collect unique user ids from messages
-  const userIds = Array.from(
-    new Set(messages.map((m) => m.user_id).filter(Boolean)),
-  );
-
-  let profilesMap = {};
-  if (userIds.length) {
-    const { data: profiles, error: profErr } = await supabase
-      .from("profiles")
-      .select("id, username, avatar_url, bio")
-      .in("id", userIds);
-
-    if (!profErr && profiles) {
-      profilesMap = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
-    }
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      "Failed to fetch messages",
+    );
+    throw new Error(errorMessage);
   }
 
-  // Attach profile object (if any) to each message under `.profiles`
-  const merged = messages.map((m) => ({
-    ...m,
-    profiles: profilesMap[m.user_id] || null,
-  }));
-  return merged;
+  const messages = await response.json();
+  const bounded = Array.isArray(messages) ? messages.slice(0, limit) : [];
+
+  // API returns newest first; UI expects oldest to newest.
+  return bounded.reverse();
 }
 
 // Send a message
 export async function sendMessage({ userId, content, room = "global" }) {
-  // Ensure profile exists to satisfy FK constraint
-  try {
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle();
+  const trimmed = typeof content === "string" ? content.trim() : "";
 
-    if (!existingProfile) {
-      // try get user's email to derive a default username
-      let username = userId.slice(0, 6);
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user?.email) username = user.email.split("@")[0];
-      } catch (e) {
-        // ignore - keep fallback username
-      }
-
-      await supabase.from("profiles").insert({
-        id: userId,
-        username,
-        created_at: new Date().toISOString(),
-      });
-    }
-  } catch (e) {
-    // log but continue - insertion may still fail and be handled below
-    console.warn(
-      "sendMessage: profile check/creation failed:",
-      e?.message || e,
-    );
+  if (!trimmed) {
+    throw new Error("Message cannot be empty");
   }
 
-  // Return the inserted row so callers can optimistically update UI.
-  const { data, error } = await supabase
-    .from("messages")
-    .insert({ user_id: userId, content, room })
-    .select()
-    .single();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (error) throw error;
+  const token = session?.access_token;
+  const currentUserId = session?.user?.id;
+
+  if (!token || !currentUserId) {
+    throw new Error("You must be logged in to send a message");
+  }
+
+  if (userId && userId !== currentUserId) {
+    throw new Error("You can only send messages as yourself");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ content: trimmed, room }),
+  });
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      "Failed to send message",
+    );
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
 
   // Emit a client-side event so local UI can update immediately
   try {

@@ -1,8 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, MessageCircle } from "lucide-react";
+import { useUser } from "../../contexts/UserContext";
 
-export default function Message({ user, color, time, text, me, userId }) {
+export default function Message({
+  user,
+  color,
+  time,
+  text,
+  me,
+  userId,
+  avatarUrl,
+}) {
+  const { profile } = useUser();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
@@ -49,8 +59,16 @@ export default function Message({ user, color, time, text, me, userId }) {
         <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white max-w-xs sm:max-w-md">
           {text}
         </div>
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0">
-          J
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 overflow-hidden">
+          {profile?.avatar_url ? (
+            <img
+              src={profile.avatar_url}
+              alt="Your avatar"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            profile?.username?.[0]?.toUpperCase() || "U"
+          )}
         </div>
       </div>
     );
@@ -59,10 +77,18 @@ export default function Message({ user, color, time, text, me, userId }) {
     <div className="flex items-start gap-2 sm:gap-3">
       <div className="relative" ref={menuRef}>
         <div
-          className={`cursor-pointer w-8 h-8 sm:w-9 sm:h-9 rounded-full ${color} flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 hover:ring-2 hover:ring-red-300 transition-all`}
+          className={`cursor-pointer w-8 h-8 sm:w-9 sm:h-9 rounded-full ${color} flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 hover:ring-2 hover:ring-red-300 transition-all overflow-hidden`}
           onClick={handleAvatarClick}
         >
-          {user[0]}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={user}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            user[0]
+          )}
         </div>
 
         {/* User Menu Dropdown */}

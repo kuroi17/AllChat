@@ -18,6 +18,7 @@ import { useUser } from "../contexts/UserContext";
 import { supabase } from "../utils/supabase";
 import {
   getOrCreateConversation,
+  fetchConversationContext,
   fetchDirectMessages,
   fetchDirectMessageMedia,
   sendDirectMessage,
@@ -221,29 +222,16 @@ export default function DirectMessage() {
         return;
       }
 
-      // Fetch conversation participants to get other user
-      const { data: participants, error: participantsError } = await supabase
-        .from("conversation_participants")
-        .select("user_id")
-        .eq("conversation_id", routeConversationId);
+      // Fetch conversation context from backend REST API.
+      const conversationContext =
+        await fetchConversationContext(routeConversationId);
+      const profile = conversationContext?.otherUser;
 
-      if (participantsError) throw participantsError;
-
-      const otherUserId = participants.find(
-        (p) => p.user_id !== user.id,
-      )?.user_id;
-      if (!otherUserId) {
+      if (!profile?.id) {
         throw new Error("Other user not found");
       }
 
-      // Fetch other user profile
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", otherUserId)
-        .single();
-
-      if (profileError) throw profileError;
+      const otherUserId = profile.id;
 
       setOtherUser({
         ...profile,

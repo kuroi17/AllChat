@@ -1,5 +1,60 @@
 import { supabase } from "./supabase";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+async function getAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Not authenticated");
+  }
+
+  return session.access_token;
+}
+
+async function readErrorResponse(response, fallbackMessage) {
+  try {
+    const data = await response.json();
+    return data?.error || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function requestApi(path, { method = "GET", body, auth = false } = {}) {
+  const headers = {};
+
+  if (auth) {
+    const token = await getAccessToken();
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const fallbackMessage = `Request failed (${method} ${path})`;
+    const errorMessage = await readErrorResponse(response, fallbackMessage);
+    throw new Error(errorMessage);
+  }
+
+  if (response.status === 204) return null;
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) return null;
+
+  return response.json();
+}
+
 // ==================== PRESENCE TRACKING ====================
 
 /**
@@ -8,12 +63,15 @@ import { supabase } from "./supabase";
 export async function updatePresence(userId) {
   if (!userId) return;
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({ last_seen: new Date().toISOString() })
-    .eq("id", userId);
-
-  if (error) console.error("[Presence] Update failed:", error);
+  try {
+    await requestApi("/api/users/me/presence", {
+      method: "PATCH",
+      auth: true,
+      body: { lastSeen: new Date().toISOString() },
+    });
+  } catch (error) {
+    console.error("[Presence] Update failed:", error);
+  }
 }
 
 /**
@@ -21,21 +79,16 @@ export async function updatePresence(userId) {
  * @param {number} limit - Max number of users to return
  */
 export async function fetchOnlineUsers(limit = 10) {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url, bio, last_seen")
-    .gte("last_seen", fiveMinutesAgo)
-    .order("last_seen", { ascending: false })
-    .limit(limit);
-
-  if (error) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 10;
+    const data = await requestApi(
+      `/api/users/online?limit=${encodeURIComponent(safeLimit)}`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[Presence] Fetch online users failed:", error);
     return [];
   }
-
-  return data || [];
 }
 
 /**
@@ -53,17 +106,14 @@ export function isUserOnline(lastSeen) {
  * Follow a user
  */
 export async function followUser(followingId) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!followingId) {
+    throw new Error("Missing user to follow");
+  }
 
-  const { error } = await supabase.from("follows").insert({
-    follower_id: user.id,
-    following_id: followingId,
+  await requestApi(`/api/users/${encodeURIComponent(followingId)}/follow`, {
+    method: "POST",
+    auth: true,
   });
-
-  if (error) throw error;
   return true;
 }
 
@@ -71,18 +121,14 @@ export async function followUser(followingId) {
  * Unfollow a user
  */
 export async function unfollowUser(followingId) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!followingId) {
+    throw new Error("Missing user to unfollow");
+  }
 
-  const { error } = await supabase
-    .from("follows")
-    .delete()
-    .eq("follower_id", user.id)
-    .eq("following_id", followingId);
-
-  if (error) throw error;
+  await requestApi(`/api/users/${encodeURIComponent(followingId)}/follow`, {
+    method: "DELETE",
+    auth: true,
+  });
   return true;
 }
 
@@ -90,76 +136,56 @@ export async function unfollowUser(followingId) {
  * Fetch users the current user is following
  */
 export async function fetchFollowing(userId) {
-  const { data, error } = await supabase
-    .from("follows")
-    .select(
-      `
-      following_id,
-      profiles!follows_following_id_fkey(
-        id,
-        username,
-        avatar_url,
-        bio,
-        last_seen
-      )
-    `,
-    )
-    .eq("follower_id", userId);
+  if (!userId) return [];
 
-  if (error) {
+  try {
+    const data = await requestApi(
+      `/api/users/${encodeURIComponent(userId)}/following`,
+    );
+    return (Array.isArray(data) ? data : [])
+      .map((item) => item?.profiles)
+      .filter(Boolean);
+  } catch (error) {
     console.error("[Follows] Fetch following failed:", error);
     return [];
   }
-
-  // Flatten the result
-  return (data || []).map((f) => f.profiles).filter(Boolean);
 }
 
 /**
  * Fetch users following the current user
  */
 export async function fetchFollowers(userId) {
-  const { data, error } = await supabase
-    .from("follows")
-    .select(
-      `
-      follower_id,
-      profiles!follows_follower_id_fkey(
-        id,
-        username,
-        avatar_url,
-        bio,
-        last_seen
-      )
-    `,
-    )
-    .eq("following_id", userId);
+  if (!userId) return [];
 
-  if (error) {
+  try {
+    const data = await requestApi(
+      `/api/users/${encodeURIComponent(userId)}/followers`,
+    );
+    return (Array.isArray(data) ? data : [])
+      .map((item) => item?.profiles)
+      .filter(Boolean);
+  } catch (error) {
     console.error("[Follows] Fetch followers failed:", error);
     return [];
   }
-
-  return (data || []).map((f) => f.profiles).filter(Boolean);
 }
 
 /**
  * Check if current user is following another user
  */
 export async function isFollowing(userId, targetUserId) {
-  const { data, error } = await supabase
-    .from("follows")
-    .select("follower_id")
-    .eq("follower_id", userId)
-    .eq("following_id", targetUserId)
-    .maybeSingle();
+  if (!userId || !targetUserId) return false;
 
-  if (error) {
+  try {
+    const data = await requestApi(
+      `/api/users/${encodeURIComponent(userId)}/is-following/${encodeURIComponent(targetUserId)}`,
+      { auth: true },
+    );
+    return !!data?.isFollowing;
+  } catch (error) {
     console.error("[Follows] Check following failed:", error);
     return false;
   }
-
-  return !!data;
 }
 
 // ==================== DIRECT MESSAGES ====================
@@ -168,105 +194,55 @@ export async function isFollowing(userId, targetUserId) {
  * Get or create a DM conversation between two users
  */
 export async function getOrCreateConversation(userId1, userId2) {
-  // Check if conversation already exists
-  const { data: existing } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id")
-    .in("user_id", [userId1, userId2]);
-
-  if (existing && existing.length >= 2) {
-    // Find conversation that has both users
-    const conversationIds = existing.map((p) => p.conversation_id);
-    const duplicates = conversationIds.filter(
-      (id, index) => conversationIds.indexOf(id) !== index,
-    );
-
-    if (duplicates.length > 0) {
-      return duplicates[0]; // Return existing conversation
-    }
+  if (!userId1 || !userId2) {
+    throw new Error("Missing users for conversation");
   }
 
-  // Create new conversation
-  const { data: conversation, error: convError } = await supabase
-    .from("conversations")
-    .insert({})
-    .select()
-    .single();
+  const data = await requestApi(
+    "/api/direct-messages/conversations/get-or-create",
+    {
+      method: "POST",
+      auth: true,
+      body: { targetUserId: userId2 },
+    },
+  );
 
-  if (convError) throw convError;
+  if (!data?.conversationId) {
+    throw new Error("Failed to resolve conversation");
+  }
 
-  // Add both participants
-  const { error: partError } = await supabase
-    .from("conversation_participants")
-    .insert([
-      { conversation_id: conversation.id, user_id: userId1 },
-      { conversation_id: conversation.id, user_id: userId2 },
-    ]);
-
-  if (partError) throw partError;
-
-  return conversation.id;
+  return data.conversationId;
 }
 
 /**
  * Fetch all conversations for a user
  */
 export async function fetchConversations(userId) {
-  const { data, error } = await supabase
-    .from("conversation_participants")
-    .select(
-      `
-      conversation_id,
-      conversations(id, updated_at),
-      last_read_at
-    `,
-    )
-    .eq("user_id", userId)
-    .order("last_read_at", { ascending: false });
+  if (!userId) return [];
 
-  if (error) {
+  try {
+    const data = await requestApi("/api/direct-messages/conversations", {
+      auth: true,
+    });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[DM] Fetch conversations failed:", error);
     return [];
   }
+}
 
-  // Get other participant and last message for each conversation
-  const enriched = await Promise.all(
-    (data || []).map(async (conv) => {
-      // Get other participant
-      const { data: participants } = await supabase
-        .from("conversation_participants")
-        .select("user_id, profiles(id, username, avatar_url, last_seen)")
-        .eq("conversation_id", conv.conversation_id)
-        .neq("user_id", userId);
+/**
+ * Fetch context for a specific conversation
+ */
+export async function fetchConversationContext(conversationId) {
+  if (!conversationId) {
+    throw new Error("Missing conversation ID");
+  }
 
-      // Get last message
-      const { data: lastMsg } = await supabase
-        .from("direct_messages")
-        .select("*")
-        .eq("conversation_id", conv.conversation_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Count unread messages
-      const { count: unreadCount } = await supabase
-        .from("direct_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("conversation_id", conv.conversation_id)
-        .gt("created_at", conv.last_read_at || "1970-01-01")
-        .neq("sender_id", userId);
-
-      return {
-        conversationId: conv.conversation_id,
-        otherUser: participants?.[0]?.profiles || null,
-        lastMessage: lastMsg,
-        unreadCount: unreadCount || 0,
-        updatedAt: conv.conversations?.updated_at,
-      };
-    }),
+  return requestApi(
+    `/api/direct-messages/conversations/${encodeURIComponent(conversationId)}/context`,
+    { auth: true },
   );
-
-  return enriched.filter((c) => c.otherUser);
 }
 
 /**
@@ -275,30 +251,16 @@ export async function fetchConversations(userId) {
 export async function fetchUnreadDirectMessageCount(userId) {
   if (!userId) return 0;
 
-  const { data: conversations, error: conversationsError } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id, last_read_at")
-    .eq("user_id", userId);
-
-  if (conversationsError) {
-    console.error("[DM] Fetch unread count failed:", conversationsError);
+  try {
+    const data = await requestApi(
+      "/api/direct-messages/conversations/unread-count",
+      { auth: true },
+    );
+    return Number(data?.count) || 0;
+  } catch (error) {
+    console.error("[DM] Fetch unread count failed:", error);
     return 0;
   }
-
-  const counts = await Promise.all(
-    (conversations || []).map(async (conv) => {
-      const { count } = await supabase
-        .from("direct_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("conversation_id", conv.conversation_id)
-        .gt("created_at", conv.last_read_at || "1970-01-01")
-        .neq("sender_id", userId);
-
-      return count || 0;
-    }),
-  );
-
-  return counts.reduce((sum, count) => sum + count, 0);
 }
 
 /**
@@ -350,64 +312,25 @@ export async function sendDirectMessage({
   content,
   imageUrl = null,
 }) {
-  const cleanedContent = content?.trim() || null;
-  const contentForInsert = cleanedContent || "";
+  if (!conversationId || !senderId) {
+    throw new Error("Missing message context");
+  }
+
+  const cleanedContent = content?.trim() || "";
 
   if (!cleanedContent && !imageUrl) {
     throw new Error("Message must include text or an image");
   }
 
-  console.log("[sendDirectMessage] Inserting:", {
-    conversationId,
-    senderId,
-    content: cleanedContent,
-    imageUrl,
+  return requestApi("/api/direct-messages", {
+    method: "POST",
+    auth: true,
+    body: {
+      conversationId,
+      content: cleanedContent,
+      imageUrl,
+    },
   });
-
-  // Check Supabase auth session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  console.log("[sendDirectMessage] Auth session:", {
-    hasSession: !!session,
-    sessionUserId: session?.user?.id,
-    senderIdMatches: session?.user?.id === senderId,
-  });
-
-  const insertPayload = {
-    conversation_id: conversationId,
-    sender_id: senderId,
-    content: contentForInsert,
-  };
-
-  if (imageUrl) {
-    insertPayload.image_url = imageUrl;
-  }
-
-  const { data, error } = await supabase
-    .from("direct_messages")
-    .insert(insertPayload)
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === "42703" && imageUrl) {
-      throw new Error(
-        "DM image column is not ready. Run database/add_dm_media_support.sql first.",
-      );
-    }
-
-    console.error("[sendDirectMessage] Insert failed:", error);
-    throw error;
-  }
-
-  // Update conversation updated_at
-  await supabase
-    .from("conversations")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", conversationId);
-
-  return data;
 }
 
 /**
@@ -418,15 +341,10 @@ export async function unsendDirectMessageForEveryone({ messageId, senderId }) {
     throw new Error("Missing message ID or sender ID");
   }
 
-  const { error } = await supabase
-    .from("direct_messages")
-    .delete()
-    .eq("id", messageId)
-    .eq("sender_id", senderId);
-
-  if (error) {
-    throw error;
-  }
+  await requestApi(`/api/direct-messages/${encodeURIComponent(messageId)}`, {
+    method: "DELETE",
+    auth: true,
+  });
 
   return true;
 }
@@ -435,63 +353,58 @@ export async function unsendDirectMessageForEveryone({ messageId, senderId }) {
  * Fetch messages in a conversation
  */
 export async function fetchDirectMessages(conversationId, limit = 100) {
-  const { data, error } = await supabase
-    .from("direct_messages")
-    .select(
-      `
-      *,
-      profiles:sender_id(id, username, avatar_url)
-    `,
-    )
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  if (!conversationId) return [];
 
-  if (error) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 100;
+    const data = await requestApi(
+      `/api/direct-messages/${encodeURIComponent(conversationId)}?limit=${encodeURIComponent(safeLimit)}`,
+      { auth: true },
+    );
+
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[DM] Fetch messages failed:", error);
     return [];
   }
-
-  return (data || []).reverse(); // Oldest first
 }
 
 /**
  * Fetch image media shared in a conversation
  */
 export async function fetchDirectMessageMedia(conversationId, limit = 12) {
-  const { data, error } = await supabase
-    .from("direct_messages")
-    .select("id, conversation_id, sender_id, image_url, created_at")
-    .eq("conversation_id", conversationId)
-    .not("image_url", "is", null)
-    .neq("image_url", "")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  if (!conversationId) return [];
 
-  if (error) {
-    // Allow app to keep working even before migration is applied
-    if (error.code === "42703") {
-      return [];
-    }
-
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 12;
+    const data = await requestApi(
+      `/api/direct-messages/conversations/${encodeURIComponent(conversationId)}/media?limit=${encodeURIComponent(safeLimit)}`,
+      { auth: true },
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[DM] Fetch shared media failed:", error);
     return [];
   }
-
-  return data || [];
 }
 
 /**
  * Mark conversation as read
  */
 export async function markConversationAsRead(conversationId, userId) {
-  const { error } = await supabase
-    .from("conversation_participants")
-    .update({ last_read_at: new Date().toISOString() })
-    .eq("conversation_id", conversationId)
-    .eq("user_id", userId);
+  if (!conversationId || !userId) return;
 
-  if (error) console.error("[DM] Mark as read failed:", error);
+  try {
+    await requestApi(
+      `/api/direct-messages/conversations/${encodeURIComponent(conversationId)}/read`,
+      {
+        method: "PATCH",
+        auth: true,
+      },
+    );
+  } catch (error) {
+    console.error("[DM] Mark as read failed:", error);
+  }
 }
 
 /**
@@ -502,24 +415,13 @@ export async function deleteConversation(conversationId, userId) {
     throw new Error("Missing conversation ID or user ID");
   }
 
-  const { data: participant, error: participantError } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id")
-    .eq("conversation_id", conversationId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (participantError) throw participantError;
-  if (!participant) {
-    throw new Error("You are not allowed to delete this conversation");
-  }
-
-  const { error: deleteError } = await supabase
-    .from("conversations")
-    .delete()
-    .eq("id", conversationId);
-
-  if (deleteError) throw deleteError;
+  await requestApi(
+    `/api/direct-messages/conversations/${encodeURIComponent(conversationId)}`,
+    {
+      method: "DELETE",
+      auth: true,
+    },
+  );
 
   return true;
 }
@@ -530,37 +432,32 @@ export async function deleteConversation(conversationId, userId) {
  * Fetch upcoming campus events
  */
 export async function fetchCampusEvents(limit = 5) {
-  const { data, error } = await supabase
-    .from("campus_events")
-    .select("*")
-    .gte("event_date", new Date().toISOString())
-    .order("event_date", { ascending: true })
-    .limit(limit);
-
-  if (error) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 5;
+    const data = await requestApi(
+      `/api/events?limit=${encodeURIComponent(safeLimit)}`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[Events] Fetch failed:", error);
     return [];
   }
-
-  return data || [];
 }
 
 /**
  * Fetch latest announcements
  */
 export async function fetchAnnouncements(limit = 3) {
-  const { data, error } = await supabase
-    .from("announcements")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 3;
+    const data = await requestApi(
+      `/api/announcements?limit=${encodeURIComponent(safeLimit)}`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
     console.error("[Announcements] Fetch failed:", error);
     return [];
   }
-
-  return data || [];
 }
 
 /**
@@ -572,46 +469,28 @@ export async function createCampusEvent({
   eventDate,
   location,
 }) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data, error } = await supabase
-    .from("campus_events")
-    .insert({
+  return requestApi("/api/events", {
+    method: "POST",
+    auth: true,
+    body: {
       title,
       description,
-      event_date: eventDate,
       location,
-      created_by: user.id,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+      eventDate,
+    },
+  });
 }
 
 /**
  * Create an announcement (admin/authenticated users)
  */
 export async function createAnnouncement({ title, content }) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { data, error } = await supabase
-    .from("announcements")
-    .insert({
+  return requestApi("/api/announcements", {
+    method: "POST",
+    auth: true,
+    body: {
       title,
       content,
-      created_by: user.id,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+    },
+  });
 }
