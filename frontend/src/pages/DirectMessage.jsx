@@ -1,20 +1,12 @@
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import {
-  ArrowLeft,
-  Send,
-  Loader2,
-  UserPlus,
-  UserMinus,
-  Info,
-  ImagePlus,
-  X,
-  MoreVertical,
-} from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
-import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
-import EmojiPickerButton from "../components/common/EmojiPickerButton";
 import { useUser } from "../contexts/UserContext";
+import DirectMessageHeader from "../components/directMessage/DirectMessageHeader";
+import DirectMessageMessagesPane from "../components/directMessage/DirectMessageMessagesPane";
+import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
+import DirectMessageInfoSection from "../components/directMessage/DirectMessageInfoSection";
 import {
   getOrCreateConversation,
   fetchConversationContext,
@@ -305,6 +297,10 @@ export default function DirectMessage() {
     setActiveMessageMenuId(null);
   }
 
+  function toggleMessageMenu(messageId) {
+    setActiveMessageMenuId((prev) => (prev === messageId ? null : messageId));
+  }
+
   async function handleUnsendForEveryone(messageId) {
     if (!user?.id || deletingMessageId) return;
 
@@ -519,297 +515,41 @@ export default function DirectMessage() {
 
       {/* Main DM chat area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* DM Header */}
-        <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              {/* Back button */}
-              <button
-                onClick={() => navigate(-1)}
-                className="cursor-pointer text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
+        <DirectMessageHeader
+          otherUser={otherUser}
+          onBack={() => navigate(-1)}
+          onOpenInfoPanel={() => setShowMobileInfoPanel(true)}
+          onVisitProfile={() => navigate(`/user/${otherUser.id}`)}
+        />
 
-              {/* Other user info */}
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div
-                  className="relative cursor-pointer"
-                  onClick={() => navigate(`/user/${otherUser.id}`)}
-                >
-                  {otherUser.avatar_url ? (
-                    <img
-                      src={otherUser.avatar_url}
-                      alt={otherUser.username}
-                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-800 flex items-center justify-center text-white font-bold">
-                      {(otherUser.username || "U").charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  {otherUser.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                    {otherUser.username || "Anonymous"}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-gray-500">
-                    {otherUser.isOnline ? "Active now" : "Offline"}
-                  </p>
-                </div>
-              </div>
-            </div>
+        <DirectMessageMessagesPane
+          containerRef={messagesContainerRef}
+          loadingMessages={loadingMessages}
+          visibleMessages={visibleMessages}
+          currentUserId={user.id}
+          otherUser={otherUser}
+          activeMessageMenuId={activeMessageMenuId}
+          deletingMessageId={deletingMessageId}
+          onToggleMessageMenu={toggleMessageMenu}
+          onUnsendForYou={handleUnsendForYou}
+          onUnsendForEveryone={handleUnsendForEveryone}
+          messagesEndRef={messagesEndRef}
+        />
 
-            <button
-              type="button"
-              onClick={() => setShowMobileInfoPanel(true)}
-              className="xl:hidden w-9 h-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center"
-              aria-label="Open conversation info"
-              title="Conversation info"
-            >
-              <Info className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-
-        {/* Messages area - scrollable */}
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto bg-gray-50"
-        >
-          <div className="max-w-4xl mx-auto px-2 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
-            {loadingMessages ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 animate-spin text-red-600" />
-              </div>
-            ) : visibleMessages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500">
-                  No messages yet. Start the conversation!
-                </p>
-              </div>
-            ) : (
-              visibleMessages.map((msg) => {
-                const isMe = msg.sender_id === user.id;
-                const isMenuOpen = activeMessageMenuId === msg.id;
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                    >
-                      {/* Avatar (only for other user) */}
-                      {!isMe && (
-                        <div className="shrink-0">
-                          {otherUser.avatar_url ? (
-                            <img
-                              src={otherUser.avatar_url}
-                              alt={otherUser.username}
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold">
-                              {(otherUser.username || "U")
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Message bubble */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setActiveMessageMenuId((prev) =>
-                              prev === msg.id ? null : msg.id,
-                            );
-                          }}
-                          className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center ${
-                            isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
-                          } ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                          aria-label="Message options"
-                          title="Message options"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {isMenuOpen && (
-                          <div
-                            onClick={(event) => event.stopPropagation()}
-                            className={`absolute top-8 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
-                              isMe ? "left-0" : "right-0"
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleUnsendForYou(msg.id)}
-                              className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              Unsend for you
-                            </button>
-
-                            {isMe && (
-                              <button
-                                type="button"
-                                onClick={() => handleUnsendForEveryone(msg.id)}
-                                disabled={deletingMessageId === msg.id}
-                                className="w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              >
-                                {deletingMessageId === msg.id
-                                  ? "Unsending..."
-                                  : "Unsend for everyone"}
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        <div
-                          className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
-                            isMe
-                              ? "bg-red-800 text-white rounded-br-sm"
-                              : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
-                          }`}
-                        >
-                          {msg.image_url && (
-                            <a
-                              href={msg.image_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="block"
-                            >
-                              <img
-                                src={msg.image_url}
-                                alt="Shared media"
-                                className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
-                              />
-                            </a>
-                          )}
-
-                          {msg.content && (
-                            <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
-                              {msg.content}
-                            </p>
-                          )}
-                        </div>
-                        <p
-                          className={`text-xs text-gray-500 mt-1 ${
-                            isMe ? "text-right" : "text-left"
-                          }`}
-                        >
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Message Input - fixed at bottom */}
-        <div className="bg-white border-t border-gray-200 px-2 sm:px-6 py-2 sm:py-4 shrink-0">
-          <div className="max-w-4xl mx-auto">
-            {imagePreviewUrl && (
-              <div className="mb-2 sm:mb-3 inline-flex items-center gap-2 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 px-2 sm:px-3 py-2 max-w-full">
-                <img
-                  src={imagePreviewUrl}
-                  alt="Selected attachment"
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shrink-0"
-                />
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">
-                    Image ready to send
-                  </p>
-                  <p className="text-xs text-gray-500 truncate max-w-55">
-                    {selectedImage?.name}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearSelectedImage}
-                  className="w-7 h-7 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            <form
-              onSubmit={handleSendMessage}
-              className="flex items-end gap-2 sm:gap-3"
-            >
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className="p-2.5 sm:p-3 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-red-700 transition-colors shrink-0"
-                title="Attach image"
-                aria-label="Attach image"
-                disabled={sending || uploadingImage}
-              >
-                <ImagePlus className="w-5 h-5" />
-              </button>
-
-              <EmojiPickerButton
-                onSelect={handleInsertEmoji}
-                disabled={sending || uploadingImage}
-              />
-
-              <div className="flex-1 bg-gray-100 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 focus-within:ring-2 focus-within:ring-red-500 transition-all">
-                <textarea
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  placeholder={`Message ${otherUser.username || "user"}...`}
-                  rows="1"
-                  className="w-full bg-transparent border-none outline-none resize-none text-sm sm:text-base text-gray-900 placeholder-gray-500"
-                  style={{ maxHeight: "120px" }}
-                  disabled={sending || uploadingImage}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={
-                  (!messageText.trim() && !selectedImage) ||
-                  sending ||
-                  uploadingImage
-                }
-                className="p-2.5 sm:p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {sending || uploadingImage ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
+        <DirectMessageComposer
+          imagePreviewUrl={imagePreviewUrl}
+          selectedImageName={selectedImage?.name}
+          onClearSelectedImage={clearSelectedImage}
+          imageInputRef={imageInputRef}
+          onImageChange={handleImageChange}
+          sending={sending}
+          uploadingImage={uploadingImage}
+          onInsertEmoji={handleInsertEmoji}
+          messageText={messageText}
+          setMessageText={setMessageText}
+          onSubmit={handleSendMessage}
+          placeholder={`Message ${otherUser.username || "user"}...`}
+        />
       </main>
 
       {showMobileInfoPanel && (
@@ -837,111 +577,20 @@ export default function DirectMessage() {
             </div>
 
             <div className="p-4">
-              <div className="text-center">
-                <div className="mx-auto w-20 h-20 mb-3">
-                  {otherUser.avatar_url ? (
-                    <img
-                      src={otherUser.avatar_url}
-                      alt={otherUser.username}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full rounded-full bg-red-800 flex items-center justify-center text-white text-2xl font-bold">
-                      {otherUser.username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
-                  {otherUser.username}
-                </h3>
-                <p className="text-sm text-gray-500 mb-3">
-                  {otherUser.isOnline ? "Active now" : "Offline"}
-                </p>
-
-                <div className="flex items-center justify-center gap-5 mb-4 text-sm">
-                  <div>
-                    <span className="font-bold text-gray-900">
-                      {followerCount}
-                    </span>
-                    <span className="text-gray-600"> Followers</span>
-                  </div>
-                  <div>
-                    <span className="font-bold text-gray-900">
-                      {followingCount}
-                    </span>
-                    <span className="text-gray-600"> Following</span>
-                  </div>
-                </div>
-
-                {following ? (
-                  <button
-                    onClick={handleFollowToggle}
-                    disabled={actionLoading}
-                    className="w-full mb-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UserMinus className="w-4 h-4" />
-                    )}
-                    Unfollow
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleFollowToggle}
-                    disabled={actionLoading}
-                    className="w-full mb-2 px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UserPlus className="w-4 h-4" />
-                    )}
-                    Follow
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setShowMobileInfoPanel(false);
-                    navigate(`/user/${otherUser.id}`);
-                  }}
-                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-                >
-                  View Profile
-                </button>
-              </div>
-
-              <div className="mt-6">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                  Shared Media
-                </h4>
-                {visibleSharedMedia.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-xs text-gray-500 text-center">
-                    No images shared in this conversation yet.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {visibleSharedMedia.map((item) => (
-                      <a
-                        key={item.id}
-                        href={item.image_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
-                        title="Open image"
-                      >
-                        <img
-                          src={item.image_url}
-                          alt="Conversation media"
-                          className="w-full h-full object-cover"
-                        />
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <DirectMessageInfoSection
+                otherUser={otherUser}
+                followerCount={followerCount}
+                followingCount={followingCount}
+                following={following}
+                actionLoading={actionLoading}
+                onFollowToggle={handleFollowToggle}
+                onViewProfile={() => {
+                  setShowMobileInfoPanel(false);
+                  navigate(`/user/${otherUser.id}`);
+                }}
+                visibleSharedMedia={visibleSharedMedia}
+                compact={true}
+              />
             </div>
           </aside>
         </div>
@@ -950,122 +599,16 @@ export default function DirectMessage() {
       {/* Right sidebar - optional user info panel */}
       <aside className="w-80 bg-white border-l border-gray-200 overflow-y-auto hidden xl:block">
         <div className="p-6">
-          {/* User profile card */}
-          <div className="text-center">
-            <div className="mx-auto w-24 h-24 mb-4">
-              {otherUser.avatar_url ? (
-                <img
-                  src={otherUser.avatar_url}
-                  alt={otherUser.username}
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full rounded-full bg-red-800 flex items-center justify-center text-white text-3xl font-bold">
-                  {otherUser.username.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
-              {otherUser.username}
-            </h3>
-            <p className="text-sm text-gray-500 mb-3">
-              {otherUser.isOnline ? "Active now" : "Offline"}
-            </p>
-
-            {/* Follower/Following counts */}
-            <div className="flex items-center justify-center gap-6 mb-4 text-sm">
-              <div>
-                <span className="font-bold text-gray-900">{followerCount}</span>
-                <span className="text-gray-600"> Followers</span>
-              </div>
-              <div>
-                <span className="font-bold text-gray-900">
-                  {followingCount}
-                </span>
-                <span className="text-gray-600"> Following</span>
-              </div>
-            </div>
-
-            {/* Follow button */}
-            {following ? (
-              <button
-                onClick={handleFollowToggle}
-                disabled={actionLoading}
-                className="w-full mb-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <UserMinus className="w-4 h-4" />
-                )}
-                Unfollow
-              </button>
-            ) : (
-              <button
-                onClick={handleFollowToggle}
-                disabled={actionLoading}
-                className="w-full mb-2 px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <UserPlus className="w-4 h-4" />
-                )}
-                Follow
-              </button>
-            )}
-
-            <button
-              onClick={() => navigate(`/user/${otherUser.id}`)}
-              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
-            >
-              View Profile
-            </button>
-          </div>
-
-          {/* Shared content section */}
-          <div className="mt-8">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">
-              Shared Media
-            </h4>
-            {visibleSharedMedia.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-xs text-gray-500 text-center">
-                No images shared in this conversation yet.
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {visibleSharedMedia.map((item) => (
-                  <a
-                    key={item.id}
-                    href={item.image_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
-                    title="Open image"
-                  >
-                    <img
-                      src={item.image_url}
-                      alt="Conversation media"
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Options
-          <div className="mt-8 space-y-2">
-            <button className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
-              Search in Conversation
-            </button>
-            <button className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
-              Mute Notifications
-            </button>
-            <button className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-              Block User
-            </button>
-          </div> */}
+          <DirectMessageInfoSection
+            otherUser={otherUser}
+            followerCount={followerCount}
+            followingCount={followingCount}
+            following={following}
+            actionLoading={actionLoading}
+            onFollowToggle={handleFollowToggle}
+            onViewProfile={() => navigate(`/user/${otherUser.id}`)}
+            visibleSharedMedia={visibleSharedMedia}
+          />
         </div>
       </aside>
     </div>

@@ -1,0 +1,152 @@
+import { Loader2, MoreVertical } from "lucide-react";
+
+export default function DirectMessageMessagesPane({
+  containerRef,
+  loadingMessages,
+  visibleMessages,
+  currentUserId,
+  otherUser,
+  activeMessageMenuId,
+  deletingMessageId,
+  onToggleMessageMenu,
+  onUnsendForYou,
+  onUnsendForEveryone,
+  messagesEndRef,
+}) {
+  return (
+    <div ref={containerRef} className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="max-w-4xl mx-auto px-2 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
+        {loadingMessages ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+          </div>
+        ) : visibleMessages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">
+              No messages yet. Start the conversation!
+            </p>
+          </div>
+        ) : (
+          visibleMessages.map((msg) => {
+            const isMe = msg.sender_id === currentUserId;
+            const isMenuOpen = activeMessageMenuId === msg.id;
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  {!isMe && (
+                    <div className="shrink-0">
+                      {otherUser.avatar_url ? (
+                        <img
+                          src={otherUser.avatar_url}
+                          alt={otherUser.username}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold">
+                          {(otherUser.username || "U").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleMessageMenu(msg.id);
+                      }}
+                      className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center ${
+                        isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
+                      } ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                      aria-label="Message options"
+                      title="Message options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+
+                    {isMenuOpen && (
+                      <div
+                        onClick={(event) => event.stopPropagation()}
+                        className={`absolute top-8 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+                          isMe ? "left-0" : "right-0"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onUnsendForYou(msg.id)}
+                          className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Unsend for you
+                        </button>
+
+                        {isMe && (
+                          <button
+                            type="button"
+                            onClick={() => onUnsendForEveryone(msg.id)}
+                            disabled={deletingMessageId === msg.id}
+                            className="w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {deletingMessageId === msg.id
+                              ? "Unsending..."
+                              : "Unsend for everyone"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
+                        isMe
+                          ? "bg-red-800 text-white rounded-br-sm"
+                          : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
+                      }`}
+                    >
+                      {msg.image_url && (
+                        <a
+                          href={msg.image_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={msg.image_url}
+                            alt="Shared media"
+                            className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
+                          />
+                        </a>
+                      )}
+
+                      {msg.content && (
+                        <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
+                          {msg.content}
+                        </p>
+                      )}
+                    </div>
+                    <p
+                      className={`text-xs text-gray-500 mt-1 ${
+                        isMe ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+    </div>
+  );
+}
