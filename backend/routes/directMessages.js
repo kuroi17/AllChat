@@ -4,12 +4,15 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+// this function is used to parse and validate the "limit" query parameter for pagination
+// it ensures the limit is a positive number and doesn't exceed the maximum allowed value
 function parseLimit(value, fallback = 50, max = 200) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.min(parsed, max);
 }
 
+// Helper function to ensure a user is a participant in a conversation
 async function ensureConversationParticipant(db, conversationId, userId) {
   const { data: participant, error } = await db
     .from("conversation_participants")
@@ -22,6 +25,7 @@ async function ensureConversationParticipant(db, conversationId, userId) {
   return participant;
 }
 
+// Helper function to get conversation summary (other user info, last message, unread count)
 async function getConversationSummary(db, conversationId, userId, lastReadAt) {
   const { data: participants, error: participantsError } = await db
     .from("conversation_participants")
@@ -34,6 +38,8 @@ async function getConversationSummary(db, conversationId, userId, lastReadAt) {
 
   if (participantsError) throw participantsError;
 
+  // Get the most recent message in the conversation
+
   const { data: lastMessage, error: lastMessageError } = await db
     .from("direct_messages")
     .select("*")
@@ -44,6 +50,8 @@ async function getConversationSummary(db, conversationId, userId, lastReadAt) {
 
   if (lastMessageError) throw lastMessageError;
 
+  // Count unread messages for the current user
+
   const { count: unreadCount, error: unreadError } = await db
     .from("direct_messages")
     .select("id", { count: "exact", head: true })
@@ -52,6 +60,8 @@ async function getConversationSummary(db, conversationId, userId, lastReadAt) {
     .neq("sender_id", userId);
 
   if (unreadError) throw unreadError;
+
+  // Also fetch conversation metadata for sorting by recent activity
 
   const { data: conversationMeta, error: conversationMetaError } = await db
     .from("conversations")
@@ -415,7 +425,14 @@ router.post("/", verifyToken, async (req, res) => {
       .select();
 
     if (error) throw error;
-    res.status(201).json(data[0]);
+    const createdMessage = data[0];
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`dm:${conversationId}`).emit("dm:new", createdMessage);
+    }
+
+    res.status(201).json(createdMessage);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -431,7 +448,7 @@ router.delete("/:messageId", verifyToken, async (req, res) => {
     // Verify message belongs to user
     const { data: message, error: fetchError } = await db
       .from("direct_messages")
-      .select("sender_id")
+      .select("sender_id, conversation_id")
       .eq("id", messageId)
       .single();
 
@@ -449,6 +466,15 @@ router.delete("/:messageId", verifyToken, async (req, res) => {
       .eq("id", messageId);
 
     if (deleteError) throw deleteError;
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`dm:${message.conversation_id}`).emit("dm:deleted", {
+        id: messageId,
+        conversationId: message.conversation_id,
+      });
+    }
+
     res.json({ message: "Message deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -89,7 +89,14 @@ router.post("/", verifyToken, async (req, res) => {
       .select();
 
     if (error) throw error;
-    res.status(201).json(data[0]);
+    const createdMessage = data[0];
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`room:${targetRoom}`).emit("message:new", createdMessage);
+    }
+
+    res.status(201).json(createdMessage);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -105,7 +112,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
     // Verify message belongs to user
     const { data: message, error: fetchError } = await db
       .from("messages")
-      .select("user_id")
+      .select("user_id, room")
       .eq("id", id)
       .single();
 
@@ -117,12 +124,22 @@ router.delete("/:id", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
+    // Delete message
     const { error: deleteError } = await db
       .from("messages")
       .delete()
       .eq("id", id);
 
     if (deleteError) throw deleteError;
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`room:${message.room || "global"}`).emit("message:deleted", {
+        id,
+        room: message.room || "global",
+      });
+    }
+
     res.json({ message: "Message deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });

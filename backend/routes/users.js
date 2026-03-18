@@ -4,6 +4,7 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+// Helper function to parse and validate "limit" query parameter for pagination
 function parseLimit(value, fallback = 20, max = 100) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;

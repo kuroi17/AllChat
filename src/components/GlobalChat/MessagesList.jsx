@@ -4,6 +4,7 @@ import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import {
   fetchMessages,
+  fetchProfilesByIds,
   subscribeMessages,
   unsubscribeMessages,
 } from "../../utils/messages";
@@ -37,7 +38,8 @@ export default function MessagesList({ scrollRef }) {
   };
 
   useEffect(() => {
-    let channel;
+    let mounted = true;
+    let subscription;
     const bc = new BroadcastChannel("bsu_messages");
 
     const load = async () => {
@@ -61,33 +63,41 @@ export default function MessagesList({ scrollRef }) {
     };
     load();
 
-    // Subscribe to new messages from Supabase Realtime
-    channel = subscribeMessages("global", async (msg) => {
-      console.log("[MessagesList] Realtime message received:", msg.id);
+    const setupRealtime = async () => {
       try {
-        // fetch profile for incoming message's user if not present
-        const profMap = await import("../../utils/messages").then((m) =>
-          m.fetchProfilesByIds([msg.user_id]),
-        );
-        const merged = { ...msg, profiles: profMap[msg.user_id] || null };
-        console.log(
-          "[MessagesList] Appending realtime message with profile:",
-          merged,
-        );
-        appendMessage(merged);
-        // broadcast to other tabs in same browser
-        bc.postMessage(merged);
-      } catch (e) {
-        // fallback: append raw message
-        console.warn(
-          "[MessagesList] Failed to fetch profile, appending raw:",
-          e,
-        );
-        appendMessage(msg);
-        bc.postMessage(msg);
+        subscription = await subscribeMessages("global", {
+          onNew: async (msg) => {
+            if (!mounted) return;
+
+            console.log("[MessagesList] Realtime message received:", msg.id);
+
+            try {
+              // fetch profile for incoming message's user if not present
+              const profMap = await fetchProfilesByIds([msg.user_id]);
+              const merged = { ...msg, profiles: profMap[msg.user_id] || null };
+              appendMessage(merged);
+              bc.postMessage(merged);
+            } catch (e) {
+              console.warn(
+                "[MessagesList] Failed to fetch profile, appending raw:",
+                e,
+              );
+              appendMessage(msg);
+              bc.postMessage(msg);
+            }
+          },
+          onDeleted: (payload) => {
+            if (!mounted) return;
+            setMessages((prev) => prev.filter((msg) => msg.id !== payload.id));
+          },
+        });
+        console.log("[MessagesList] Subscribed to Socket.IO room");
+      } catch (error) {
+        console.error("[MessagesList] Realtime subscribe failed:", error);
       }
-    });
-    console.log("[MessagesList] Subscribed to Supabase realtime channel");
+    };
+
+    setupRealtime();
 
     // Listen for messages from other tabs (same browser)
     bc.onmessage = (e) => {
@@ -108,7 +118,8 @@ export default function MessagesList({ scrollRef }) {
     window.addEventListener("newMessage", onLocal);
 
     return () => {
-      if (channel) unsubscribeMessages(channel);
+      mounted = false;
+      if (subscription) unsubscribeMessages(subscription);
       bc.close();
       window.removeEventListener("newMessage", onLocal);
     };

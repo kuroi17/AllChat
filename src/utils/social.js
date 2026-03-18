@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getChatSocket } from "./messages";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -424,6 +425,65 @@ export async function deleteConversation(conversationId, userId) {
   );
 
   return true;
+}
+
+export async function subscribeConversationRealtime(
+  conversationId,
+  { onInsert, onDelete } = {},
+) {
+  if (!conversationId) {
+    throw new Error("Missing conversation ID");
+  }
+
+  const socket = await getChatSocket();
+
+  await new Promise((resolve, reject) => {
+    socket.emit("dm:join", { conversationId }, (ack) => {
+      if (ack?.ok) {
+        resolve();
+      } else {
+        reject(new Error(ack?.error || "Failed to join conversation room"));
+      }
+    });
+  });
+
+  const handleInsert = (message) => {
+    if (
+      message?.conversation_id === conversationId &&
+      typeof onInsert === "function"
+    ) {
+      onInsert(message);
+    }
+  };
+
+  const handleDelete = (payload) => {
+    if (
+      payload?.conversationId === conversationId &&
+      typeof onDelete === "function"
+    ) {
+      onDelete(payload);
+    }
+  };
+
+  socket.on("dm:new", handleInsert);
+  socket.on("dm:deleted", handleDelete);
+
+  return {
+    socket,
+    conversationId,
+    handleInsert,
+    handleDelete,
+  };
+}
+
+export function unsubscribeConversationRealtime(subscription) {
+  if (!subscription) return;
+
+  subscription.socket.off("dm:new", subscription.handleInsert);
+  subscription.socket.off("dm:deleted", subscription.handleDelete);
+  subscription.socket.emit("dm:leave", {
+    conversationId: subscription.conversationId,
+  });
 }
 
 // ==================== CAMPUS INFO ====================

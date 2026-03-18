@@ -15,7 +15,6 @@ import Sidebar from "../layouts/Sidebar";
 import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
 import EmojiPickerButton from "../components/common/EmojiPickerButton";
 import { useUser } from "../contexts/UserContext";
-import { supabase } from "../utils/supabase";
 import {
   getOrCreateConversation,
   fetchConversationContext,
@@ -31,6 +30,8 @@ import {
   unfollowUser,
   fetchFollowers,
   fetchFollowing,
+  subscribeConversationRealtime,
+  unsubscribeConversationRealtime,
 } from "../utils/social";
 
 export default function DirectMessage() {
@@ -86,74 +87,65 @@ export default function DirectMessage() {
       loadSharedMedia(conversationId);
       markConversationAsRead(conversationId, user.id);
 
-      // Subscribe to new messages
-      const channel = supabase
-        .channel(`dm:${conversationId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "DELETE",
-            schema: "public",
-            table: "direct_messages",
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            const deletedMessageId = payload.old?.id;
-            if (!deletedMessageId) return;
+      let mounted = true;
+      let subscription;
 
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== deletedMessageId),
-            );
-            setSharedMedia((prev) =>
-              prev.filter((item) => item.id !== deletedMessageId),
-            );
-            setActiveMessageMenuId((prev) =>
-              prev === deletedMessageId ? null : prev,
-            );
-          },
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "direct_messages",
-            filter: `conversation_id=eq.${conversationId}`,
-          },
-          (payload) => {
-            console.log(
-              "[DirectMessage] Realtime message received:",
-              payload.new,
-            );
-            const newMessage = payload.new;
-            setMessages((prev) => {
-              // Avoid duplicates
-              if (prev.some((m) => m.id === newMessage.id)) {
-                console.log("[DirectMessage] Duplicate message, skipping");
-                return prev;
-              }
-              console.log("[DirectMessage] Adding new message to state");
-              return [...prev, newMessage];
-            });
+      const setupRealtime = async () => {
+        try {
+          subscription = await subscribeConversationRealtime(conversationId, {
+            onDelete: (payload) => {
+              if (!mounted) return;
 
-            if (newMessage.image_url) {
-              setSharedMedia((prev) => {
-                if (prev.some((item) => item.id === newMessage.id)) return prev;
-                return [newMessage, ...prev].slice(0, 12);
+              const deletedMessageId = payload?.id;
+              if (!deletedMessageId) return;
+
+              setMessages((prev) =>
+                prev.filter((m) => m.id !== deletedMessageId),
+              );
+              setSharedMedia((prev) =>
+                prev.filter((item) => item.id !== deletedMessageId),
+              );
+              setActiveMessageMenuId((prev) =>
+                prev === deletedMessageId ? null : prev,
+              );
+            },
+            onInsert: (newMessage) => {
+              if (!mounted) return;
+
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMessage.id)) {
+                  return prev;
+                }
+                return [...prev, newMessage];
               });
-            }
 
-            markConversationAsRead(conversationId, user.id);
-            scrollToBottom();
-          },
-        )
-        .subscribe((status) => {
-          console.log("[DirectMessage] Subscription status:", status);
-        });
+              if (newMessage.image_url) {
+                setSharedMedia((prev) => {
+                  if (prev.some((item) => item.id === newMessage.id))
+                    return prev;
+                  return [newMessage, ...prev].slice(0, 12);
+                });
+              }
+
+              markConversationAsRead(conversationId, user.id);
+              scrollToBottom();
+            },
+          });
+        } catch (realtimeError) {
+          console.error(
+            "[DirectMessage] Realtime subscription failed:",
+            realtimeError,
+          );
+        }
+      };
+
+      setupRealtime();
 
       return () => {
-        console.log("[DirectMessage] Cleaning up realtime subscription");
-        supabase.removeChannel(channel);
+        mounted = false;
+        if (subscription) {
+          unsubscribeConversationRealtime(subscription);
+        }
       };
     }
   }, [conversationId, user]);

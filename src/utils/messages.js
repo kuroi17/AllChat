@@ -1,6 +1,9 @@
 import { supabase } from "./supabase";
+import { io } from "socket.io-client";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+let socketInstance = null;
+let socketToken = null;
 
 async function readErrorResponse(response, fallbackMessage) {
   try {
@@ -9,6 +12,33 @@ async function readErrorResponse(response, fallbackMessage) {
   } catch {
     return fallbackMessage;
   }
+}
+
+export async function getChatSocket() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const token = session?.access_token;
+
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+
+  if (!socketInstance || socketToken !== token) {
+    if (socketInstance) {
+      socketInstance.disconnect();
+    }
+
+    socketInstance = io(API_BASE_URL, {
+      auth: { token },
+      transports: ["websocket"],
+      withCredentials: true,
+    });
+    socketToken = token;
+  }
+
+  return socketInstance;
 }
 
 // Fetch messages for a room (limit to last 100 for performance)
@@ -87,24 +117,46 @@ export async function sendMessage({ userId, content, room = "global" }) {
   return data;
 }
 
-// Subscribe to new messages
-export function subscribeMessages(room = "global", callback) {
-  const channel = supabase
-    .channel(`messages-${room}`)
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "messages" },
-      (payload) => {
-        if (payload.new.room === room) callback(payload.new);
-      },
-    )
-    .subscribe();
-  return channel;
+// Subscribe to new or deleted messages in a room
+export async function subscribeMessages(
+  room = "global",
+  { onNew, onDeleted } = {},
+) {
+  const targetRoom = room || "global";
+  const socket = await getChatSocket();
+
+  socket.emit("room:join", { room: targetRoom });
+
+  const handleNew = (message) => {
+    if (message?.room === targetRoom && typeof onNew === "function") {
+      onNew(message);
+    }
+  };
+
+  const handleDeleted = (payload) => {
+    if (payload?.room === targetRoom && typeof onDeleted === "function") {
+      onDeleted(payload);
+    }
+  };
+
+  socket.on("message:new", handleNew);
+  socket.on("message:deleted", handleDeleted);
+
+  return {
+    socket,
+    room: targetRoom,
+    handleNew,
+    handleDeleted,
+  };
 }
 
 // Remove subscription
-export function unsubscribeMessages(channel) {
-  supabase.removeChannel(channel);
+export function unsubscribeMessages(subscription) {
+  if (!subscription) return;
+
+  subscription.socket.off("message:new", subscription.handleNew);
+  subscription.socket.off("message:deleted", subscription.handleDeleted);
+  subscription.socket.emit("room:leave", { room: subscription.room });
 }
 
 // Fetch profiles by ids and return map
