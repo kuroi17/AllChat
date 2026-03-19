@@ -49,7 +49,11 @@ export default function DirectMessageMessagesPane({
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${
+                    isMe
+                      ? "flex-row-reverse pl-7 sm:pl-8 -ml-7 sm:-ml-8"
+                      : "flex-row pr-7 sm:pr-8 -mr-7 sm:-mr-8"
+                  }`}
                 >
                   {!isMe && (
                     <div className="shrink-0">
@@ -76,7 +80,7 @@ export default function DirectMessageMessagesPane({
                           onToggleMessageMenu(msg.id);
                         }}
                         className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
-                          isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
+                          isMe ? "-left-7 sm:-left-8" : "-right-7 sm:-right-8"
                         } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
                         aria-label="Message options"
                         title="Message options"
