@@ -41,7 +41,7 @@ export default function DirectMessageMessagesPane({
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group relative flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[74%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
                 >
                   {!isMe && (
                     <div className="shrink-0">
@@ -59,7 +59,7 @@ export default function DirectMessageMessagesPane({
                     </div>
                   )}
 
-                  <div className="relative">
+                  <div className={`relative ${isMe ? "pl-9" : "pr-9"}`}>
                     {!isDeleted && (
                       <button
                         type="button"
@@ -67,8 +67,8 @@ export default function DirectMessageMessagesPane({
                           event.stopPropagation();
                           onToggleMessageMenu(msg.id);
                         }}
-                        className={`absolute top-2 z-10 h-7 w-7 rounded-full bg-white/95 border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
-                          isMe ? "left-2" : "right-2"
+                        className={`absolute top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
+                          isMe ? "left-0" : "right-0"
                         } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
                         aria-label="Message options"
                         title="Message options"
@@ -80,7 +80,7 @@ export default function DirectMessageMessagesPane({
                     {isMenuOpen && !isDeleted && (
                       <div
                         onClick={(event) => event.stopPropagation()}
-                        className={`absolute top-10 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+                        className={`absolute top-full mt-2 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
                           isMe ? "right-0" : "left-0"
                         }`}
                       >

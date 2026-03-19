@@ -420,7 +420,20 @@ export default function DirectMessage() {
         senderId: user.id,
       });
 
-      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      const deletedAt = new Date().toISOString();
+      const deletedByUsername = user?.user_metadata?.username || "You";
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? {
+                ...msg,
+                deleted_at: deletedAt,
+                deletedByUsername,
+              }
+            : msg,
+        ),
+      );
       setSharedMedia((prev) => prev.filter((item) => item.id !== messageId));
 
       setHiddenMessageIds((prev) => {

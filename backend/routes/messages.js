@@ -147,13 +147,31 @@ router.delete("/:id", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    // Soft delete: set deleted_at timestamp instead of hard delete
+    const deletedAt = new Date().toISOString();
+    let deletionMode = "soft";
+
+    // Prefer soft delete when schema supports deleted_at; otherwise fallback to hard delete.
     const { error: updateError } = await db
       .from("messages")
-      .update({ deleted_at: new Date().toISOString() })
+      .update({ deleted_at: deletedAt })
       .eq("id", id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      const missingDeletedAtColumn =
+        typeof updateError.message === "string" &&
+        updateError.message.includes("deleted_at");
+
+      if (!missingDeletedAtColumn) throw updateError;
+
+      deletionMode = "hard";
+
+      const { error: hardDeleteError } = await db
+        .from("messages")
+        .delete()
+        .eq("id", id);
+
+      if (hardDeleteError) throw hardDeleteError;
+    }
 
     const io = req.app.get("io");
     if (io) {
@@ -161,10 +179,12 @@ router.delete("/:id", verifyToken, async (req, res) => {
         id,
         room: message.room || "global",
         senderUsername: message.profiles?.username || "User",
+        deletedAt,
+        deletionMode,
       });
     }
 
-    res.json({ message: "Message deleted" });
+    res.json({ message: "Message deleted", deletionMode });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
