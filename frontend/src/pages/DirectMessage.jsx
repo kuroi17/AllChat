@@ -28,6 +28,7 @@ import {
 import { getChatSocket } from "../utils/messages";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+const DM_MESSAGES_CACHE_PREFIX = "dm_messages_cache:";
 
 function dedupeAndSortMessages(messages) {
   const uniqueById = new Map();
@@ -79,6 +80,9 @@ export default function DirectMessage() {
     user?.id && conversationId
       ? `dm_hidden_messages:${user.id}:${conversationId}`
       : null;
+  const dmMessagesCacheKey = conversationId
+    ? `${DM_MESSAGES_CACHE_PREFIX}${conversationId}`
+    : null;
 
   const visibleMessages = messages.filter(
     (msg) => !hiddenMessageIds.includes(msg.id),
@@ -290,6 +294,38 @@ export default function DirectMessage() {
     };
   }, [imagePreviewUrl]);
 
+  useEffect(() => {
+    if (!dmMessagesCacheKey) return;
+
+    try {
+      // Keep cache bounded so navigation is fast without overgrowing storage.
+      sessionStorage.setItem(
+        dmMessagesCacheKey,
+        JSON.stringify(messages.slice(-200)),
+      );
+    } catch {
+      // Ignore cache write failures (quota/private browsing restrictions).
+    }
+  }, [dmMessagesCacheKey, messages]);
+
+  async function loadRelationshipStats(otherUserId) {
+    if (!user?.id || !otherUserId) return;
+
+    try {
+      const [followStatus, followers, followingList] = await Promise.all([
+        isFollowing(user.id, otherUserId),
+        fetchFollowers(otherUserId),
+        fetchFollowing(otherUserId),
+      ]);
+
+      setFollowing(followStatus);
+      setFollowerCount(followers.length);
+      setFollowingCount(followingList.length);
+    } catch (statsError) {
+      console.error("Error loading relationship stats:", statsError);
+    }
+  }
+
   async function initializeConversation() {
     try {
       setLoading(true);
@@ -328,15 +364,11 @@ export default function DirectMessage() {
         isOnline: isUserOnline(profile.last_seen),
       });
 
-      // Load follow status and counts
-      const [followStatus, followers, followingList] = await Promise.all([
-        isFollowing(user.id, otherUserId),
-        fetchFollowers(otherUserId),
-        fetchFollowing(otherUserId),
-      ]);
-      setFollowing(followStatus);
-      setFollowerCount(followers.length);
-      setFollowingCount(followingList.length);
+      // Do not block the main page loader on social stats.
+      setFollowing(false);
+      setFollowerCount(0);
+      setFollowingCount(0);
+      loadRelationshipStats(otherUserId);
     } catch (error) {
       console.error("Error initializing conversation:", error);
 
@@ -355,7 +387,27 @@ export default function DirectMessage() {
 
   async function loadMessages() {
     try {
-      setLoadingMessages(true);
+      let loadedFromCache = false;
+
+      if (dmMessagesCacheKey) {
+        try {
+          const cachedRaw = sessionStorage.getItem(dmMessagesCacheKey);
+          const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+
+          if (Array.isArray(cached) && cached.length > 0) {
+            setMessages(dedupeAndSortMessages(cached));
+            loadedFromCache = true;
+            setTimeout(scrollToBottom, 0);
+          }
+        } catch {
+          // Ignore cache read failures and continue with network fetch.
+        }
+      }
+
+      if (!loadedFromCache) {
+        setLoadingMessages(true);
+      }
+
       const msgs = await fetchDirectMessages(conversationId);
       setMessages(dedupeAndSortMessages(msgs));
       setTimeout(scrollToBottom, 100);

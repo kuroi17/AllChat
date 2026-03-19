@@ -9,6 +9,21 @@ import {
   unsubscribeMessages,
 } from "../../utils/messages";
 
+const GLOBAL_MESSAGES_CACHE_KEY = "global_messages_cache_v1";
+
+function dedupeMessagesById(items = []) {
+  const uniq = [];
+  const seen = new Set();
+
+  for (const item of items) {
+    if (!item || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    uniq.push(item);
+  }
+
+  return uniq;
+}
+
 export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const [messages, setMessages] = useState([]);
@@ -43,23 +58,37 @@ export default function MessagesList({ scrollRef }) {
     const bc = new BroadcastChannel("bsu_messages");
 
     const load = async () => {
+      let hydratedFromCache = false;
+
+      try {
+        const cachedRaw = sessionStorage.getItem(GLOBAL_MESSAGES_CACHE_KEY);
+        const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+
+        if (Array.isArray(cached) && cached.length > 0) {
+          setMessages(dedupeMessagesById(cached));
+          setLoading(false);
+          hydratedFromCache = true;
+        }
+      } catch {
+        // Ignore cache read failures and continue to network fetch.
+      }
+
       try {
         const msgs = await fetchMessages("global");
-        // dedupe initial fetch by id
-        const uniq = [];
-        const seen = new Set();
-        for (const m of msgs) {
-          if (m && m.id && !seen.has(m.id)) {
-            seen.add(m.id);
-            uniq.push(m);
-          }
-        }
+        const uniq = dedupeMessagesById(msgs);
         setMessages(uniq);
+        sessionStorage.setItem(
+          GLOBAL_MESSAGES_CACHE_KEY,
+          JSON.stringify(uniq.slice(-200)),
+        );
         console.log("[MessagesList] Loaded", uniq.length, "messages");
       } catch (err) {
         console.error("[MessagesList] Load error:", err);
       }
-      setLoading(false);
+
+      if (!hydratedFromCache) {
+        setLoading(false);
+      }
     };
     load();
 
@@ -124,6 +153,19 @@ export default function MessagesList({ scrollRef }) {
       window.removeEventListener("newMessage", onLocal);
     };
   }, []);
+
+  useEffect(() => {
+    if (!messages.length) return;
+
+    try {
+      sessionStorage.setItem(
+        GLOBAL_MESSAGES_CACHE_KEY,
+        JSON.stringify(messages.slice(-200)),
+      );
+    } catch {
+      // Ignore cache write failures.
+    }
+  }, [messages]);
 
   // Auto-scroll to bottom when messages update OR on initial load
   useEffect(() => {
