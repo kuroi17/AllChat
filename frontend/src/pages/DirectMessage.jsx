@@ -26,6 +26,19 @@ import {
   unsubscribeConversationRealtime,
 } from "../utils/social";
 
+function dedupeAndSortMessages(messages) {
+  const uniqueById = new Map();
+
+  messages.forEach((message) => {
+    if (!message?.id) return;
+    uniqueById.set(message.id, message);
+  });
+
+  return Array.from(uniqueById.values()).sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at),
+  );
+}
+
 export default function DirectMessage() {
   const { conversationId: routeConversationId } = useParams();
   const [searchParams] = useSearchParams();
@@ -104,12 +117,9 @@ export default function DirectMessage() {
             onInsert: (newMessage) => {
               if (!mounted) return;
 
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === newMessage.id)) {
-                  return prev;
-                }
-                return [...prev, newMessage];
-              });
+              setMessages((prev) =>
+                dedupeAndSortMessages([...prev, newMessage]),
+              );
 
               if (newMessage.image_url) {
                 setSharedMedia((prev) => {
@@ -251,7 +261,7 @@ export default function DirectMessage() {
     try {
       setLoadingMessages(true);
       const msgs = await fetchDirectMessages(conversationId);
-      setMessages(msgs);
+      setMessages(dedupeAndSortMessages(msgs));
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error("Error loading messages:", error);
@@ -401,7 +411,7 @@ export default function DirectMessage() {
       console.log("[DirectMessage] Message sent successfully:", sentMessage);
 
       // Add message to UI immediately (optimistic update)
-      setMessages((prev) => [...prev, sentMessage]);
+      setMessages((prev) => dedupeAndSortMessages([...prev, sentMessage]));
 
       if (sentMessage.image_url) {
         setSharedMedia((prev) => {
