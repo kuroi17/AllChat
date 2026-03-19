@@ -1,5 +1,6 @@
 const rateWindowStore = new Map();
 const spamStateStore = new Map();
+const socketRateWindowStore = new Map();
 
 function actorKey(req, scope) {
   const actorId = req.userId || req.ip || "anonymous";
@@ -27,6 +28,20 @@ function cleanupSpamState(maxAgeMs) {
   for (const [key, state] of spamStateStore.entries()) {
     if (state.lastSentAt < cutoff) {
       spamStateStore.delete(key);
+    }
+  }
+}
+
+function cleanupSocketRateWindow(windowMs) {
+  if (socketRateWindowStore.size < 5000) return;
+
+  const cutoff = Date.now() - windowMs * 2;
+  for (const [key, timestamps] of socketRateWindowStore.entries()) {
+    const recent = timestamps.filter((ts) => ts > cutoff);
+    if (recent.length === 0) {
+      socketRateWindowStore.delete(key);
+    } else {
+      socketRateWindowStore.set(key, recent);
     }
   }
 }
@@ -116,7 +131,43 @@ function createAntiSpamGuard({
   };
 }
 
+function createSocketRateLimiter({
+  scope,
+  windowMs,
+  maxRequests,
+  errorMessage = "Too many requests. Please try again shortly.",
+}) {
+  return (socket, ack) => {
+    const now = Date.now();
+    const actorId = socket.userId || socket.id || "anonymous";
+    const key = `${scope}:${actorId}`;
+
+    const previous = socketRateWindowStore.get(key) || [];
+    const recent = previous.filter((ts) => now - ts < windowMs);
+
+    if (recent.length >= maxRequests) {
+      const retryAfterMs = Math.max(0, windowMs - (now - recent[0]));
+
+      if (typeof ack === "function") {
+        ack({
+          ok: false,
+          error: errorMessage,
+          retryAfterMs,
+        });
+      }
+
+      return false;
+    }
+
+    recent.push(now);
+    socketRateWindowStore.set(key, recent);
+    cleanupSocketRateWindow(windowMs);
+    return true;
+  };
+}
+
 module.exports = {
   createRateLimiter,
   createAntiSpamGuard,
+  createSocketRateLimiter,
 };

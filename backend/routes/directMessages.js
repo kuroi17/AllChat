@@ -22,6 +22,30 @@ const createDirectMessageAntiSpamGuard = createAntiSpamGuard({
   duplicateWindowMs: 10000,
 });
 
+const createConversationRateLimiter = createRateLimiter({
+  scope: "direct-message-conversation-create",
+  windowMs: 60000,
+  maxRequests: 12,
+  errorMessage:
+    "Too many conversation requests. Please wait a moment and try again.",
+});
+
+const deleteDirectMessageRateLimiter = createRateLimiter({
+  scope: "direct-message-delete",
+  windowMs: 10000,
+  maxRequests: 20,
+  errorMessage:
+    "Too many message delete requests. Please slow down and try again.",
+});
+
+const deleteConversationRateLimiter = createRateLimiter({
+  scope: "direct-message-conversation-delete",
+  windowMs: 60000,
+  maxRequests: 6,
+  errorMessage:
+    "Too many conversation delete requests. Please wait before trying again.",
+});
+
 // this function is used to parse and validate the "limit" query parameter for pagination
 // it ensures the limit is a positive number and doesn't exceed the maximum allowed value
 function parseLimit(value, fallback = 50, max = 200) {
@@ -239,67 +263,73 @@ router.patch(
 );
 
 // POST get or create a conversation with target user
-router.post("/conversations/get-or-create", verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const db = req.supabase || supabase;
-    const targetUserId = req.body?.targetUserId;
+router.post(
+  "/conversations/get-or-create",
+  verifyToken,
+  createConversationRateLimiter,
+  async (req, res) => {
+    try {
+      const userId = req.userId;
+      const db = req.supabase || supabase;
+      const targetUserId = req.body?.targetUserId;
 
-    if (!targetUserId) {
-      return res.status(400).json({ error: "targetUserId is required" });
-    }
-
-    if (targetUserId === userId) {
-      return res
-        .status(400)
-        .json({ error: "Cannot start conversation with yourself" });
-    }
-
-    const { data: existing, error: existingError } = await db
-      .from("conversation_participants")
-      .select("conversation_id")
-      .in("user_id", [userId, targetUserId]);
-
-    if (existingError) throw existingError;
-
-    if (existing && existing.length >= 2) {
-      const conversationIds = existing.map((p) => p.conversation_id);
-      const duplicateId = conversationIds.find(
-        (id, index) => conversationIds.indexOf(id) !== index,
-      );
-
-      if (duplicateId) {
-        return res.json({ conversationId: duplicateId, created: false });
+      if (!targetUserId) {
+        return res.status(400).json({ error: "targetUserId is required" });
       }
+
+      if (targetUserId === userId) {
+        return res
+          .status(400)
+          .json({ error: "Cannot start conversation with yourself" });
+      }
+
+      const { data: existing, error: existingError } = await db
+        .from("conversation_participants")
+        .select("conversation_id")
+        .in("user_id", [userId, targetUserId]);
+
+      if (existingError) throw existingError;
+
+      if (existing && existing.length >= 2) {
+        const conversationIds = existing.map((p) => p.conversation_id);
+        const duplicateId = conversationIds.find(
+          (id, index) => conversationIds.indexOf(id) !== index,
+        );
+
+        if (duplicateId) {
+          return res.json({ conversationId: duplicateId, created: false });
+        }
+      }
+
+      const { data: conversation, error: conversationError } = await db
+        .from("conversations")
+        .insert({})
+        .select("id")
+        .single();
+
+      if (conversationError) throw conversationError;
+
+      const { error: participantsError } = await db
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: conversation.id, user_id: userId },
+          { conversation_id: conversation.id, user_id: targetUserId },
+        ]);
+
+      if (participantsError) throw participantsError;
+
+      res.status(201).json({ conversationId: conversation.id, created: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    const { data: conversation, error: conversationError } = await db
-      .from("conversations")
-      .insert({})
-      .select("id")
-      .single();
-
-    if (conversationError) throw conversationError;
-
-    const { error: participantsError } = await db
-      .from("conversation_participants")
-      .insert([
-        { conversation_id: conversation.id, user_id: userId },
-        { conversation_id: conversation.id, user_id: targetUserId },
-      ]);
-
-    if (participantsError) throw participantsError;
-
-    res.status(201).json({ conversationId: conversation.id, created: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // DELETE a conversation for participants (and cascade messages)
 router.delete(
   "/conversations/:conversationId",
   verifyToken,
+  deleteConversationRateLimiter,
   async (req, res) => {
     try {
       const { conversationId } = req.params;
@@ -479,46 +509,51 @@ router.post(
 );
 
 // DELETE direct message
-router.delete("/:messageId", verifyToken, async (req, res) => {
-  try {
-    const { messageId } = req.params;
-    const userId = req.userId;
-    const db = req.supabase || supabase;
+router.delete(
+  "/:messageId",
+  verifyToken,
+  deleteDirectMessageRateLimiter,
+  async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const userId = req.userId;
+      const db = req.supabase || supabase;
 
-    // Verify message belongs to user
-    const { data: message, error: fetchError } = await db
-      .from("direct_messages")
-      .select("sender_id, conversation_id")
-      .eq("id", messageId)
-      .single();
+      // Verify message belongs to user
+      const { data: message, error: fetchError } = await db
+        .from("direct_messages")
+        .select("sender_id, conversation_id")
+        .eq("id", messageId)
+        .single();
 
-    if (fetchError || !message) {
-      return res.status(404).json({ error: "Message not found" });
+      if (fetchError || !message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+
+      if (message.sender_id !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { error: deleteError } = await db
+        .from("direct_messages")
+        .delete()
+        .eq("id", messageId);
+
+      if (deleteError) throw deleteError;
+
+      const io = req.app.get("io");
+      if (io) {
+        io.to(`dm:${message.conversation_id}`).emit("dm:deleted", {
+          id: messageId,
+          conversationId: message.conversation_id,
+        });
+      }
+
+      res.json({ message: "Message deleted" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    if (message.sender_id !== userId) {
-      return res.status(403).json({ error: "Not authorized" });
-    }
-
-    const { error: deleteError } = await db
-      .from("direct_messages")
-      .delete()
-      .eq("id", messageId);
-
-    if (deleteError) throw deleteError;
-
-    const io = req.app.get("io");
-    if (io) {
-      io.to(`dm:${message.conversation_id}`).emit("dm:deleted", {
-        id: messageId,
-        conversationId: message.conversation_id,
-      });
-    }
-
-    res.json({ message: "Message deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 module.exports = router;

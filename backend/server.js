@@ -7,6 +7,7 @@ dotenv.config();
 const http = require("http");
 const { Server } = require("socket.io");
 const { supabase } = require("./utils/supabase");
+const { createSocketRateLimiter } = require("./middleware/chatGuards");
 
 const app = express();
 
@@ -33,6 +34,21 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+const socketRoomActionRateLimiter = createSocketRateLimiter({
+  scope: "socket-room-action",
+  windowMs: 10000,
+  maxRequests: 30,
+  errorMessage: "Too many room actions. Please slow down.",
+});
+
+const socketDmJoinRateLimiter = createSocketRateLimiter({
+  scope: "socket-dm-join",
+  windowMs: 10000,
+  maxRequests: 12,
+  errorMessage:
+    "Too many direct message room join attempts. Please wait a moment.",
+});
+
 // Socket.IO middleware to verify JWT tokens
 io.use(async (socket, next) => {
   try {
@@ -53,19 +69,33 @@ io.use(async (socket, next) => {
 io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
 
-  socket.on("room:join", (payload) => {
+  socket.on("room:join", (payload, ack) => {
+    if (!socketRoomActionRateLimiter(socket, ack)) return;
+
     const room = payload?.room || "global";
     socket.join("room:" + room);
+
+    if (typeof ack === "function") {
+      ack({ ok: true, room });
+    }
   });
 
   // Handle leaving a room
-  socket.on("room:leave", (payload) => {
+  socket.on("room:leave", (payload, ack) => {
+    if (!socketRoomActionRateLimiter(socket, ack)) return;
+
     const room = payload?.room || "global";
     socket.leave("room:" + room);
+
+    if (typeof ack === "function") {
+      ack({ ok: true, room });
+    }
   });
 
   // Handle joining a DM conversation room
   socket.on("dm:join", async (payload, ack) => {
+    if (!socketDmJoinRateLimiter(socket, ack)) return;
+
     const conversationId = payload?.conversationId;
     if (!conversationId) {
       if (typeof ack === "function")
@@ -91,10 +121,22 @@ io.on("connection", (socket) => {
     if (typeof ack === "function") ack({ ok: true });
   });
 
-  socket.on("dm:leave", (payload) => {
+  socket.on("dm:leave", (payload, ack) => {
+    if (!socketRoomActionRateLimiter(socket, ack)) return;
+
     const conversationId = payload?.conversationId;
-    if (!conversationId) return;
+    if (!conversationId) {
+      if (typeof ack === "function") {
+        ack({ ok: false, error: "Missing conversationId" });
+      }
+      return;
+    }
+
     socket.leave("dm:" + conversationId);
+
+    if (typeof ack === "function") {
+      ack({ ok: true, conversationId });
+    }
   });
 });
 
