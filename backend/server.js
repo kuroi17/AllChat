@@ -138,6 +138,18 @@ io.on("connection", (socket) => {
       ack({ ok: true, conversationId });
     }
   });
+
+  // Handle typing indicator
+  socket.on("dm:typing", (payload) => {
+    const conversationId = payload?.conversationId;
+    if (!conversationId) return;
+
+    io.to(`dm:${conversationId}`).emit("dm:user-typing", {
+      userId: socket.userId,
+      conversationId,
+      timestamp: Date.now(),
+    });
+  });
 });
 
 // Import routes from route folder

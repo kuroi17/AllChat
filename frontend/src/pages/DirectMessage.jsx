@@ -25,6 +25,7 @@ import {
   subscribeConversationRealtime,
   unsubscribeConversationRealtime,
 } from "../utils/social";
+import { getChatSocket } from "../utils/messages";
 
 function dedupeAndSortMessages(messages) {
   const uniqueById = new Map();
@@ -65,9 +66,12 @@ export default function DirectMessage() {
   const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
+  const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const imageInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const typingEmitTimeoutRef = useRef(null);
 
   const hiddenMessageStorageKey =
     user?.id && conversationId
@@ -151,6 +155,82 @@ export default function DirectMessage() {
       };
     }
   }, [conversationId, user]);
+
+  // Setup socket listeners for typing indicator
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    let mounted = true;
+
+    const setupTypingListener = async () => {
+      const socket = await getChatSocket();
+      if (!mounted) return;
+
+      const handleUserTyping = (payload) => {
+        if (!mounted) return;
+        if (payload.userId === user.id) return; // Ignore own typing events
+
+        setOtherUserIsTyping(true);
+
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Auto-clear typing indicator after 3 seconds of no new typing event
+        typingTimeoutRef.current = setTimeout(() => {
+          if (mounted) {
+            setOtherUserIsTyping(false);
+          }
+        }, 3000);
+      };
+
+      socket.on("dm:user-typing", handleUserTyping);
+
+      return () => {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        socket.off("dm:user-typing", handleUserTyping);
+      };
+    };
+
+    const cleanup = setupTypingListener();
+
+    return () => {
+      mounted = false;
+      cleanup?.then((cleanupFn) => cleanupFn?.());
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [conversationId, user]);
+
+  // Emit typing indicator when user is typing (debounced)
+  useEffect(() => {
+    if (!conversationId || !messageText.trim()) return;
+
+    const emitTyping = async () => {
+      const socket = await getChatSocket();
+      socket.emit("dm:typing", { conversationId });
+    };
+
+    // Clear previous timeout
+    if (typingEmitTimeoutRef.current) {
+      clearTimeout(typingEmitTimeoutRef.current);
+    }
+
+    // Emit typing event after 300ms of no keystroke
+    typingEmitTimeoutRef.current = setTimeout(() => {
+      emitTyping();
+    }, 300);
+
+    return () => {
+      if (typingEmitTimeoutRef.current) {
+        clearTimeout(typingEmitTimeoutRef.current);
+      }
+    };
+  }, [messageText, conversationId]);
 
   useEffect(() => {
     if (!hiddenMessageStorageKey) {
@@ -545,6 +625,14 @@ export default function DirectMessage() {
           onUnsendForEveryone={handleUnsendForEveryone}
           messagesEndRef={messagesEndRef}
         />
+
+        {otherUserIsTyping && (
+          <div className="px-4 sm:px-6 py-2 bg-gray-50 border-t border-gray-200">
+            <p className="text-xs sm:text-sm text-gray-500 italic">
+              {otherUser.username || "User"} is typing...
+            </p>
+          </div>
+        )}
 
         <DirectMessageComposer
           imagePreviewUrl={imagePreviewUrl}
