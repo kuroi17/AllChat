@@ -48,6 +48,37 @@ const deleteConversationRateLimiter = createRateLimiter({
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 
+function buildDeletedMessageContent(username = "User") {
+  const safeUsername =
+    typeof username === "string"
+      ? username.replace(/:/g, "").trim().slice(0, 80)
+      : "User";
+  return `${DELETED_MESSAGE_MARKER}:${safeUsername || "User"}`;
+}
+
+function parseDeletedByUsername(content) {
+  if (typeof content !== "string") return null;
+  if (!content.startsWith(DELETED_MESSAGE_MARKER)) return null;
+
+  const suffix = content.slice(DELETED_MESSAGE_MARKER.length + 1).trim();
+  return suffix || null;
+}
+
+function normalizeDeletedMessagePayload(message) {
+  if (!message || typeof message.content !== "string") return message;
+  if (!message.content.startsWith(DELETED_MESSAGE_MARKER)) return message;
+
+  return {
+    ...message,
+    content: DELETED_MESSAGE_MARKER,
+    image_url: null,
+    deletedByUsername:
+      parseDeletedByUsername(message.content) ||
+      message?.profiles?.username ||
+      "User",
+  };
+}
+
 // this function is used to parse and validate the "limit" query parameter for pagination
 // it ensures the limit is a positive number and doesn't exceed the maximum allowed value
 function parseLimit(value, fallback = 50, max = 200) {
@@ -118,7 +149,9 @@ async function getConversationSummary(db, conversationId, userId, lastReadAt) {
   return {
     conversationId,
     otherUser: participants?.[0]?.profiles || null,
-    lastMessage: lastMessage || null,
+    lastMessage: lastMessage
+      ? normalizeDeletedMessagePayload(lastMessage)
+      : null,
     unreadCount: unreadCount || 0,
     updatedAt: conversationMeta?.updated_at || null,
   };
@@ -420,7 +453,7 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
       .limit(limit);
 
     if (error) throw error;
-    res.json(data);
+    res.json((data || []).map(normalizeDeletedMessagePayload));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -524,7 +557,9 @@ router.delete(
       // Verify message belongs to user and get sender info
       const { data: message, error: fetchError } = await db
         .from("direct_messages")
-        .select("sender_id, conversation_id, profiles:sender_id(username)")
+        .select(
+          "sender_id, conversation_id, created_at, profiles:sender_id(username)",
+        )
         .eq("id", messageId)
         .single();
 
@@ -536,16 +571,55 @@ router.delete(
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      // Soft delete using an in-row marker so no schema migration is required.
-      const { error: updateError } = await db
+      const deletedContent = buildDeletedMessageContent(
+        message.profiles?.username || "User",
+      );
+
+      // Soft delete in-place first.
+      const { data: updatedRows, error: updateError } = await db
         .from("direct_messages")
         .update({
-          content: DELETED_MESSAGE_MARKER,
+          content: deletedContent,
           image_url: null,
         })
-        .eq("id", messageId);
+        .eq("id", messageId)
+        .eq("sender_id", userId)
+        .select("id");
 
       if (updateError) throw updateError;
+
+      // Fallback path for schemas/policies where UPDATE can no-op.
+      if (!updatedRows || updatedRows.length === 0) {
+        const { data: deletedRows, error: deleteError } = await db
+          .from("direct_messages")
+          .delete()
+          .eq("id", messageId)
+          .eq("sender_id", userId)
+          .select("id");
+
+        if (deleteError) throw deleteError;
+
+        if (!deletedRows || deletedRows.length === 0) {
+          return res.status(403).json({
+            error: "Unable to unsend this message for everyone.",
+          });
+        }
+
+        const { error: tombstoneInsertError } = await db
+          .from("direct_messages")
+          .insert([
+            {
+              id: messageId,
+              conversation_id: message.conversation_id,
+              sender_id: userId,
+              content: deletedContent,
+              image_url: null,
+              created_at: message.created_at,
+            },
+          ]);
+
+        if (tombstoneInsertError) throw tombstoneInsertError;
+      }
 
       const io = req.app.get("io");
       if (io) {

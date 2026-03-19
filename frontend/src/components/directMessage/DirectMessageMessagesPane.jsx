@@ -36,7 +36,9 @@ export default function DirectMessageMessagesPane({
             const isMe = msg.sender_id === currentUserId;
             const isMenuOpen = activeMessageMenuId === msg.id;
             const isDeleted =
-              msg.content === DELETED_MESSAGE_MARKER || msg.deletedByUsername;
+              (typeof msg.content === "string" &&
+                msg.content.startsWith(DELETED_MESSAGE_MARKER)) ||
+              msg.deletedByUsername;
             const deletedLabel =
               msg.deletedByUsername ||
               (isMe

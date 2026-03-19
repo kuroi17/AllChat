@@ -15,7 +15,8 @@ export default function ConversationCard({
   deletingConversationId,
 }) {
   const isLastMessageDeleted =
-    conversation.lastMessage?.content === DELETED_MESSAGE_MARKER;
+    typeof conversation.lastMessage?.content === "string" &&
+    conversation.lastMessage.content.startsWith(DELETED_MESSAGE_MARKER);
 
   return (
     <div className="relative group">
