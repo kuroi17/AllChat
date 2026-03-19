@@ -106,14 +106,27 @@ export default function DirectMessage() {
               if (!mounted) return;
 
               const deletedMessageId = payload?.id;
+              const senderUsername = payload?.senderUsername || "User";
               if (!deletedMessageId) return;
 
+              // Mark message as deleted instead of removing it
               setMessages((prev) =>
-                prev.filter((m) => m.id !== deletedMessageId),
+                prev.map((m) =>
+                  m.id === deletedMessageId
+                    ? {
+                        ...m,
+                        deleted_at: new Date().toISOString(),
+                        deletedByUsername: senderUsername,
+                      }
+                    : m,
+                ),
               );
+
+              // Remove deleted message from shared media
               setSharedMedia((prev) =>
                 prev.filter((item) => item.id !== deletedMessageId),
               );
+
               setActiveMessageMenuId((prev) =>
                 prev === deletedMessageId ? null : prev,
               );

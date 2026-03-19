@@ -519,10 +519,10 @@ router.delete(
       const userId = req.userId;
       const db = req.supabase || supabase;
 
-      // Verify message belongs to user
+      // Verify message belongs to user and get sender info
       const { data: message, error: fetchError } = await db
         .from("direct_messages")
-        .select("sender_id, conversation_id")
+        .select("sender_id, conversation_id, profiles:sender_id(username)")
         .eq("id", messageId)
         .single();
 
@@ -534,18 +534,20 @@ router.delete(
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      const { error: deleteError } = await db
+      // Soft delete: set deleted_at timestamp instead of hard delete
+      const { error: updateError } = await db
         .from("direct_messages")
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", messageId);
 
-      if (deleteError) throw deleteError;
+      if (updateError) throw updateError;
 
       const io = req.app.get("io");
       if (io) {
         io.to(`dm:${message.conversation_id}`).emit("dm:deleted", {
           id: messageId,
           conversationId: message.conversation_id,
+          senderUsername: message.profiles?.username || "User",
         });
       }
 

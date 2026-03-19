@@ -33,6 +33,7 @@ export default function DirectMessageMessagesPane({
           visibleMessages.map((msg) => {
             const isMe = msg.sender_id === currentUserId;
             const isMenuOpen = activeMessageMenuId === msg.id;
+            const isDeleted = msg.deleted_at || msg.deletedByUsername;
 
             return (
               <div
@@ -59,22 +60,24 @@ export default function DirectMessageMessagesPane({
                   )}
 
                   <div className="relative">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onToggleMessageMenu(msg.id);
-                      }}
-                      className={`absolute top-2 z-10 h-7 w-7 rounded-full bg-white/95 border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
-                        isMe ? "left-2" : "right-2"
-                      } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
-                      aria-label="Message options"
-                      title="Message options"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+                    {!isDeleted && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleMessageMenu(msg.id);
+                        }}
+                        className={`absolute top-2 z-10 h-7 w-7 rounded-full bg-white/95 border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
+                          isMe ? "left-2" : "right-2"
+                        } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
+                        aria-label="Message options"
+                        title="Message options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    )}
 
-                    {isMenuOpen && (
+                    {isMenuOpen && !isDeleted && (
                       <div
                         onClick={(event) => event.stopPropagation()}
                         className={`absolute top-10 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
@@ -104,34 +107,49 @@ export default function DirectMessageMessagesPane({
                       </div>
                     )}
 
-                    <div
-                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
-                        isMe
-                          ? "bg-red-800 text-white rounded-br-sm"
-                          : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
-                      }`}
-                    >
-                      {msg.image_url && (
-                        <a
-                          href={msg.image_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block"
-                        >
-                          <img
-                            src={msg.image_url}
-                            alt="Shared media"
-                            className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
-                          />
-                        </a>
-                      )}
-
-                      {msg.content && (
-                        <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
-                          {msg.content}
+                    {isDeleted ? (
+                      <div
+                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
+                          isMe
+                            ? "bg-gray-200 text-gray-600 rounded-br-sm"
+                            : "bg-gray-100 text-gray-600 rounded-bl-sm"
+                        }`}
+                      >
+                        <p className="text-xs sm:text-sm italic">
+                          {msg.deletedByUsername || "User"} deleted this message
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
+                          isMe
+                            ? "bg-red-800 text-white rounded-br-sm"
+                            : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
+                        }`}
+                      >
+                        {msg.image_url && (
+                          <a
+                            href={msg.image_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={msg.image_url}
+                              alt="Shared media"
+                              className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
+                            />
+                          </a>
+                        )}
+
+                        {msg.content && (
+                          <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
+                            {msg.content}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <p
                       className={`text-xs text-gray-500 mt-1 ${
                         isMe ? "text-right" : "text-left"
