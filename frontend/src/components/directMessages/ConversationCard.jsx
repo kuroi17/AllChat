@@ -1,5 +1,7 @@
 import { Loader2, Trash2 } from "lucide-react";
 
+const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+
 export default function ConversationCard({
   conversation,
   index,
@@ -12,6 +14,9 @@ export default function ConversationCard({
   onDelete,
   deletingConversationId,
 }) {
+  const isLastMessageDeleted =
+    conversation.lastMessage?.content === DELETED_MESSAGE_MARKER;
+
   return (
     <div className="relative group">
       <button
@@ -61,7 +66,9 @@ export default function ConversationCard({
                 {conversation.lastMessage.sender_id === currentUserId ? (
                   <span className="text-gray-400">You: </span>
                 ) : null}
-                {conversation.lastMessage.content || "Sent a photo"}
+                {isLastMessageDeleted
+                  ? "Message deleted"
+                  : conversation.lastMessage.content || "Sent a photo"}
               </p>
             )}
 

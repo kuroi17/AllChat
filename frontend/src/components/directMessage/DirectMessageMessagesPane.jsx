@@ -1,5 +1,7 @@
 import { Loader2, MoreVertical } from "lucide-react";
 
+const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+
 export default function DirectMessageMessagesPane({
   containerRef,
   loadingMessages,
@@ -33,7 +35,13 @@ export default function DirectMessageMessagesPane({
           visibleMessages.map((msg) => {
             const isMe = msg.sender_id === currentUserId;
             const isMenuOpen = activeMessageMenuId === msg.id;
-            const isDeleted = msg.deleted_at || msg.deletedByUsername;
+            const isDeleted =
+              msg.content === DELETED_MESSAGE_MARKER || msg.deletedByUsername;
+            const deletedLabel =
+              msg.deletedByUsername ||
+              (isMe
+                ? "You"
+                : msg.profiles?.username || otherUser.username || "User");
 
             return (
               <div
@@ -41,7 +49,7 @@ export default function DirectMessageMessagesPane({
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`group relative flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[74%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${isMe ? "flex-row-reverse" : "flex-row"}`}
                 >
                   {!isMe && (
                     <div className="shrink-0">
@@ -59,7 +67,7 @@ export default function DirectMessageMessagesPane({
                     </div>
                   )}
 
-                  <div className={`relative ${isMe ? "pl-9" : "pr-9"}`}>
+                  <div className="relative">
                     {!isDeleted && (
                       <button
                         type="button"
@@ -67,8 +75,8 @@ export default function DirectMessageMessagesPane({
                           event.stopPropagation();
                           onToggleMessageMenu(msg.id);
                         }}
-                        className={`absolute top-1/2 -translate-y-1/2 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
-                          isMe ? "left-0" : "right-0"
+                        className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
+                          isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
                         } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
                         aria-label="Message options"
                         title="Message options"
@@ -80,7 +88,7 @@ export default function DirectMessageMessagesPane({
                     {isMenuOpen && !isDeleted && (
                       <div
                         onClick={(event) => event.stopPropagation()}
-                        className={`absolute top-full mt-2 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+                        className={`absolute top-10 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
                           isMe ? "right-0" : "left-0"
                         }`}
                       >
@@ -116,7 +124,7 @@ export default function DirectMessageMessagesPane({
                         }`}
                       >
                         <p className="text-xs sm:text-sm italic">
-                          {msg.deletedByUsername || "User"} deleted this message
+                          {deletedLabel} deleted this message
                         </p>
                       </div>
                     ) : (

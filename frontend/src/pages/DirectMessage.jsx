@@ -27,6 +27,8 @@ import {
 } from "../utils/social";
 import { getChatSocket } from "../utils/messages";
 
+const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+
 function dedupeAndSortMessages(messages) {
   const uniqueById = new Map();
 
@@ -115,7 +117,8 @@ export default function DirectMessage() {
                   m.id === deletedMessageId
                     ? {
                         ...m,
-                        deleted_at: new Date().toISOString(),
+                        content: DELETED_MESSAGE_MARKER,
+                        image_url: null,
                         deletedByUsername: senderUsername,
                       }
                     : m,
@@ -420,16 +423,14 @@ export default function DirectMessage() {
         senderId: user.id,
       });
 
-      const deletedAt = new Date().toISOString();
-      const deletedByUsername = user?.user_metadata?.username || "You";
-
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === messageId
             ? {
                 ...msg,
-                deleted_at: deletedAt,
-                deletedByUsername,
+                content: DELETED_MESSAGE_MARKER,
+                image_url: null,
+                deletedByUsername: "You",
               }
             : msg,
         ),
@@ -653,8 +654,8 @@ export default function DirectMessage() {
         />
 
         {otherUserIsTyping && (
-          <div className="px-4 sm:px-6 py-2 bg-gray-50 border-t border-gray-200">
-            <p className="text-xs sm:text-sm text-gray-500 italic">
+          <div className="px-4 sm:px-6 pb-2">
+            <p className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs sm:text-sm text-gray-500 italic shadow-sm">
               {otherUser.username || "User"} is typing...
             </p>
           </div>

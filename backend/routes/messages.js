@@ -147,31 +147,13 @@ router.delete("/:id", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    const deletedAt = new Date().toISOString();
-    let deletionMode = "soft";
-
-    // Prefer soft delete when schema supports deleted_at; otherwise fallback to hard delete.
-    const { error: updateError } = await db
+    // Hard delete for global chat (UI currently expects removed messages)
+    const { error: deleteError } = await db
       .from("messages")
-      .update({ deleted_at: deletedAt })
+      .delete()
       .eq("id", id);
 
-    if (updateError) {
-      const missingDeletedAtColumn =
-        typeof updateError.message === "string" &&
-        updateError.message.includes("deleted_at");
-
-      if (!missingDeletedAtColumn) throw updateError;
-
-      deletionMode = "hard";
-
-      const { error: hardDeleteError } = await db
-        .from("messages")
-        .delete()
-        .eq("id", id);
-
-      if (hardDeleteError) throw hardDeleteError;
-    }
+    if (deleteError) throw deleteError;
 
     const io = req.app.get("io");
     if (io) {
@@ -179,12 +161,10 @@ router.delete("/:id", verifyToken, async (req, res) => {
         id,
         room: message.room || "global",
         senderUsername: message.profiles?.username || "User",
-        deletedAt,
-        deletionMode,
       });
     }
 
-    res.json({ message: "Message deleted", deletionMode });
+    res.json({ message: "Message deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

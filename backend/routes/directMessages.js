@@ -46,6 +46,8 @@ const deleteConversationRateLimiter = createRateLimiter({
     "Too many conversation delete requests. Please wait before trying again.",
 });
 
+const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+
 // this function is used to parse and validate the "limit" query parameter for pagination
 // it ensures the limit is a positive number and doesn't exceed the maximum allowed value
 function parseLimit(value, fallback = 50, max = 200) {
@@ -534,31 +536,16 @@ router.delete(
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      const deletedAt = new Date().toISOString();
-      let deletionMode = "soft";
-
-      // Prefer soft delete when schema supports deleted_at; otherwise fallback to hard delete.
+      // Soft delete using an in-row marker so no schema migration is required.
       const { error: updateError } = await db
         .from("direct_messages")
-        .update({ deleted_at: deletedAt })
+        .update({
+          content: DELETED_MESSAGE_MARKER,
+          image_url: null,
+        })
         .eq("id", messageId);
 
-      if (updateError) {
-        const missingDeletedAtColumn =
-          typeof updateError.message === "string" &&
-          updateError.message.includes("deleted_at");
-
-        if (!missingDeletedAtColumn) throw updateError;
-
-        deletionMode = "hard";
-
-        const { error: hardDeleteError } = await db
-          .from("direct_messages")
-          .delete()
-          .eq("id", messageId);
-
-        if (hardDeleteError) throw hardDeleteError;
-      }
+      if (updateError) throw updateError;
 
       const io = req.app.get("io");
       if (io) {
@@ -566,12 +553,10 @@ router.delete(
           id: messageId,
           conversationId: message.conversation_id,
           senderUsername: message.profiles?.username || "User",
-          deletedAt,
-          deletionMode,
         });
       }
 
-      res.json({ message: "Message deleted", deletionMode });
+      res.json({ message: "Message deleted" });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
