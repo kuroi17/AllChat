@@ -14,7 +14,10 @@ export default function DirectMessageMessagesPane({
   messagesEndRef,
 }) {
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto bg-gray-50">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50"
+    >
       <div className="max-w-4xl mx-auto px-2 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {loadingMessages ? (
           <div className="flex items-center justify-center h-full">
@@ -62,9 +65,9 @@ export default function DirectMessageMessagesPane({
                         event.stopPropagation();
                         onToggleMessageMenu(msg.id);
                       }}
-                      className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex items-center justify-center ${
-                        isMe ? "-left-8 sm:-left-9" : "-right-8 sm:-right-9"
-                      } ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                      className={`absolute top-2 z-10 h-7 w-7 rounded-full bg-white/95 border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-all flex items-center justify-center ${
+                        isMe ? "left-2" : "right-2"
+                      } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
                       aria-label="Message options"
                       title="Message options"
                     >
@@ -74,8 +77,8 @@ export default function DirectMessageMessagesPane({
                     {isMenuOpen && (
                       <div
                         onClick={(event) => event.stopPropagation()}
-                        className={`absolute top-8 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
-                          isMe ? "left-0" : "right-0"
+                        className={`absolute top-10 z-20 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden ${
+                          isMe ? "right-0" : "left-0"
                         }`}
                       >
                         <button
