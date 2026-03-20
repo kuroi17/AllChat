@@ -18,7 +18,7 @@ const createDirectMessageRateLimiter = createRateLimiter({
 
 const createDirectMessageAntiSpamGuard = createAntiSpamGuard({
   scope: "direct-message-spam",
-  minIntervalMs: 500,
+  minIntervalMs: 150,
   duplicateWindowMs: 10000,
 });
 

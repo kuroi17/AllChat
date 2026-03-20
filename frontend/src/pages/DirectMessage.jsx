@@ -541,14 +541,32 @@ export default function DirectMessage() {
     if ((!hasText && !hasImage) || sending || !conversationId) return;
 
     const imageToSend = selectedImage;
+    const textTempMessageId = hasText
+      ? `temp-text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      : null;
     let textMessageSent = false;
 
     try {
-      setSending(true);
+      setSending(hasImage);
       setUploadingImage(hasImage);
 
       if (hasText) {
+        setMessages((prev) =>
+          dedupeAndSortMessages([
+            ...prev,
+            {
+              id: textTempMessageId,
+              conversation_id: conversationId,
+              sender_id: user.id,
+              content: trimmedText,
+              image_url: null,
+              created_at: new Date().toISOString(),
+            },
+          ]),
+        );
+
         setMessageText("");
+        scrollToBottom();
 
         const textMessage = await sendDirectMessage({
           conversationId,
@@ -558,7 +576,13 @@ export default function DirectMessage() {
         });
 
         textMessageSent = true;
-        setMessages((prev) => dedupeAndSortMessages([...prev, textMessage]));
+        setMessages((prev) =>
+          dedupeAndSortMessages(
+            prev.map((msg) =>
+              msg.id === textTempMessageId ? textMessage : msg,
+            ),
+          ),
+        );
       }
 
       if (hasImage && imageToSend) {
@@ -588,6 +612,12 @@ export default function DirectMessage() {
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
+
+      if (textTempMessageId) {
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== textTempMessageId),
+        );
+      }
 
       if (hasText && !textMessageSent) {
         setMessageText(trimmedText);
