@@ -40,11 +40,8 @@ export default function DirectMessageMessagesPane({
                 msg.content.startsWith(DELETED_MESSAGE_MARKER)) ||
               msg.deletedByUsername;
             const deletedLabel =
-              msg.deletedByUsername ||
-              (isMe
-                ? "You"
-                :  otherUser.username);
-                // msg.profiles?.username || otherUser.username || "User")
+              msg.deletedByUsername || (isMe ? "You" : otherUser.username);
+            // msg.profiles?.username || otherUser.username || "User")
             return (
               <div
                 key={msg.id}
@@ -157,7 +154,7 @@ export default function DirectMessageMessagesPane({
                         )}
 
                         {msg.content && (
-                          <p className="text-xs sm:text-sm leading-relaxed wrap-break-word">
+                          <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">
                             {msg.content}
                           </p>
                         )}
