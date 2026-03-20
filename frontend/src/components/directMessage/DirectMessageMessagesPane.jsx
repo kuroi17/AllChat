@@ -43,8 +43,8 @@ export default function DirectMessageMessagesPane({
               msg.deletedByUsername ||
               (isMe
                 ? "You"
-                : msg.profiles?.username || otherUser.username || "User");
-
+                :  otherUser.username);
+                // msg.profiles?.username || otherUser.username || "User")
             return (
               <div
                 key={msg.id}
