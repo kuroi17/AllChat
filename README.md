@@ -1,130 +1,78 @@
-# React + TypeScript + Vite
+# BSU AllChat
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+BSU AllChat is a campus chat platform with global chat, direct messages, social profile features, and realtime notifications.
 
-Currently, two official plugins are available:
+## Current Release Line
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Current recommended tag: **v2.0.0**
+- Reason: major architecture/runtime shift from MVP (`v1.0.0`) to a dedicated Node.js + Socket.IO backend.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
-
-# BSU AllChat MVP
-
-A modern campus chat and info platform built with React, Tailwind CSS, Supabase, and Vite. This project is designed for BSU students to connect, chat, and stay updated with campus events and announcements.
+See [CHANGELOG.md](CHANGELOG.md) for corrected `v1.0.0` notes and full `v2.0.0` release notes.
 
 ## Tech Stack
 
-- **Frontend:** React, TypeScript, Tailwind CSS, Vite
-- **Backend:** Supabase (BaaS, Auth, Realtime, Storage)
-- **Deployment:** Vercel (Frontend), Supabase (Backend)
+- Frontend: React, Vite, Tailwind CSS
+- Backend: Node.js, Express, Socket.IO
+- Data/Auth/Storage: Supabase
 
-## MVP Features
+## Key Features
 
-- Global Chat (real-time messaging)
-- Direct Messages (DM)
-- Mobile-first responsive design
-- Hamburger menu for mobile navigation
-- Info panel in DM (follow/unfollow, view profile, shared media)
-- Sidebar with campus info (static for MVP)
-- User authentication (via Supabase)
+- Global chat realtime messaging
+- Direct messages with unsend actions, media sharing, typing indicator
+- Mobile long-press actions for DM message menu
+- Follow/unfollow and profile system
+- Notifications and unread badges
+- Responsive UI for desktop and mobile
+- Basic anti-spam/rate limiting guardrails
 
-## Getting Started
+## Repository Structure
 
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/<your-username>/bsuAllChat.git
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Set up Supabase:
-   - Create a Supabase project
-   - Add your Supabase keys to `.env` (see `.env.example`)
-4. Run locally:
-   ```bash
-   npm run dev
-   ```
+- `frontend/`: web client
+- `backend/`: API + realtime server
+- `database/`: SQL setup/migration resources
+- `docs/`: project docs
 
-## Deployment
+## Local Setup
 
-- Frontend: Deploy to Vercel (or Render)
-- Backend: Supabase project (no server needed for MVP)
+### 1. Backend
 
-## Environment Variables
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+Backend default URL: `http://localhost:4000`
+
+Required backend environment variables:
+
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (recommended for server operations)
+- `FRONTEND_URL` (optional, defaults to `http://localhost:5173`)
+- `PORT` (optional, defaults to `4000`)
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend default URL: `http://localhost:5173`
+
+Required frontend environment variables:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_API_URL` (example: `http://localhost:4000`)
 
-## Release Notes: MVP Phase
+## Versioning
 
-- Initial release with core chat and info features
-- Mobile navigation and responsive UI
-- Separate commits for each major feature
+- Major (`x.0.0`): breaking runtime/deployment or architecture shifts
+- Minor (`x.y.0`): backward-compatible feature additions
+- Patch (`x.y.z`): bug fixes and small improvements
 
 ## License
 
