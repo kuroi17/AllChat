@@ -535,55 +535,64 @@ export default function DirectMessage() {
   async function handleSendMessage(e) {
     e.preventDefault();
     const trimmedText = messageText.trim();
-    if ((!trimmedText && !selectedImage) || sending || !conversationId) return;
+    const hasText = !!trimmedText;
+    const hasImage = !!selectedImage;
+
+    if ((!hasText && !hasImage) || sending || !conversationId) return;
+
+    const imageToSend = selectedImage;
+    let textMessageSent = false;
 
     try {
       setSending(true);
-      setUploadingImage(!!selectedImage);
-      setMessageText("");
+      setUploadingImage(hasImage);
 
-      let imageUrl = null;
+      if (hasText) {
+        setMessageText("");
 
-      if (selectedImage) {
-        imageUrl = await uploadDirectMessageImage({
-          file: selectedImage,
+        const textMessage = await sendDirectMessage({
+          conversationId,
+          senderId: user.id,
+          content: trimmedText,
+          imageUrl: null,
+        });
+
+        textMessageSent = true;
+        setMessages((prev) => dedupeAndSortMessages([...prev, textMessage]));
+      }
+
+      if (hasImage && imageToSend) {
+        const imageUrl = await uploadDirectMessageImage({
+          file: imageToSend,
           conversationId,
           userId: user.id,
         });
-      }
 
-      console.log("[DirectMessage] Sending message:", {
-        conversationId,
-        senderId: user.id,
-        userId: user?.id,
-        content: trimmedText,
-        imageUrl,
-      });
-
-      const sentMessage = await sendDirectMessage({
-        conversationId,
-        senderId: user.id,
-        content: trimmedText,
-        imageUrl,
-      });
-
-      console.log("[DirectMessage] Message sent successfully:", sentMessage);
-
-      // Add message to UI immediately (optimistic update)
-      setMessages((prev) => dedupeAndSortMessages([...prev, sentMessage]));
-
-      if (sentMessage.image_url) {
-        setSharedMedia((prev) => {
-          if (prev.some((item) => item.id === sentMessage.id)) return prev;
-          return [sentMessage, ...prev].slice(0, 12);
+        const imageMessage = await sendDirectMessage({
+          conversationId,
+          senderId: user.id,
+          content: "",
+          imageUrl,
         });
+
+        setMessages((prev) => dedupeAndSortMessages([...prev, imageMessage]));
+
+        setSharedMedia((prev) => {
+          if (prev.some((item) => item.id === imageMessage.id)) return prev;
+          return [imageMessage, ...prev].slice(0, 12);
+        });
+
+        clearSelectedImage();
       }
 
-      clearSelectedImage();
       scrollToBottom();
     } catch (error) {
       console.error("Error sending message:", error);
-      setMessageText(trimmedText); // Restore message on error
+
+      if (hasText && !textMessageSent) {
+        setMessageText(trimmedText);
+      }
+
       alert(error.message || "Failed to send message");
     } finally {
       setSending(false);
