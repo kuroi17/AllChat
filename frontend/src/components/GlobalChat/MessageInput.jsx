@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
 import { sendMessage } from "../../utils/messages";
 import EmojiPickerButton from "../common/EmojiPickerButton";
+
+const GLOBAL_CHAT_COOLDOWN_SECONDS = 3;
 
 export default function MessageInput() {
   const { user } = useUser();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  const isCoolingDown = cooldownRemaining > 0;
 
   const handleInsertEmoji = (emoji) => {
     setText((prev) => `${prev}${emoji}`);
@@ -14,17 +19,31 @@ export default function MessageInput() {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || isCoolingDown || sending) return;
+
     setSending(true);
+
     try {
-      const inserted = await sendMessage({ userId: user.id, content: text });
+      await sendMessage({ userId: user.id, content: text });
       // We already dispatch a client event from sendMessage; still clear input
       setText("");
+      setCooldownRemaining(GLOBAL_CHAT_COOLDOWN_SECONDS);
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
+
+  const tickCooldown = () => {
+    setCooldownRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+  };
+
+  useEffect(() => {
+    if (!isCoolingDown) return undefined;
+    const timer = window.setTimeout(tickCooldown, 1000);
+    return () => window.clearTimeout(timer);
+  }, [isCoolingDown, cooldownRemaining]);
 
   return (
     <form
@@ -34,7 +53,7 @@ export default function MessageInput() {
       <div className="flex items-center gap-2 sm:gap-3">
         <EmojiPickerButton
           onSelect={handleInsertEmoji}
-          disabled={sending}
+          disabled={sending || isCoolingDown}
           align="left"
         />
 
@@ -46,10 +65,14 @@ export default function MessageInput() {
         />
         <button
           type="submit"
-          disabled={sending}
+          disabled={sending || isCoolingDown}
           className="bg-red-800 hover:bg-red-800 text-white px-3 sm:px-4 py-2 rounded-full text-sm sm:text-base disabled:opacity-60"
         >
-          {sending ? "..." : "Send"}
+          {sending
+            ? "Sending..."
+            : isCoolingDown
+              ? `Cooldown ${cooldownRemaining}s`
+              : "Send"}
         </button>
       </div>
     </form>

@@ -17,7 +17,7 @@ const createMessageRateLimiter = createRateLimiter({
 
 const createMessageAntiSpamGuard = createAntiSpamGuard({
   scope: "global-message-spam",
-  minIntervalMs: 700,
+  minIntervalMs: 3000,
   duplicateWindowMs: 12000,
 });
 
