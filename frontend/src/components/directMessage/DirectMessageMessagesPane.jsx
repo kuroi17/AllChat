@@ -48,7 +48,7 @@ export default function DirectMessageMessagesPane({
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`group relative flex gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${
+                  className={`group relative flex min-w-0 gap-2 sm:gap-3 max-w-[88%] sm:max-w-[70%] ${
                     isMe
                       ? "flex-row-reverse pl-7 sm:pl-8 -ml-7 sm:-ml-8"
                       : "flex-row pr-7 sm:pr-8 -mr-7 sm:-mr-8"
@@ -70,7 +70,7 @@ export default function DirectMessageMessagesPane({
                     </div>
                   )}
 
-                  <div className="relative">
+                  <div className="relative min-w-0">
                     {!isDeleted && (
                       <button
                         type="button"
@@ -132,7 +132,7 @@ export default function DirectMessageMessagesPane({
                       </div>
                     ) : (
                       <div
-                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
+                        className={`w-fit max-w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
                           isMe
                             ? "bg-red-800 text-white rounded-br-sm"
                             : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
@@ -143,12 +143,12 @@ export default function DirectMessageMessagesPane({
                             href={msg.image_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="block"
+                            className="block max-w-full"
                           >
                             <img
                               src={msg.image_url}
                               alt="Shared media"
-                              className="rounded-xl w-full max-w-65 max-h-75 object-cover mb-2"
+                              className="mb-2 w-full max-w-52.5 sm:max-w-70 max-h-90 rounded-xl object-cover"
                             />
                           </a>
                         )}
