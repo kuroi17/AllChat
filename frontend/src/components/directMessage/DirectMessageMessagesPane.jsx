@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Loader2, MoreVertical } from "lucide-react";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
@@ -15,6 +16,49 @@ export default function DirectMessageMessagesPane({
   onUnsendForEveryone,
   messagesEndRef,
 }) {
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const longPressTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    const updateViewportMode = (event) => {
+      setIsMobileViewport(event.matches);
+    };
+
+    updateViewportMode(mediaQuery);
+
+    mediaQuery.addEventListener("change", updateViewportMode);
+    return () => {
+      mediaQuery.removeEventListener("change", updateViewportMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimeoutRef.current) {
+        clearTimeout(longPressTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function clearLongPress() {
+    if (!longPressTimeoutRef.current) return;
+    clearTimeout(longPressTimeoutRef.current);
+    longPressTimeoutRef.current = null;
+  }
+
+  function handleLongPressStart({ messageId, isDeleted, isMenuOpen }) {
+    if (!isMobileViewport || isDeleted) return;
+
+    clearLongPress();
+    longPressTimeoutRef.current = setTimeout(() => {
+      if (!isMenuOpen) {
+        onToggleMessageMenu(messageId);
+      }
+    }, 550);
+  }
+
   return (
     <div
       ref={containerRef}
@@ -70,8 +114,34 @@ export default function DirectMessageMessagesPane({
                     </div>
                   )}
 
-                  <div className="relative min-w-0">
-                    {!isDeleted && (
+                  <div
+                    className="relative min-w-0"
+                    onTouchStart={() =>
+                      handleLongPressStart({
+                        messageId: msg.id,
+                        isDeleted,
+                        isMenuOpen,
+                      })
+                    }
+                    onTouchEnd={clearLongPress}
+                    onTouchCancel={clearLongPress}
+                    onTouchMove={clearLongPress}
+                    onMouseDown={() =>
+                      handleLongPressStart({
+                        messageId: msg.id,
+                        isDeleted,
+                        isMenuOpen,
+                      })
+                    }
+                    onMouseUp={clearLongPress}
+                    onMouseLeave={clearLongPress}
+                    onContextMenu={(event) => {
+                      if (isMobileViewport) {
+                        event.preventDefault();
+                      }
+                    }}
+                  >
+                    {!isDeleted && !isMobileViewport && (
                       <button
                         type="button"
                         onClick={(event) => {
