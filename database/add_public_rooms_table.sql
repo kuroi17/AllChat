@@ -50,11 +50,16 @@ CREATE POLICY "Owner delete rooms"
 -- Returns updated participant_count
 CREATE OR REPLACE FUNCTION public.increment_room_participants(p_room_id UUID)
 RETURNS TABLE(participant_count INTEGER) LANGUAGE plpgsql AS $$
+DECLARE
+  new_count INTEGER;
 BEGIN
   UPDATE public_rooms
-  SET participant_count = participant_count + 1,
+  SET participant_count = public_rooms.participant_count + 1,
       last_updated = NOW()
   WHERE id = p_room_id
-  RETURNING participant_count INTO participant_count;
+  RETURNING public_rooms.participant_count INTO new_count;
+
+  -- assign to out parameter and return single row
+  participant_count := new_count;
   RETURN;
 END; $$;
