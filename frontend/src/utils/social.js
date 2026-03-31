@@ -642,6 +642,14 @@ export async function createPublicRoom({
 }
 
 /**
+ * Fetch a single room by ID
+ */
+export async function fetchRoom(roomId) {
+  if (!roomId) throw new Error("Missing room ID");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}`, { auth: true });
+}
+
+/**
  * Join a room (increments participant count on the server)
  */
 export async function joinPublicRoom(roomId) {
