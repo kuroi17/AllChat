@@ -8,6 +8,7 @@ import {
   Mail,
   Settings,
   ChevronUp,
+  Users,
 } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
@@ -163,6 +164,16 @@ export default function Sidebar({ showExtras, onNavigate }) {
               Global Chat
             </p>
           </div>
+          {/* Mobile: quick open right panel */}
+          <button
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("openRightPanel"))
+            }
+            className="ml-auto xl:hidden p-2 rounded-md text-gray-600 hover:bg-red-50"
+            aria-label="Open Public Rooms"
+          >
+            <Users size={18} />
+          </button>
         </div>
       </div>
 
