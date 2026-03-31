@@ -616,10 +616,24 @@ export async function fetchPublicRooms(limit = 20) {
     const safeLimit = Number.isFinite(limit) ? limit : 20;
     const data = await requestApi(
       `/api/rooms?limit=${encodeURIComponent(safeLimit)}`,
+      { auth: true },
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("[Rooms] Fetch failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch rooms the current user has joined
+ */
+export async function fetchJoinedRooms() {
+  try {
+    const data = await requestApi("/api/rooms/joined", { auth: true });
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[Rooms] Fetch joined failed:", error);
     return [];
   }
 }
@@ -633,11 +647,12 @@ export async function createPublicRoom({
   isPublic = true,
   location = null,
   capacity = null,
+  passcode = null,
 }) {
   return requestApi("/api/rooms", {
     method: "POST",
     auth: true,
-    body: { title, description, isPublic, location, capacity },
+    body: { title, description, isPublic, location, capacity, passcode },
   });
 }
 
@@ -652,10 +667,30 @@ export async function fetchRoom(roomId) {
 /**
  * Join a room (increments participant count on the server)
  */
-export async function joinPublicRoom(roomId) {
+export async function joinPublicRoom(roomId, passcode) {
   if (!roomId) throw new Error("Missing room ID");
   return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     auth: true,
+    body: passcode ? { passcode } : {},
   });
+}
+
+/**
+ * Fetch room members preview
+ */
+export async function fetchRoomMembers(roomId, limit = 6) {
+  if (!roomId) return [];
+
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 6;
+    const data = await requestApi(
+      `/api/rooms/${encodeURIComponent(roomId)}/members?limit=${encodeURIComponent(safeLimit)}`,
+      { auth: true },
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[Rooms] Fetch members failed:", error);
+    return [];
+  }
 }
