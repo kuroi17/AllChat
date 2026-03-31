@@ -8,12 +8,51 @@ CREATE TABLE IF NOT EXISTS public_rooms (
   location TEXT,
   creator_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   is_public BOOLEAN DEFAULT TRUE,
+  passcode_hash TEXT,
   capacity INTEGER,
   participant_count INTEGER DEFAULT 0,
   status TEXT DEFAULT 'open',
   last_updated TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public_rooms
+  ADD COLUMN IF NOT EXISTS passcode_hash TEXT;
+
+-- Room membership table
+CREATE TABLE IF NOT EXISTS room_members (
+  room_id UUID REFERENCES public_rooms(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (room_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_room_members_room_id ON room_members(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_members_user_id ON room_members(user_id);
+
+ALTER TABLE room_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Room members read" ON room_members;
+CREATE POLICY "Room members read"
+  ON room_members FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM room_members AS rm
+      WHERE rm.room_id = room_members.room_id
+        AND rm.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "Room members insert self" ON room_members;
+CREATE POLICY "Room members insert self"
+  ON room_members FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Room members delete self" ON room_members;
+CREATE POLICY "Room members delete self"
+  ON room_members FOR DELETE
+  USING (user_id = auth.uid());
 
 CREATE INDEX IF NOT EXISTS idx_public_rooms_is_public ON public_rooms(is_public);
 CREATE INDEX IF NOT EXISTS idx_public_rooms_created_at ON public_rooms(created_at DESC);
@@ -25,7 +64,16 @@ ALTER TABLE public_rooms ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public rooms read" ON public_rooms;
 CREATE POLICY "Public rooms read"
   ON public_rooms FOR SELECT
-  USING (is_public = true OR creator_id = auth.uid());
+  USING (
+    is_public = true
+    OR creator_id = auth.uid()
+    OR EXISTS (
+      SELECT 1
+      FROM room_members
+      WHERE room_members.room_id = public_rooms.id
+        AND room_members.user_id = auth.uid()
+    )
+  );
 
 -- Allow authenticated users to create rooms (creator_id must match auth.uid())
 DROP POLICY IF EXISTS "Authenticated create rooms" ON public_rooms;
