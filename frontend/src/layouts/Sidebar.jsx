@@ -164,16 +164,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
               Global Chat
             </p>
           </div>
-          {/* Mobile: quick open right panel */}
-          <button
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent("openRightPanel"))
-            }
-            className="ml-auto xl:hidden p-2 rounded-md text-gray-600 hover:bg-red-50"
-            aria-label="Open Public Rooms"
-          >
-            <Users size={18} />
-          </button>
+          {/* (rooms icon moved into main nav) */}
         </div>
       </div>
 
@@ -205,6 +196,18 @@ export default function Sidebar({ showExtras, onNavigate }) {
               {unreadDmCount > 99 ? "99+" : unreadDmCount}
             </span>
           )}
+        </NavLink>
+        <NavLink
+          to="/rooms"
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            isActive
+              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
+          }
+        >
+          <Users size={18} />
+          <span className="flex-1">Rooms</span>
         </NavLink>
       </nav>
 
