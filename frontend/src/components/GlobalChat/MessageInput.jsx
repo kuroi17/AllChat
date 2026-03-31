@@ -3,7 +3,7 @@ import { useUser } from "../../contexts/UserContext";
 import { sendMessage } from "../../utils/messages";
 import EmojiPickerButton from "../common/EmojiPickerButton";
 
-const GLOBAL_CHAT_COOLDOWN_SECONDS = 3;
+const GLOBAL_CHAT_COOLDOWN_SECONDS = 30;
 
 export default function MessageInput() {
   const { user } = useUser();

@@ -26,7 +26,7 @@ export default function ConversationCard({
       >
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full bg-linear-to-br from-red-400 to-pink-400 animate-pulse opacity-0 group-hover:opacity-30 transition-opacity" />
+            <div className="absolute inset-0 rounded-full bg-red-800 animate-pulse opacity-0 group-hover:opacity-30 transition-opacity" />
             {conversation.otherUser?.avatar_url ? (
               <img
                 src={conversation.otherUser.avatar_url}
@@ -75,7 +75,7 @@ export default function ConversationCard({
 
             {conversation.unreadCount > 0 && (
               <div className="flex items-center gap-2 mt-2">
-                <span className="inline-flex items-center px-2.5 py-1 text-[11px] sm:text-xs font-bold bg-linear-to-r from-red-500 to-pink-500 text-white rounded-full shadow-md animate-pulse">
+                <span className="inline-flex items-center px-2.5 py-1 text-[11px] sm:text-xs font-bold bg-red-800 text-white rounded-full shadow-md animate-pulse">
                   {conversation.unreadCount} unread
                 </span>
               </div>

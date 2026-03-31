@@ -126,7 +126,7 @@ export default function DirectMessages() {
         />
 
         {/* Conversations list */}
-        <div className="flex-1 overflow-y-auto bg-linear-to-b from-gray-50 to-gray-100">
+        <div className="flex-1 overflow-y-auto bg-gray-100">
           <div className="max-w-4xl mx-auto p-3 sm:p-6 pb-20 md:pb-6">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-14 sm:py-20">
@@ -140,7 +140,7 @@ export default function DirectMessages() {
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="text-center py-14 sm:py-20">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-linear-to-br from-red-100 to-pink-100 flex items-center justify-center">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 rounded-full bg-red-100 flex items-center justify-center">
                   <MessageCircle size={40} className="text-red-400" />
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">

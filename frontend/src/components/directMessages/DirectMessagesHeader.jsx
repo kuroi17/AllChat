@@ -7,11 +7,11 @@ export default function DirectMessagesHeader({
   onSearchChange,
 }) {
   return (
-    <header className="bg-linear-to-r from-red-50 via-white to-red-50 border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-5 shrink-0">
+    <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-5 shrink-0">
       <div className="max-w-4xl mx-auto w-full">
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
           <MobileNavMenuButton />
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-linear-to-br from-red-500 to-pink-500 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-800 flex items-center justify-center shrink-0">
             <Send className="text-white" size={20} />
           </div>
           <div className="min-w-0">

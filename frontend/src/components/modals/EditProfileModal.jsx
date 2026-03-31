@@ -247,7 +247,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
               Cover Photo
             </label>
 
-            <div className="relative h-28 rounded-xl overflow-hidden border border-gray-200 bg-linear-to-r from-red-700 via-red-600 to-orange-500">
+            <div className="relative h-28 rounded-xl overflow-hidden border border-gray-200 bg-red-800">
               {bannerPreview && (
                 <>
                   <img

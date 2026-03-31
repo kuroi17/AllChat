@@ -4,9 +4,7 @@ export default function ProfileBanner({
   className = "h-28 sm:h-32",
 }) {
   return (
-    <div
-      className={`relative ${className} overflow-hidden bg-linear-to-r from-red-700 via-red-600 to-orange-500`}
-    >
+    <div className={`relative ${className} overflow-hidden bg-red-800`}>
       {imageUrl ? (
         <>
           {/* Blurred base to make odd aspect-ratio banners look intentional */}
@@ -23,7 +21,7 @@ export default function ProfileBanner({
             className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
           />
 
-          <div className="pointer-events-none absolute inset-0 z-20 bg-linear-to-r from-black/10 via-transparent to-black/5" />
+          <div className="pointer-events-none absolute inset-0 z-20 bg-black/5" />
         </>
       ) : (
         <>

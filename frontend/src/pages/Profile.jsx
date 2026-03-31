@@ -120,41 +120,6 @@ export default function Profile() {
             </div>
 
             {/* Info */}
-            <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-3 sm:mb-4 text-base sm:text-lg">
-                Account Information
-              </h3>
-              <div className="space-y-2 sm:space-y-3">
-                {[
-                  { label: "Username", value: profile?.username || "Not set" },
-                  { label: "Email", value: user?.email || "Not available" },
-                  {
-                    label: "Department",
-                    value: profile?.department || "Not set",
-                  },
-                  {
-                    label: "Year Level",
-                    value: profile?.year_level || "Not set",
-                  },
-                  {
-                    label: "Student ID",
-                    value: profile?.student_id || "Not set",
-                  },
-                ].map((f) => (
-                  <div
-                    key={f.label}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1.5 border-b border-gray-50 last:border-0"
-                  >
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                      {f.label}
-                    </span>
-                    <span className="text-sm text-gray-700 wrap-break-word sm:text-right">
-                      {f.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </main>
