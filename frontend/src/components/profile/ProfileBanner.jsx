@@ -20,7 +20,7 @@ export default function ProfileBanner({
           <img
             src={imageUrl}
             alt={alt}
-            className="pointer-events-none relative z-10 h-full w-full object-contain p-0.5 sm:p-1"
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
           />
 
           <div className="pointer-events-none absolute inset-0 z-20 bg-linear-to-r from-black/10 via-transparent to-black/5" />
