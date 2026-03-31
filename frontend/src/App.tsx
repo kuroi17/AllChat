@@ -10,6 +10,7 @@ import DirectMessage from "./pages/DirectMessage";
 import DirectMessages from "./pages/DirectMessages";
 import Settings from "./pages/Settings";
 import Room from "./pages/Room";
+import RoomsList from "./pages/RoomsList";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 import UserProvider from "./contexts/UserContext";
@@ -106,6 +107,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Room />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rooms"
+            element={
+              <ProtectedRoute>
+                <RoomsList />
               </ProtectedRoute>
             }
           />
