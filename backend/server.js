@@ -158,6 +158,7 @@ const usersRouter = require("./routes/users");
 const directMessagesRouter = require("./routes/directMessages");
 const eventsRouter = require("./routes/events");
 const announcementsRouter = require("./routes/announcements");
+const roomsRouter = require("./routes/rooms");
 
 // Mount routes
 app.use("/api/messages", messagesRouter);
@@ -165,6 +166,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/direct-messages", directMessagesRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/announcements", announcementsRouter);
+app.use("/api/rooms", roomsRouter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

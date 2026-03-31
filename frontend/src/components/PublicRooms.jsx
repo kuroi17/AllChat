@@ -1,39 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PlusSquare, MapPin, Lock, Users, X, Check } from "lucide-react";
+import {
+  fetchPublicRooms,
+  createPublicRoom,
+  joinPublicRoom,
+} from "../utils/social";
+import { getChatSocket } from "../utils/messages";
 
 export default function PublicRooms() {
-  const [rooms, setRooms] = useState([
-    {
-      id: "r1",
-      title: "Study Group - Algorithms",
-      description: "Open study session for CS students preparing for finals.",
-      location: "Library - 3rd Floor",
-      isPublic: true,
-      capacity: 8,
-      participantCount: 3,
-      status: "open",
-    },
-    {
-      id: "r2",
-      title: "Project Team - CS101",
-      description: "Working on final project. Bring your laptop.",
-      location: "Lab A",
-      isPublic: false,
-      capacity: 5,
-      participantCount: 2,
-      status: "open",
-    },
-    {
-      id: "r3",
-      title: "Casual Hangout",
-      description: "Meet new people — coffee and board games.",
-      location: "Student Center",
-      isPublic: true,
-      capacity: 20,
-      participantCount: 7,
-      status: "open",
-    },
-  ]);
+  const [rooms, setRooms] = useState([]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -50,21 +25,76 @@ export default function PublicRooms() {
     setShowCreate(true);
   }
 
-  function submitCreate(e) {
-    e.preventDefault();
-    const newRoom = {
-      id: `r_${Date.now()}`,
-      title: form.title || "Untitled Room",
-      description: form.description || "",
-      location: "TBD",
-      isPublic: !!form.isPublic,
-      capacity: 10,
-      participantCount: 1,
-      status: "open",
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const list = await fetchPublicRooms(50);
+        if (mounted) setRooms(list);
+      } catch (err) {
+        console.error("Failed to load rooms:", err);
+      }
     };
 
-    setRooms((prev) => [newRoom, ...prev]);
-    setShowCreate(false);
+    load();
+
+    // subscribe to socket updates
+    (async () => {
+      try {
+        const socket = await getChatSocket();
+        const handler = (payload) => {
+          if (!payload || !payload.roomId) return;
+          setRooms((prev) =>
+            prev.map((r) =>
+              r.id === payload.roomId
+                ? {
+                    ...r,
+                    participantCount:
+                      payload.participantCount ?? r.participantCount,
+                  }
+                : r,
+            ),
+          );
+        };
+
+        socket.on("rooms:updated", handler);
+      } catch (e) {
+        // ignore socket errors
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      (async () => {
+        try {
+          const s = await getChatSocket();
+          s.off("rooms:updated");
+        } catch (e) {}
+      })();
+    };
+  }, []);
+
+  function submitCreate(e) {
+    e.preventDefault();
+    (async () => {
+      try {
+        const created = await createPublicRoom({
+          title: form.title,
+          description: form.description,
+          isPublic: form.isPublic,
+        });
+
+        if (created) {
+          setRooms((prev) => [created, ...prev]);
+        }
+      } catch (err) {
+        console.error("Create room failed:", err);
+        alert("Failed to create room: " + (err.message || err));
+      } finally {
+        setShowCreate(false);
+      }
+    })();
   }
 
   function openJoin(room) {
@@ -74,15 +104,26 @@ export default function PublicRooms() {
 
   function confirmJoin() {
     if (!joinTarget) return;
-    setRooms((prev) =>
-      prev.map((r) =>
-        r.id === joinTarget.id
-          ? { ...r, participantCount: r.participantCount + 1 }
-          : r,
-      ),
-    );
-    setShowJoin(false);
-    setJoinTarget(null);
+
+    (async () => {
+      try {
+        const res = await joinPublicRoom(joinTarget.id);
+        const participantCount =
+          res?.participantCount ?? joinTarget.participantCount + 1;
+
+        setRooms((prev) =>
+          prev.map((r) =>
+            r.id === joinTarget.id ? { ...r, participantCount } : r,
+          ),
+        );
+      } catch (err) {
+        console.error("Join failed:", err);
+        alert("Failed to join room: " + (err.message || err));
+      } finally {
+        setShowJoin(false);
+        setJoinTarget(null);
+      }
+    })();
   }
 
   return (
@@ -93,7 +134,7 @@ export default function PublicRooms() {
         </p>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 text-xs text-red-800 font-semibold bg-red-50 border border-red-100 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
+          className=" cursor-pointer flex items-center gap-2 text-xs text-red-800 font-semibold bg-red-50 border border-red-100 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
         >
           <PlusSquare size={14} /> Create Room
         </button>
@@ -209,13 +250,13 @@ export default function PublicRooms() {
                 <button
                   type="button"
                   onClick={() => setShowCreate(false)}
-                  className="text-sm text-gray-500 px-3 py-1"
+                  className="text-sm text-gray-500 px-3 py-1 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="text-sm bg-red-800 text-white px-3 py-1 rounded-lg"
+                  className="text-sm bg-red-800 text-white px-3 py-1 rounded-lg cursor-pointer"
                 >
                   Create
                 </button>

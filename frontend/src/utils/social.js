@@ -605,3 +605,49 @@ export async function createAnnouncement({ title, content }) {
     },
   });
 }
+
+// ==================== PUBLIC ROOMS ====================
+
+/**
+ * Fetch public rooms (MVP)
+ */
+export async function fetchPublicRooms(limit = 20) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 20;
+    const data = await requestApi(
+      `/api/rooms?limit=${encodeURIComponent(safeLimit)}`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("[Rooms] Fetch failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Create a public room (authenticated)
+ */
+export async function createPublicRoom({
+  title,
+  description,
+  isPublic = true,
+  location = null,
+  capacity = null,
+}) {
+  return requestApi("/api/rooms", {
+    method: "POST",
+    auth: true,
+    body: { title, description, isPublic, location, capacity },
+  });
+}
+
+/**
+ * Join a room (increments participant count on the server)
+ */
+export async function joinPublicRoom(roomId) {
+  if (!roomId) throw new Error("Missing room ID");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
+    method: "POST",
+    auth: true,
+  });
+}
