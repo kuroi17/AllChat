@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PlusSquare, MapPin, Lock, Users, X, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useUser } from "../contexts/UserContext";
 import {
   fetchPublicRooms,
   createPublicRoom,
@@ -9,6 +11,8 @@ import { getChatSocket } from "../utils/messages";
 
 export default function PublicRooms() {
   const [rooms, setRooms] = useState([]);
+  const { profile } = useUser();
+  const navigate = useNavigate();
 
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -28,10 +32,18 @@ export default function PublicRooms() {
   useEffect(() => {
     let mounted = true;
 
+    const normalizeRoom = (r) => ({
+      ...r,
+      participantCount: r.participantCount ?? r.participant_count ?? 0,
+      creatorId: r.creatorId ?? r.creator_id ?? null,
+      isPublic: r.isPublic ?? r.is_public ?? true,
+    });
+
     const load = async () => {
       try {
         const list = await fetchPublicRooms(50);
-        if (mounted) setRooms(list);
+        if (mounted)
+          setRooms((Array.isArray(list) ? list : []).map(normalizeRoom));
       } catch (err) {
         console.error("Failed to load rooms:", err);
       }
@@ -86,7 +98,18 @@ export default function PublicRooms() {
         });
 
         if (created) {
-          setRooms((prev) => [created, ...prev]);
+          // normalize and redirect creator into the room page
+          const norm = {
+            ...created,
+            participantCount:
+              created.participantCount ?? created.participant_count ?? 0,
+            creatorId: created.creatorId ?? created.creator_id ?? null,
+            isPublic: created.isPublic ?? created.is_public ?? true,
+          };
+          // Navigate to the room detail page and show a success toast there
+          navigate(`/rooms/${norm.id}`, {
+            state: { showToast: true, message: "Room created" },
+          });
         }
       } catch (err) {
         console.error("Create room failed:", err);
@@ -165,14 +188,22 @@ export default function PublicRooms() {
 
               <div className="flex flex-col items-end gap-2">
                 <div className="text-xs text-gray-500">
-                  {room.participantCount}/{room.capacity}
+                  {room.participantCount ?? room.participant_count}/
+                  {room.capacity}
                 </div>
-                <button
-                  onClick={() => openJoin(room)}
-                  className="text-xs bg-red-800 text-white px-3 py-1 rounded-lg font-semibold hover:opacity-95"
-                >
-                  Join
-                </button>
+                {/* Hide Join if current user is the creator */}
+                {!(
+                  profile &&
+                  (profile.id === room.creatorId ||
+                    profile.id === room.creator_id)
+                ) && (
+                  <button
+                    onClick={() => openJoin(room)}
+                    className="text-xs bg-red-800 text-white px-3 py-1 rounded-lg font-semibold hover:opacity-95"
+                  >
+                    Join
+                  </button>
+                )}
               </div>
             </div>
           </div>
