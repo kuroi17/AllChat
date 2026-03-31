@@ -17,15 +17,18 @@ export default function PublicRooms() {
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [joinTarget, setJoinTarget] = useState(null);
+  const [joinPasscode, setJoinPasscode] = useState("");
+  const [joinError, setJoinError] = useState("");
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     isPublic: true,
+    passcode: "",
   });
 
   function openCreate() {
-    setForm({ title: "", description: "", isPublic: true });
+    setForm({ title: "", description: "", isPublic: true, passcode: "" });
     setShowCreate(true);
   }
 
@@ -37,6 +40,7 @@ export default function PublicRooms() {
       participantCount: r.participantCount ?? r.participant_count ?? 0,
       creatorId: r.creatorId ?? r.creator_id ?? null,
       isPublic: r.isPublic ?? r.is_public ?? true,
+      isMember: r.isMember ?? r.is_member ?? false,
     });
 
     const load = async () => {
@@ -95,6 +99,7 @@ export default function PublicRooms() {
           title: form.title,
           description: form.description,
           isPublic: form.isPublic,
+          passcode: form.isPublic ? null : form.passcode,
         });
 
         if (created) {
@@ -122,6 +127,8 @@ export default function PublicRooms() {
 
   function openJoin(room) {
     setJoinTarget(room);
+    setJoinPasscode("");
+    setJoinError("");
     setShowJoin(true);
   }
 
@@ -130,21 +137,37 @@ export default function PublicRooms() {
 
     (async () => {
       try {
-        const res = await joinPublicRoom(joinTarget.id);
+        if (!joinTarget.isPublic && !joinPasscode.trim()) {
+          setJoinError("Passcode is required for private rooms.");
+          return;
+        }
+
+        const res = await joinPublicRoom(
+          joinTarget.id,
+          joinTarget.isPublic ? undefined : joinPasscode.trim(),
+        );
         const participantCount =
           res?.participantCount ?? joinTarget.participantCount + 1;
 
         setRooms((prev) =>
           prev.map((r) =>
-            r.id === joinTarget.id ? { ...r, participantCount } : r,
+            r.id === joinTarget.id
+              ? { ...r, participantCount, isMember: true }
+              : r,
           ),
         );
-      } catch (err) {
-        console.error("Join failed:", err);
-        alert("Failed to join room: " + (err.message || err));
-      } finally {
+
         setShowJoin(false);
         setJoinTarget(null);
+        navigate(`/rooms/${joinTarget.id}`, {
+          state: {
+            showToast: true,
+            message: res?.alreadyMember ? "Already joined" : "Joined room",
+          },
+        });
+      } catch (err) {
+        console.error("Join failed:", err);
+        setJoinError(err.message || "Failed to join room");
       }
     })();
   }
@@ -192,18 +215,33 @@ export default function PublicRooms() {
                   {room.capacity}
                 </div>
                 {/* Hide Join if current user is the creator */}
-                {!(
-                  profile &&
-                  (profile.id === room.creatorId ||
-                    profile.id === room.creator_id)
-                ) && (
-                  <button
-                    onClick={() => openJoin(room)}
-                    className="text-xs bg-red-800 text-white px-3 py-1 rounded-lg font-semibold hover:opacity-95"
-                  >
-                    Join
-                  </button>
-                )}
+                {(() => {
+                  const isCreator =
+                    profile &&
+                    (profile.id === room.creatorId ||
+                      profile.id === room.creator_id);
+                  const isMember = room.isMember || isCreator;
+
+                  if (isMember) {
+                    return (
+                      <button
+                        onClick={() => navigate(`/rooms/${room.id}`)}
+                        className="text-xs bg-white text-red-800 px-3 py-1 rounded-lg font-semibold border border-red-100 hover:bg-red-50"
+                      >
+                        Open
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      onClick={() => openJoin(room)}
+                      className="text-xs bg-red-800 text-white px-3 py-1 rounded-lg font-semibold hover:opacity-95"
+                    >
+                      Join
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -277,6 +315,22 @@ export default function PublicRooms() {
                 </label>
               </div>
 
+              {!form.isPublic && (
+                <div>
+                  <label className="text-xs text-gray-500">Passcode</label>
+                  <input
+                    type="password"
+                    value={form.passcode}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, passcode: e.target.value }))
+                    }
+                    className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    placeholder="Enter a passcode"
+                    required
+                  />
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -317,6 +371,25 @@ export default function PublicRooms() {
             <p className="text-xs text-gray-500 mt-1">
               {joinTarget.description}
             </p>
+
+            {!joinTarget.isPublic && (
+              <div className="mt-3">
+                <label className="text-xs text-gray-500">Passcode</label>
+                <input
+                  value={joinPasscode}
+                  onChange={(event) => setJoinPasscode(event.target.value)}
+                  className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Enter room passcode"
+                  type="password"
+                />
+              </div>
+            )}
+
+            {joinError && (
+              <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {joinError}
+              </div>
+            )}
 
             <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-gray-500">
