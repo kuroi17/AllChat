@@ -4,7 +4,9 @@ export default function ProfileBanner({
   className = "h-28 sm:h-32",
 }) {
   return (
-    <div className={`relative ${className} overflow-hidden bg-red-800`}>
+    <div
+      className={`relative ${className} overflow-hidden ${imageUrl ? "bg-red-800" : "bg-gray-100"}`}
+    >
       {imageUrl ? (
         <>
           {/* Blurred base to make odd aspect-ratio banners look intentional */}
