@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { PlusSquare, MapPin, Lock, Users, X, Check } from "lucide-react";
+import { MapPin, Lock, Users, X, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
-import {
-  fetchPublicRooms,
-  createPublicRoom,
-  joinPublicRoom,
-} from "../utils/social";
+import { fetchPublicRooms, joinPublicRoom } from "../utils/social";
 import { getChatSocket } from "../utils/messages";
 
 export default function PublicRooms() {
@@ -14,23 +10,10 @@ export default function PublicRooms() {
   const { profile } = useUser();
   const navigate = useNavigate();
 
-  const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [joinTarget, setJoinTarget] = useState(null);
   const [joinPasscode, setJoinPasscode] = useState("");
   const [joinError, setJoinError] = useState("");
-
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    isPublic: true,
-    passcode: "",
-  });
-
-  function openCreate() {
-    setForm({ title: "", description: "", isPublic: true, passcode: "" });
-    setShowCreate(true);
-  }
 
   useEffect(() => {
     let mounted = true;
@@ -91,40 +74,6 @@ export default function PublicRooms() {
     };
   }, []);
 
-  function submitCreate(e) {
-    e.preventDefault();
-    (async () => {
-      try {
-        const created = await createPublicRoom({
-          title: form.title,
-          description: form.description,
-          isPublic: form.isPublic,
-          passcode: form.isPublic ? null : form.passcode,
-        });
-
-        if (created) {
-          // normalize and redirect creator into the room page
-          const norm = {
-            ...created,
-            participantCount:
-              created.participantCount ?? created.participant_count ?? 0,
-            creatorId: created.creatorId ?? created.creator_id ?? null,
-            isPublic: created.isPublic ?? created.is_public ?? true,
-          };
-          // Navigate to the room detail page and show a success toast there
-          navigate(`/rooms/${norm.id}`, {
-            state: { showToast: true, message: "Room created" },
-          });
-        }
-      } catch (err) {
-        console.error("Create room failed:", err);
-        alert("Failed to create room: " + (err.message || err));
-      } finally {
-        setShowCreate(false);
-      }
-    })();
-  }
-
   function openJoin(room) {
     setJoinTarget(room);
     setJoinPasscode("");
@@ -178,12 +127,6 @@ export default function PublicRooms() {
         <p className="text-[10px] font-bold text-gray-400 tracking-widest">
           PUBLIC ROOMS
         </p>
-        <button
-          onClick={openCreate}
-          className=" cursor-pointer flex items-center gap-2 text-xs text-red-800 font-semibold bg-red-50 border border-red-100 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors"
-        >
-          <PlusSquare size={14} /> Create Room
-        </button>
       </div>
 
       <div className="space-y-2">
@@ -247,109 +190,6 @@ export default function PublicRooms() {
           </div>
         ))}
       </div>
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-800">
-                Create Public Room
-              </h3>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={submitCreate} className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500">Room name</label>
-                <input
-                  autoFocus
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, title: e.target.value }))
-                  }
-                  className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  placeholder="e.g. Study Group - Math 101"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-500">
-                  Description (optional)
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
-                  className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
-                  rows={3}
-                  placeholder="Add short notes about the room"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={form.isPublic}
-                    onChange={() => setForm((f) => ({ ...f, isPublic: true }))}
-                    className="accent-red-800"
-                  />
-                  <span className="text-sm">Public</span>
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    checked={!form.isPublic}
-                    onChange={() => setForm((f) => ({ ...f, isPublic: false }))}
-                    className="accent-red-800"
-                  />
-                  <span className="text-sm">Private</span>
-                </label>
-              </div>
-
-              {!form.isPublic && (
-                <div>
-                  <label className="text-xs text-gray-500">Passcode</label>
-                  <input
-                    type="password"
-                    value={form.passcode}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, passcode: e.target.value }))
-                    }
-                    className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                    placeholder="Enter a passcode"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(false)}
-                  className="text-sm text-gray-500 px-3 py-1 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="text-sm bg-red-800 text-white px-3 py-1 rounded-lg cursor-pointer"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Join Modal */}
       {showJoin && joinTarget && (
