@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MoreVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import {
@@ -35,17 +35,34 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
 
   const roomKey = `room:${roomId}`;
 
-  const { data: fetchedMessages = [], isLoading: loading } = useQuery({
+  const { data: fetchedMessages, isLoading: loading } = useQuery({
     queryKey: ["messages", "room", roomId],
     queryFn: () => fetchMessages(roomKey),
     enabled: !!roomId,
   });
 
   useEffect(() => {
-    const incoming = Array.isArray(fetchedMessages) ? fetchedMessages : [];
+    if (!Array.isArray(fetchedMessages)) return;
+    const incoming = fetchedMessages;
     setMessages((prev) => {
-      if (prev.length === 0) return dedupeMessages(incoming);
-      return dedupeMessages([...incoming, ...prev]);
+      const next =
+        prev.length === 0
+          ? dedupeMessages(incoming)
+          : dedupeMessages([...incoming, ...prev]);
+
+      if (
+        next.length === prev.length &&
+        next.every(
+          (msg, index) =>
+            msg.id === prev[index]?.id &&
+            msg.content === prev[index]?.content &&
+            msg.image_url === prev[index]?.image_url,
+        )
+      ) {
+        return prev;
+      }
+
+      return next;
     });
   }, [fetchedMessages]);
 
@@ -253,8 +270,18 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      <div className="px-3 sm:px-6 py-4 space-y-4 h-full animate-pulse">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={`room-message-skeleton-${index}`}
+            className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
+          >
+            <div className="max-w-[85%] w-64 bg-white rounded-2xl border border-gray-100 px-4 py-3 space-y-2 shadow-sm">
+              <div className="h-3 w-24 bg-gray-200 rounded" />
+              <div className="h-3 w-44 bg-gray-200 rounded" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
