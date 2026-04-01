@@ -11,6 +11,7 @@ import DirectMessages from "./pages/DirectMessages";
 import Settings from "./pages/Settings";
 import Room from "./pages/Room";
 import RoomsList from "./pages/RoomsList";
+import RoomInvite from "./pages/RoomInvite";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 import UserProvider from "./contexts/UserContext";
@@ -115,6 +116,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <RoomsList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invite/:token"
+            element={
+              <ProtectedRoute>
+                <RoomInvite />
               </ProtectedRoute>
             }
           />

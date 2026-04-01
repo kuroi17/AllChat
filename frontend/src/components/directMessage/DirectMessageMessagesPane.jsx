@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MoreVertical } from "lucide-react";
+import { extractRoomLink } from "../../utils/roomLinks";
+import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 
@@ -85,6 +87,8 @@ export default function DirectMessageMessagesPane({
               msg.deletedByUsername;
             const deletedLabel =
               msg.deletedByUsername || (isMe ? "You" : otherUser.username);
+            const roomLink =
+              !isDeleted && msg.content ? extractRoomLink(msg.content) : null;
             // msg.profiles?.username || otherUser.username || "User")
             return (
               <div
@@ -227,6 +231,16 @@ export default function DirectMessageMessagesPane({
                           <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">
                             {msg.content}
                           </p>
+                        )}
+                        {roomLink && (
+                          <RoomLinkPreviewCard
+                            roomId={
+                              roomLink.type === "room" ? roomLink.value : null
+                            }
+                            inviteToken={
+                              roomLink.type === "invite" ? roomLink.value : null
+                            }
+                          />
                         )}
                       </div>
                     )}

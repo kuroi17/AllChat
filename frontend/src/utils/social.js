@@ -647,12 +647,11 @@ export async function createPublicRoom({
   isPublic = true,
   location = null,
   capacity = null,
-  passcode = null,
 }) {
   return requestApi("/api/rooms", {
     method: "POST",
     auth: true,
-    body: { title, description, isPublic, location, capacity, passcode },
+    body: { title, description, isPublic, location, capacity },
   });
 }
 
@@ -667,12 +666,51 @@ export async function fetchRoom(roomId) {
 /**
  * Join a room (increments participant count on the server)
  */
-export async function joinPublicRoom(roomId, passcode) {
+export async function joinPublicRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
   return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
     method: "POST",
     auth: true,
-    body: passcode ? { passcode } : {},
+  });
+}
+
+/**
+ * Create or fetch an invite token for a room
+ */
+export async function createRoomInvite(roomId) {
+  if (!roomId) throw new Error("Missing room ID");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/invites`, {
+    method: "POST",
+    auth: true,
+  });
+}
+
+/**
+ * Fetch room preview (limited info)
+ */
+export async function fetchRoomPreview(roomId) {
+  if (!roomId) throw new Error("Missing room ID");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/preview`, {
+    auth: true,
+  });
+}
+
+/**
+ * Fetch invite preview (limited info)
+ */
+export async function fetchRoomInvitePreview(token) {
+  if (!token) throw new Error("Missing invite token");
+  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/preview`);
+}
+
+/**
+ * Join a room with an invite token
+ */
+export async function joinRoomWithInvite(token) {
+  if (!token) throw new Error("Missing invite token");
+  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    auth: true,
   });
 }
 
@@ -693,4 +731,48 @@ export async function fetchRoomMembers(roomId, limit = 6) {
     console.error("[Rooms] Fetch members failed:", error);
     return [];
   }
+}
+
+/**
+ * Update room avatar URL
+ */
+export async function updateRoomAvatar(roomId, avatarUrl) {
+  if (!roomId || !avatarUrl) throw new Error("Missing room avatar data");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/avatar`, {
+    method: "PATCH",
+    auth: true,
+    body: { avatarUrl },
+  });
+}
+
+export async function uploadRoomAvatar({ roomId, file }) {
+  if (!roomId) throw new Error("Missing room ID");
+  if (!file) throw new Error("No image selected");
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Only image files are allowed");
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Image size must be 5MB or less");
+  }
+
+  const extension = file.name.split(".").pop() || "jpg";
+  const safeExtension = extension.toLowerCase();
+  const filePath = `${roomId}/avatar-${Date.now()}.${safeExtension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("room-avatars")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+    });
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("room-avatars").getPublicUrl(filePath);
+
+  return publicUrl;
 }

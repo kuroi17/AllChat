@@ -41,10 +41,27 @@ export async function getChatSocket() {
   return socketInstance;
 }
 
+async function getAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Not authenticated");
+  }
+
+  return session.access_token;
+}
+
 // Fetch messages for a room (limit to last 100 for performance)
 export async function fetchMessages(room = "global", limit = 100) {
   const encodedRoom = encodeURIComponent(room);
-  const response = await fetch(`${API_BASE_URL}/api/messages/${encodedRoom}`);
+  const token = await getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/api/messages/${encodedRoom}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   if (!response.ok) {
     const errorMessage = await readErrorResponse(
@@ -62,10 +79,16 @@ export async function fetchMessages(room = "global", limit = 100) {
 }
 
 // Send a message
-export async function sendMessage({ userId, content, room = "global" }) {
+export async function sendMessage({
+  userId,
+  content,
+  room = "global",
+  imageUrl,
+}) {
   const trimmed = typeof content === "string" ? content.trim() : "";
+  const trimmedImageUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
 
-  if (!trimmed) {
+  if (!trimmed && !trimmedImageUrl) {
     throw new Error("Message cannot be empty");
   }
 
@@ -90,7 +113,11 @@ export async function sendMessage({ userId, content, room = "global" }) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ content: trimmed, room }),
+    body: JSON.stringify({
+      content: trimmed,
+      room,
+      imageUrl: trimmedImageUrl || null,
+    }),
   });
 
   if (!response.ok) {
@@ -157,6 +184,73 @@ export function unsubscribeMessages(subscription) {
   subscription.socket.off("message:new", subscription.handleNew);
   subscription.socket.off("message:deleted", subscription.handleDeleted);
   subscription.socket.emit("room:leave", { room: subscription.room });
+}
+
+export async function deleteMessage(messageId) {
+  if (!messageId) throw new Error("Missing message ID");
+  const token = await getAccessToken();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      "Failed to delete message",
+    );
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
+export async function uploadRoomMessageImage({ roomId, file }) {
+  if (!roomId) throw new Error("Missing room ID");
+  if (!file) throw new Error("No image selected");
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Only image files are allowed");
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("Image size must be 8MB or less");
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
+  const extension = file.name.split(".").pop() || "jpg";
+  const safeExtension = extension.toLowerCase();
+  const filePath = `${roomId}/${userId}-${Date.now()}.${safeExtension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("room-media")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) throw uploadError;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("room-media").getPublicUrl(filePath);
+
+  return publicUrl;
 }
 
 // Fetch profiles by ids and return map

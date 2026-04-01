@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,20 +13,26 @@ import {
 import Sidebar from "../layouts/Sidebar";
 import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
 import {
+  createRoomInvite,
   fetchJoinedRooms,
   fetchPublicRooms,
   fetchRoom,
   fetchRoomMembers,
   joinPublicRoom,
+  updateRoomAvatar,
+  uploadRoomAvatar,
 } from "../utils/social";
 import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
+import RoomMessagesList from "../components/rooms/RoomMessagesList";
+import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
+import { sendMessage, uploadRoomMessageImage } from "../utils/messages";
 import { useUser } from "../contexts/UserContext";
 
 export default function Room() {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile } = useUser();
+  const { profile, user } = useUser();
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +42,7 @@ export default function Room() {
   const [listsLoading, setListsLoading] = useState(true);
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [roomMedia, setRoomMedia] = useState([]);
   const [toast, setToast] = useState(
     location?.state?.showToast
       ? { type: "success", message: location.state.message || "" }
@@ -43,9 +50,18 @@ export default function Room() {
   );
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [previewRoom, setPreviewRoom] = useState(null);
-  const [joinPasscode, setJoinPasscode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const imageInputRef = useRef(null);
+  const avatarInputRef = useRef(null);
 
   const normalizeRoom = (data) => {
     const creatorId = data?.creatorId ?? data?.creator_id ?? null;
@@ -148,30 +164,24 @@ export default function Room() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  useEffect(() => {
+    if (!imagePreviewUrl) return;
+    return () => URL.revokeObjectURL(imagePreviewUrl);
+  }, [imagePreviewUrl]);
+
   const openPreview = (targetRoom) => {
-    setJoinPasscode("");
     setJoinError("");
     setPreviewRoom(normalizeRoom(targetRoom));
   };
 
   const handleJoinRoom = async (targetRoom, { closeModal = false } = {}) => {
     if (!targetRoom) return;
-    const needsPasscode = !targetRoom.isPublic;
-    const trimmedPasscode = joinPasscode.trim();
-
-    if (needsPasscode && !trimmedPasscode) {
-      setJoinError("Passcode is required for private rooms.");
-      return;
-    }
 
     try {
       setJoining(true);
       setJoinError("");
 
-      const response = await joinPublicRoom(
-        targetRoom.id,
-        needsPasscode ? trimmedPasscode : undefined,
-      );
+      const response = await joinPublicRoom(targetRoom.id);
 
       const updated = normalizeRoom({ ...targetRoom, is_member: true });
 
@@ -224,6 +234,84 @@ export default function Room() {
     }
   };
 
+  const handleShareRoom = async () => {
+    if (!room?.id) return;
+    try {
+      setInviteLoading(true);
+      const response = await createRoomInvite(room.id);
+      const link = `${window.location.origin}/invite/${response.token}`;
+      await navigator.clipboard.writeText(link);
+      setInviteLink(link);
+      setToast({ type: "success", message: "Room link copied" });
+    } catch (err) {
+      setToast({ type: "error", message: err.message || "Copy failed" });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !room?.id) return;
+
+    try {
+      setAvatarUploading(true);
+      const avatarUrl = await uploadRoomAvatar({ roomId: room.id, file });
+      const updated = await updateRoomAvatar(room.id, avatarUrl);
+      setRoom(normalizeRoom(updated));
+      setToast({ type: "success", message: "Room logo updated" });
+    } catch (err) {
+      setToast({ type: "error", message: err.message || "Upload failed" });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedImage(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreviewUrl("");
+  };
+
+  const handleSendMessage = async (event) => {
+    event?.preventDefault?.();
+    if (!room?.id || (!messageText.trim() && !selectedImage)) return;
+
+    try {
+      setSendingMessage(true);
+      let imageUrl = "";
+
+      if (selectedImage) {
+        setUploadingImage(true);
+        imageUrl = await uploadRoomMessageImage({
+          roomId: room.id,
+          file: selectedImage,
+        });
+      }
+
+      await sendMessage({
+        userId: user?.id,
+        content: messageText,
+        room: `room:${room.id}`,
+        imageUrl,
+      });
+
+      setMessageText("");
+      clearSelectedImage();
+    } catch (err) {
+      setToast({ type: "error", message: err.message || "Send failed" });
+    } finally {
+      setUploadingImage(false);
+      setSendingMessage(false);
+    }
+  };
+
   if (loading) return <div className="p-6">Loading...</div>;
   if (loadError) return <div className="p-6">{loadError}</div>;
   if (!room) return <div className="p-6">Room not found</div>;
@@ -231,20 +319,7 @@ export default function Room() {
   const isCreator = room.creatorId && profile?.id === room.creatorId;
   const isMember = room.isMember || isCreator || joinedIds.has(room.id);
 
-  const roomLink =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/rooms/${room.id}`
-      : "";
-
-  const handleShareRoom = async () => {
-    if (!roomLink) return;
-    try {
-      await navigator.clipboard.writeText(roomLink);
-      setToast({ type: "success", message: "Room link copied" });
-    } catch (err) {
-      setToast({ type: "error", message: "Failed to copy link" });
-    }
-  };
+  const displayInviteLink = inviteLink || "Generate a shareable invite link";
 
   const visiblePublicRooms = publicRooms.filter(
     (item) => !joinedIds.has(item.id),
@@ -408,6 +483,20 @@ export default function Room() {
                   <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
 
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-50 text-red-700 flex items-center justify-center overflow-hidden">
+                  {room.avatar_url ? (
+                    <img
+                      src={room.avatar_url}
+                      alt={room.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold">
+                      {room.title?.[0]?.toUpperCase() || "R"}
+                    </span>
+                  )}
+                </div>
+
                 <div className="min-w-0">
                   <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                     {room.title}
@@ -424,7 +513,7 @@ export default function Room() {
                   {room.participantCount}/{room.capacity ?? "-"}
                 </div>
 
-                {!isMember && (
+                {!isMember && room.isPublic && (
                   <button
                     onClick={() => openPreview(room)}
                     className="bg-red-800 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold"
@@ -477,36 +566,58 @@ export default function Room() {
                   </div>
 
                   <div className="mt-5 flex items-center gap-3">
-                    <button
-                      onClick={() => openPreview(room)}
-                      className="bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-                    >
-                      Join room
-                    </button>
+                    {room.isPublic && (
+                      <button
+                        onClick={() => openPreview(room)}
+                        className="bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                      >
+                        Join room
+                      </button>
+                    )}
                     <span className="text-xs text-gray-400">
-                      {room.isPublic ? "Public room" : "Passcode required"}
+                      {room.isPublic ? "Public room" : "Invite required"}
                     </span>
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-red-800 flex items-center justify-center text-white">
-                      <MessageCircle size={18} />
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[70vh] overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
+                    <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white">
+                      <MessageCircle size={16} />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-900">
+                      <h2 className="text-sm font-semibold text-gray-900">
                         Room chat
                       </h2>
-                      <p className="text-sm text-gray-500">
-                        Messages will appear here once room chat is enabled.
+                      <p className="text-xs text-gray-500">
+                        Share updates, files, and images here.
                       </p>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
-                    No messages yet. Start the conversation when chat goes live.
+                  <div className="flex-1 overflow-hidden">
+                    <RoomMessagesList
+                      roomId={room.id}
+                      onMediaUpdate={setRoomMedia}
+                    />
                   </div>
+
+                  <DirectMessageComposer
+                    imagePreviewUrl={imagePreviewUrl}
+                    selectedImageName={selectedImage?.name || ""}
+                    onClearSelectedImage={clearSelectedImage}
+                    imageInputRef={imageInputRef}
+                    onImageChange={handleImageChange}
+                    sending={sendingMessage}
+                    uploadingImage={uploadingImage}
+                    onInsertEmoji={(emoji) =>
+                      setMessageText((prev) => `${prev}${emoji}`)
+                    }
+                    messageText={messageText}
+                    setMessageText={setMessageText}
+                    onSubmit={handleSendMessage}
+                    placeholder="Send a message to the room..."
+                  />
                 </div>
               )}
             </div>
@@ -515,6 +626,39 @@ export default function Room() {
 
         <aside className="hidden xl:block w-72 border-l border-gray-200 bg-white overflow-y-auto">
           <div className="p-4 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-700 flex items-center justify-center overflow-hidden">
+                {room.avatar_url ? (
+                  <img
+                    src={room.avatar_url}
+                    alt={room.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-lg font-semibold">
+                    {room.title?.[0]?.toUpperCase() || "R"}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {room.title}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {room.isPublic ? "Public room" : "Invite-only room"}
+                </p>
+                {isCreator && (
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="mt-2 text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg disabled:opacity-60"
+                  >
+                    {avatarUploading ? "Uploading..." : "Change logo"}
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -523,12 +667,19 @@ export default function Room() {
                 </div>
                 <button
                   onClick={handleShareRoom}
-                  className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg"
+                  disabled={!isMember || inviteLoading}
+                  className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg disabled:opacity-60"
                 >
-                  Copy link
+                  {!isMember
+                    ? "Join to share"
+                    : inviteLoading
+                      ? "Linking..."
+                      : "Copy link"}
                 </button>
               </div>
-              <p className="mt-2 text-xs text-gray-500 break-all">{roomLink}</p>
+              <p className="mt-2 text-xs text-gray-500 break-all">
+                {displayInviteLink}
+              </p>
             </div>
 
             <div>
@@ -607,9 +758,30 @@ export default function Room() {
               <h4 className="text-sm font-semibold text-gray-900 mb-3">
                 Shared media
               </h4>
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
-                No images shared in this room yet.
-              </div>
+              {roomMedia.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                  No images shared in this room yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {roomMedia.map((item) => (
+                    <a
+                      key={item.id}
+                      href={item.image_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
+                      title="Open image"
+                    >
+                      <img
+                        src={item.image_url}
+                        alt="Room media"
+                        className="w-full h-full object-cover"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -637,6 +809,46 @@ export default function Room() {
             </div>
 
             <div className="p-4 space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-700 flex items-center justify-center overflow-hidden">
+                  {room.avatar_url ? (
+                    <img
+                      src={room.avatar_url}
+                      alt={room.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-lg font-semibold">
+                      {room.title?.[0]?.toUpperCase() || "R"}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {room.title}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {room.isPublic ? "Public room" : "Invite-only room"}
+                  </p>
+                  {isCreator && (
+                    <button
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={avatarUploading}
+                      className="mt-2 text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg disabled:opacity-60"
+                    >
+                      {avatarUploading ? "Uploading..." : "Change logo"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -645,13 +857,18 @@ export default function Room() {
                   </div>
                   <button
                     onClick={handleShareRoom}
-                    className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg"
+                    disabled={!isMember || inviteLoading}
+                    className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg disabled:opacity-60"
                   >
-                    Copy link
+                    {!isMember
+                      ? "Join to share"
+                      : inviteLoading
+                        ? "Linking..."
+                        : "Copy link"}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500 break-all">
-                  {roomLink}
+                  {displayInviteLink}
                 </p>
               </div>
 
@@ -735,9 +952,30 @@ export default function Room() {
                 <h4 className="text-sm font-semibold text-gray-900 mb-3">
                   Shared media
                 </h4>
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
-                  No images shared in this room yet.
-                </div>
+                {roomMedia.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                    No images shared in this room yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {roomMedia.map((item) => (
+                      <a
+                        key={item.id}
+                        href={item.image_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="aspect-square rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition-opacity"
+                        title="Open image"
+                      >
+                        <img
+                          src={item.image_url}
+                          alt="Room media"
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -747,8 +985,6 @@ export default function Room() {
       {previewRoom && (
         <RoomPreviewModal
           room={previewRoom}
-          passcode={joinPasscode}
-          onPasscodeChange={setJoinPasscode}
           onClose={() => setPreviewRoom(null)}
           onJoin={() => handleJoinRoom(previewRoom, { closeModal: true })}
           joining={joining}

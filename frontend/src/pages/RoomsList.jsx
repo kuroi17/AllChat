@@ -21,7 +21,6 @@ export default function RoomsList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [previewRoom, setPreviewRoom] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [joinPasscode, setJoinPasscode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -132,28 +131,17 @@ export default function RoomsList() {
       return;
     }
 
-    setJoinPasscode("");
     setJoinError("");
     setPreviewRoom(room);
   };
 
   const handleJoin = async () => {
     if (!previewRoom) return;
-    const needsPasscode = !previewRoom.isPublic;
-    const trimmedPasscode = joinPasscode.trim();
-
-    if (needsPasscode && !trimmedPasscode) {
-      setJoinError("Passcode is required for private rooms.");
-      return;
-    }
 
     try {
       setJoining(true);
       setJoinError("");
-      const response = await joinPublicRoom(
-        previewRoom.id,
-        needsPasscode ? trimmedPasscode : undefined,
-      );
+      const response = await joinPublicRoom(previewRoom.id);
 
       const normalized = normalizeRoom({
         ...previewRoom,
@@ -341,8 +329,6 @@ export default function RoomsList() {
       {previewRoom && (
         <RoomPreviewModal
           room={previewRoom}
-          passcode={joinPasscode}
-          onPasscodeChange={setJoinPasscode}
           onClose={() => setPreviewRoom(null)}
           onJoin={handleJoin}
           joining={joining}

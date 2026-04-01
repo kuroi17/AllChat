@@ -2,8 +2,6 @@ import { Lock, Users, X } from "lucide-react";
 
 export default function RoomPreviewModal({
   room,
-  passcode,
-  onPasscodeChange,
   onClose,
   onJoin,
   joining,
@@ -43,19 +41,6 @@ export default function RoomPreviewModal({
             {room.participantCount}/{room.capacity ?? "-"} participants
           </div>
         </div>
-
-        {!room.isPublic && (
-          <div className="mt-4">
-            <label className="text-xs text-gray-500">Passcode</label>
-            <input
-              value={passcode}
-              onChange={(event) => onPasscodeChange(event.target.value)}
-              className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-              placeholder="Enter room passcode"
-              type="password"
-            />
-          </div>
-        )}
 
         {error && (
           <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">

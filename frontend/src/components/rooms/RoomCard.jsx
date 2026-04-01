@@ -19,11 +19,19 @@ export default function RoomCard({
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-full bg-red-800 opacity-0 group-hover:opacity-30 transition-opacity" />
-          <div
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md ring-2 ring-gray-200`}
-          >
-            {initial}
-          </div>
+          {room.avatar_url ? (
+            <img
+              src={room.avatar_url}
+              alt={room.title}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover ring-2 ring-gray-200 shadow-md"
+            />
+          ) : (
+            <div
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full ${colors[index % colors.length]} flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md ring-2 ring-gray-200`}
+            >
+              {initial}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 min-w-0">

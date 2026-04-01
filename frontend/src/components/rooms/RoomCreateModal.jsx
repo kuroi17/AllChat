@@ -5,7 +5,6 @@ const defaultForm = {
   title: "",
   description: "",
   isPublic: true,
-  passcode: "",
 };
 
 export default function RoomCreateModal({
@@ -31,7 +30,6 @@ export default function RoomCreateModal({
       title: form.title,
       description: form.description,
       isPublic: form.isPublic,
-      passcode: form.isPublic ? null : form.passcode,
     });
   };
 
@@ -100,26 +98,9 @@ export default function RoomCreateModal({
                 className="accent-red-800"
                 disabled={creating}
               />
-              <span className="text-sm">Private</span>
+              <span className="text-sm">Private (invite-only)</span>
             </label>
           </div>
-
-          {!form.isPublic && (
-            <div>
-              <label className="text-xs text-gray-500">Passcode</label>
-              <input
-                type="password"
-                value={form.passcode}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, passcode: e.target.value }))
-                }
-                className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                placeholder="Enter a passcode"
-                required
-                disabled={creating}
-              />
-            </div>
-          )}
 
           {error && (
             <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">

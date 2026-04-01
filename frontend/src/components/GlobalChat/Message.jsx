@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, MessageCircle } from "lucide-react";
 import { useUser } from "../../contexts/UserContext";
+import { extractRoomLink } from "../../utils/roomLinks";
+import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
 export default function Message({
   user,
@@ -50,14 +52,25 @@ export default function Message({
     navigate(`/dm/new?userId=${userId}`);
   };
 
+  const roomLink = extractRoomLink(text);
+
   if (me) {
     return (
       <div className="flex items-end justify-end gap-2 sm:gap-3">
         <div className="text-[11px] sm:text-xs text-gray-400 mb-1 shrink-0">
           {time} · Me
         </div>
-        <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white max-w-xs sm:max-w-md">
-          {text}
+        <div className="max-w-xs sm:max-w-md">
+          <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white">
+            {text}
+          </div>
+          {roomLink && (
+            <RoomLinkPreviewCard
+              roomId={roomLink.type === "room" ? roomLink.value : null}
+              inviteToken={roomLink.type === "invite" ? roomLink.value : null}
+              className="bg-white"
+            />
+          )}
         </div>
         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 overflow-hidden">
           {profile?.avatar_url ? (
@@ -112,7 +125,7 @@ export default function Message({
         )}
       </div>
 
-      <div>
+      <div className="max-w-xs sm:max-w-md">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold text-xs sm:text-sm text-gray-800">
             {user}
@@ -122,6 +135,12 @@ export default function Message({
         <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md">
           {text}
         </div>
+        {roomLink && (
+          <RoomLinkPreviewCard
+            roomId={roomLink.type === "room" ? roomLink.value : null}
+            inviteToken={roomLink.type === "invite" ? roomLink.value : null}
+          />
+        )}
       </div>
     </div>
   );

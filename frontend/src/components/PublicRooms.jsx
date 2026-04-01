@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MapPin, Lock, Users, X, Check } from "lucide-react";
+import { MapPin, Users, X, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 import { fetchPublicRooms, joinPublicRoom } from "../utils/social";
@@ -12,7 +12,6 @@ export default function PublicRooms() {
 
   const [showJoin, setShowJoin] = useState(false);
   const [joinTarget, setJoinTarget] = useState(null);
-  const [joinPasscode, setJoinPasscode] = useState("");
   const [joinError, setJoinError] = useState("");
 
   useEffect(() => {
@@ -76,7 +75,6 @@ export default function PublicRooms() {
 
   function openJoin(room) {
     setJoinTarget(room);
-    setJoinPasscode("");
     setJoinError("");
     setShowJoin(true);
   }
@@ -86,15 +84,7 @@ export default function PublicRooms() {
 
     (async () => {
       try {
-        if (!joinTarget.isPublic && !joinPasscode.trim()) {
-          setJoinError("Passcode is required for private rooms.");
-          return;
-        }
-
-        const res = await joinPublicRoom(
-          joinTarget.id,
-          joinTarget.isPublic ? undefined : joinPasscode.trim(),
-        );
+        const res = await joinPublicRoom(joinTarget.id);
         const participantCount =
           res?.participantCount ?? joinTarget.participantCount + 1;
 
@@ -211,19 +201,6 @@ export default function PublicRooms() {
             <p className="text-xs text-gray-500 mt-1">
               {joinTarget.description}
             </p>
-
-            {!joinTarget.isPublic && (
-              <div className="mt-3">
-                <label className="text-xs text-gray-500">Passcode</label>
-                <input
-                  value={joinPasscode}
-                  onChange={(event) => setJoinPasscode(event.target.value)}
-                  className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Enter room passcode"
-                  type="password"
-                />
-              </div>
-            )}
 
             {joinError && (
               <div className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
