@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Lock,
   Users,
   MessageCircle,
-  LayoutGrid,
   Info,
   Share2,
   Link2,
@@ -14,10 +13,7 @@ import Sidebar from "../layouts/Sidebar";
 import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
 import {
   createRoomInvite,
-  fetchJoinedRooms,
-  fetchPublicRooms,
   fetchRoom,
-  fetchRoomMembers,
   joinPublicRoom,
   updateRoomAvatar,
   uploadRoomAvatar,
@@ -37,11 +33,6 @@ export default function Room() {
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [joinedRooms, setJoinedRooms] = useState([]);
-  const [publicRooms, setPublicRooms] = useState([]);
-  const [listsLoading, setListsLoading] = useState(true);
-  const [members, setMembers] = useState([]);
-  const [membersLoading, setMembersLoading] = useState(false);
   const [roomMedia, setRoomMedia] = useState([]);
   const [toast, setToast] = useState(
     location?.state?.showToast
@@ -77,11 +68,6 @@ export default function Room() {
     };
   };
 
-  const joinedIds = useMemo(
-    () => new Set(joinedRooms.map((item) => item.id)),
-    [joinedRooms],
-  );
-
   useEffect(() => {
     let mounted = true;
 
@@ -104,59 +90,6 @@ export default function Room() {
       mounted = false;
     };
   }, [roomId, profile?.id]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadLists = async () => {
-      try {
-        const [joinedList, publicList] = await Promise.all([
-          fetchJoinedRooms(),
-          fetchPublicRooms(50),
-        ]);
-        if (!mounted) return;
-        setJoinedRooms(
-          (Array.isArray(joinedList) ? joinedList : []).map(normalizeRoom),
-        );
-        setPublicRooms(
-          (Array.isArray(publicList) ? publicList : []).map(normalizeRoom),
-        );
-      } catch (err) {
-        console.error("Failed to load room lists:", err);
-      } finally {
-        if (mounted) setListsLoading(false);
-      }
-    };
-
-    loadLists();
-    return () => {
-      mounted = false;
-    };
-  }, [profile?.id]);
-
-  useEffect(() => {
-    if (!room?.id) return;
-    const isAllowed =
-      room.isMember || room.creatorId === profile?.id || room.isPublic;
-    if (!isAllowed) return;
-
-    let mounted = true;
-    setMembersLoading(true);
-
-    fetchRoomMembers(room.id, 6)
-      .then((list) => {
-        if (!mounted) return;
-        setMembers(Array.isArray(list) ? list : []);
-      })
-      .catch((err) => console.error("Failed to load room members:", err))
-      .finally(() => {
-        if (mounted) setMembersLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [room?.id, room?.isMember, room?.isPublic, profile?.id]);
 
   useEffect(() => {
     if (!toast?.message) return;
@@ -184,17 +117,6 @@ export default function Room() {
       const response = await joinPublicRoom(targetRoom.id);
 
       const updated = normalizeRoom({ ...targetRoom, is_member: true });
-
-      setJoinedRooms((prev) => {
-        if (prev.some((item) => item.id === updated.id)) return prev;
-        return [updated, ...prev];
-      });
-
-      setPublicRooms((prev) =>
-        prev.map((item) =>
-          item.id === updated.id ? { ...item, is_member: true } : item,
-        ),
-      );
 
       if (targetRoom.id === roomId) {
         setRoom((current) =>
@@ -317,13 +239,9 @@ export default function Room() {
   if (!room) return <div className="p-6">Room not found</div>;
 
   const isCreator = room.creatorId && profile?.id === room.creatorId;
-  const isMember = room.isMember || isCreator || joinedIds.has(room.id);
+  const isMember = room.isMember || isCreator;
 
   const displayInviteLink = inviteLink || "Generate a shareable invite link";
-
-  const visiblePublicRooms = publicRooms.filter(
-    (item) => !joinedIds.has(item.id),
-  );
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
@@ -332,144 +250,6 @@ export default function Room() {
       </div>
 
       <div className="flex-1 flex min-w-0 overflow-hidden">
-        <aside className="hidden lg:flex flex-col w-72 border-r border-gray-200 bg-white overflow-y-auto">
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">Rooms</h3>
-            <p className="text-xs text-gray-400">
-              Jump back into your active rooms
-            </p>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                  Joined rooms
-                </h4>
-                <span className="text-xs text-gray-400">
-                  {joinedRooms.length}
-                </span>
-              </div>
-
-              {listsLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      key={`joined-skeleton-${index}`}
-                      className="h-12 rounded-lg bg-gray-100 animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : joinedRooms.length === 0 ? (
-                <div className="text-xs text-gray-400">
-                  No joined rooms yet.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {joinedRooms.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => navigate(`/rooms/${item.id}`)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors ${
-                        item.id === room.id
-                          ? "bg-red-50 text-red-800"
-                          : "hover:bg-gray-50 text-gray-700"
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-red-800/10 text-red-800 flex items-center justify-center text-xs font-bold">
-                        {item.title?.[0]?.toUpperCase() || "R"}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {item.description || "No description"}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                  Public rooms
-                </h4>
-                <span className="text-xs text-gray-400">
-                  {visiblePublicRooms.length}
-                </span>
-              </div>
-
-              {listsLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      key={`public-skeleton-${index}`}
-                      className="h-12 rounded-lg bg-gray-100 animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : visiblePublicRooms.length === 0 ? (
-                <div className="text-xs text-gray-400">No public rooms.</div>
-              ) : (
-                <div className="space-y-2">
-                  {visiblePublicRooms.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => openPreview(item)}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors hover:bg-gray-50 text-gray-700"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold">
-                        {item.title?.[0]?.toUpperCase() || "R"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold truncate">
-                            {item.title}
-                          </p>
-                          {!item.isPublic && (
-                            <Lock size={12} className="text-gray-400" />
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 truncate">
-                          {item.description || "No description"}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                  Queues
-                </h4>
-                <LayoutGrid size={12} className="text-gray-300" />
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: "Study groups", count: "12" },
-                  { label: "Events", count: "4" },
-                  { label: "Clubs", count: "7" },
-                ].map((queue) => (
-                  <div
-                    key={queue.label}
-                    className="flex items-center justify-between text-xs text-gray-500 px-3 py-2 rounded-lg bg-gray-50"
-                  >
-                    <span>{queue.label}</span>
-                    <span className="text-gray-400">{queue.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </aside>
-
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 shrink-0">
             <div className="flex items-center justify-between">
@@ -535,8 +315,8 @@ export default function Room() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6">
+          <div className="flex-1 overflow-hidden">
+            <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 h-full flex flex-col min-h-0">
               {toast?.message && (
                 <div
                   className={`mb-4 px-4 py-2 rounded font-semibold text-sm ${
@@ -580,7 +360,7 @@ export default function Room() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[70vh] overflow-hidden">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
                     <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white">
                       <MessageCircle size={16} />
@@ -680,78 +460,6 @@ export default function Room() {
               <p className="mt-2 text-xs text-gray-500 break-all">
                 {displayInviteLink}
               </p>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Room info</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                {room.description || "No description"}
-              </p>
-            </div>
-
-            <div className="space-y-2 text-xs text-gray-500">
-              <div>
-                <span className="font-semibold text-gray-700">Created by:</span>{" "}
-                {room.profiles?.username ?? "Unknown"}
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Status:</span>{" "}
-                {room.isPublic ? "Public" : "Private"}
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Capacity:</span>{" "}
-                {room.capacity ?? "-"}
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">
-                  Participants:
-                </span>{" "}
-                {room.participantCount}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                Members preview
-              </h4>
-              {membersLoading ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <div
-                      key={`member-skeleton-${index}`}
-                      className="w-12 h-12 rounded-full bg-gray-100 animate-pulse"
-                    />
-                  ))}
-                </div>
-              ) : members.length === 0 ? (
-                <div className="text-xs text-gray-400">
-                  No members to preview yet.
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {members.map((member) => (
-                    <div
-                      key={member.user_id}
-                      className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden"
-                      title={member.profiles?.username || "Member"}
-                    >
-                      {member.profiles?.avatar_url ? (
-                        <img
-                          src={member.profiles.avatar_url}
-                          alt={member.profiles.username}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-600">
-                          {(member.profiles?.username || "U")
-                            .charAt(0)
-                            .toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div>
@@ -870,82 +578,6 @@ export default function Room() {
                 <p className="mt-2 text-xs text-gray-500 break-all">
                   {displayInviteLink}
                 </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">
-                  Room info
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {room.description || "No description"}
-                </p>
-              </div>
-
-              <div className="space-y-2 text-xs text-gray-500">
-                <div>
-                  <span className="font-semibold text-gray-700">
-                    Created by:
-                  </span>{" "}
-                  {room.profiles?.username ?? "Unknown"}
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700">Status:</span>{" "}
-                  {room.isPublic ? "Public" : "Private"}
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700">Capacity:</span>{" "}
-                  {room.capacity ?? "-"}
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-700">
-                    Participants:
-                  </span>{" "}
-                  {room.participantCount}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                  Members preview
-                </h4>
-                {membersLoading ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                      <div
-                        key={`member-skeleton-mobile-${index}`}
-                        className="w-12 h-12 rounded-full bg-gray-100 animate-pulse"
-                      />
-                    ))}
-                  </div>
-                ) : members.length === 0 ? (
-                  <div className="text-xs text-gray-400">
-                    No members to preview yet.
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {members.map((member) => (
-                      <div
-                        key={member.user_id}
-                        className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden"
-                        title={member.profiles?.username || "Member"}
-                      >
-                        {member.profiles?.avatar_url ? (
-                          <img
-                            src={member.profiles.avatar_url}
-                            alt={member.profiles.username}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-600">
-                            {(member.profiles?.username || "U")
-                              .charAt(0)
-                              .toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div>
