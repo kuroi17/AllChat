@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import { defaultSettings, subscribeChatSettings } from "../utils/settings";
@@ -33,35 +34,44 @@ function getRelativeTime(dateString) {
 export default function DirectMessages() {
   const navigate = useNavigate();
   const { user } = useUser();
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [conversationToDelete, setConversationToDelete] = useState(null);
-  const [deletingConversationId, setDeletingConversationId] = useState(null);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    loadConversations();
-  }, [user?.id]);
+  const {
+    data: conversations = [],
+    isLoading: loading,
+    refetch: refetchConversations,
+  } = useQuery({
+    queryKey: ["directMessages", "conversations", user?.id],
+    queryFn: () => fetchConversations(user.id),
+    enabled: !!user?.id,
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: (conversationId) => deleteConversation(conversationId, user.id),
+    onSuccess: (_, conversationId) => {
+      queryClient.setQueryData(
+        ["directMessages", "conversations", user?.id],
+        (prev = []) =>
+          prev.filter((conv) => conv.conversationId !== conversationId),
+      );
+      setConversationToDelete(null);
+    },
+    onError: (error) => {
+      console.error("Error deleting conversation:", error);
+      alert(
+        "Failed to delete conversation. Check your database delete policy and try again.",
+      );
+      refetchConversations();
+    },
+  });
 
   useEffect(() => {
     const unsubscribe = subscribeChatSettings(setChatSettings);
     return unsubscribe;
   }, []);
-
-  async function loadConversations() {
-    if (!user?.id) return;
-
-    try {
-      setLoading(true);
-      const convos = await fetchConversations(user.id);
-      setConversations(convos);
-    } catch (error) {
-      console.error("Error loading conversations:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function handleDeleteClick(event, conversation) {
     event.stopPropagation();
@@ -69,31 +79,13 @@ export default function DirectMessages() {
   }
 
   function closeDeleteModal() {
-    if (deletingConversationId) return;
+    if (deleteConversationMutation.isPending) return;
     setConversationToDelete(null);
   }
 
   async function handleConfirmDelete() {
     if (!conversationToDelete || !user?.id) return;
-
-    try {
-      setDeletingConversationId(conversationToDelete.conversationId);
-      await deleteConversation(conversationToDelete.conversationId, user.id);
-
-      setConversations((prev) =>
-        prev.filter(
-          (conv) => conv.conversationId !== conversationToDelete.conversationId,
-        ),
-      );
-      setConversationToDelete(null);
-    } catch (error) {
-      console.error("Error deleting conversation:", error);
-      alert(
-        "Failed to delete conversation. Check your database delete policy and try again.",
-      );
-    } finally {
-      setDeletingConversationId(null);
-    }
+    deleteConversationMutation.mutate(conversationToDelete.conversationId);
   }
 
   const filteredConversations = conversations.filter((conv) =>
@@ -174,7 +166,11 @@ export default function DirectMessages() {
                     getRelativeTime={getRelativeTime}
                     onOpen={() => navigate(`/dm/${conv.conversationId}`)}
                     onDelete={(event) => handleDeleteClick(event, conv)}
-                    deletingConversationId={deletingConversationId}
+                    deletingConversationId={
+                      deleteConversationMutation.isPending
+                        ? conversationToDelete?.conversationId
+                        : null
+                    }
                   />
                 ))}
               </div>
@@ -184,7 +180,11 @@ export default function DirectMessages() {
 
         <DeleteConversationModal
           conversationToDelete={conversationToDelete}
-          deletingConversationId={deletingConversationId}
+          deletingConversationId={
+            deleteConversationMutation.isPending
+              ? conversationToDelete?.conversationId
+              : null
+          }
           onCancel={closeDeleteModal}
           onConfirm={handleConfirmDelete}
         />

@@ -2,26 +2,22 @@ import { supabase } from "./supabase";
 import { getChatSocket } from "./messages";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
-const ROOM_CACHE_TTL_MS = 30000;
-const roomCache = new Map();
+const REQUEST_CACHE_TTL_MS = 20000;
+const apiGetCache = new Map();
+const pendingGetRequests = new Map();
 
-function getRoomCache(key) {
-  const entry = roomCache.get(key);
+function buildRequestCacheKey({ method, path, authKey }) {
+  return `${method}:${path}:${authKey || "public"}`;
+}
+
+function getCachedResponse(cacheKey) {
+  const entry = apiGetCache.get(cacheKey);
   if (!entry) return null;
-  if (Date.now() - entry.timestamp > ROOM_CACHE_TTL_MS) {
-    roomCache.delete(key);
+  if (Date.now() - entry.timestamp > REQUEST_CACHE_TTL_MS) {
+    apiGetCache.delete(cacheKey);
     return null;
   }
-  return entry.value;
-}
-
-function setRoomCache(key, value) {
-  roomCache.set(key, { value, timestamp: Date.now() });
-  return value;
-}
-
-function clearRoomCache() {
-  roomCache.clear();
+  return entry.data;
 }
 
 async function getAccessToken() {
@@ -47,34 +43,75 @@ async function readErrorResponse(response, fallbackMessage) {
 
 async function requestApi(path, { method = "GET", body, auth = false } = {}) {
   const headers = {};
+  const normalizedMethod = method.toUpperCase();
+  let authCacheKey = "";
 
   if (auth) {
     const token = await getAccessToken();
     headers.Authorization = `Bearer ${token}`;
+    authCacheKey = token.slice(-16);
+  }
+
+  const cacheKey = buildRequestCacheKey({
+    method: normalizedMethod,
+    path,
+    authKey: authCacheKey,
+  });
+
+  if (normalizedMethod === "GET") {
+    const cached = getCachedResponse(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    if (pendingGetRequests.has(cacheKey)) {
+      return pendingGetRequests.get(cacheKey);
+    }
   }
 
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const executeRequest = async () => {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: normalizedMethod,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
 
-  if (!response.ok) {
-    const fallbackMessage = `Request failed (${method} ${path})`;
-    const errorMessage = await readErrorResponse(response, fallbackMessage);
-    throw new Error(errorMessage);
+    if (!response.ok) {
+      const fallbackMessage = `Request failed (${normalizedMethod} ${path})`;
+      const errorMessage = await readErrorResponse(response, fallbackMessage);
+      throw new Error(errorMessage);
+    }
+
+    if (response.status === 204) return null;
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) return null;
+
+    return response.json();
+  };
+
+  if (normalizedMethod !== "GET") {
+    const result = await executeRequest();
+    apiGetCache.clear();
+    pendingGetRequests.clear();
+    return result;
   }
 
-  if (response.status === 204) return null;
+  const pendingPromise = executeRequest()
+    .then((result) => {
+      apiGetCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    })
+    .finally(() => {
+      pendingGetRequests.delete(cacheKey);
+    });
 
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) return null;
-
-  return response.json();
+  pendingGetRequests.set(cacheKey, pendingPromise);
+  return pendingPromise;
 }
 
 // ==================== PRESENCE TRACKING ====================
@@ -635,14 +672,11 @@ export async function createAnnouncement({ title, content }) {
 export async function fetchPublicRooms(limit = 20) {
   try {
     const safeLimit = Number.isFinite(limit) ? limit : 20;
-    const cacheKey = `publicRooms:${safeLimit}`;
-    const cached = getRoomCache(cacheKey);
-    if (cached) return cached;
     const data = await requestApi(
       `/api/rooms?limit=${encodeURIComponent(safeLimit)}`,
       { auth: true },
     );
-    return setRoomCache(cacheKey, Array.isArray(data) ? data : []);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("[Rooms] Fetch failed:", error);
     return [];
@@ -654,11 +688,8 @@ export async function fetchPublicRooms(limit = 20) {
  */
 export async function fetchJoinedRooms() {
   try {
-    const cacheKey = "joinedRooms";
-    const cached = getRoomCache(cacheKey);
-    if (cached) return cached;
     const data = await requestApi("/api/rooms/joined", { auth: true });
-    return setRoomCache(cacheKey, Array.isArray(data) ? data : []);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("[Rooms] Fetch joined failed:", error);
     return [];
@@ -675,13 +706,11 @@ export async function createPublicRoom({
   location = null,
   capacity = null,
 }) {
-  const response = await requestApi("/api/rooms", {
+  return requestApi("/api/rooms", {
     method: "POST",
     auth: true,
     body: { title, description, isPublic, location, capacity },
   });
-  clearRoomCache();
-  return response;
 }
 
 /**
@@ -689,13 +718,9 @@ export async function createPublicRoom({
  */
 export async function fetchRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  const cacheKey = `room:${roomId}`;
-  const cached = getRoomCache(cacheKey);
-  if (cached) return cached;
-  const data = await requestApi(`/api/rooms/${encodeURIComponent(roomId)}`, {
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}`, {
     auth: true,
   });
-  return setRoomCache(cacheKey, data);
 }
 
 /**
@@ -703,15 +728,10 @@ export async function fetchRoom(roomId) {
  */
 export async function joinPublicRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  const response = await requestApi(
-    `/api/rooms/${encodeURIComponent(roomId)}/join`,
-    {
-      method: "POST",
-      auth: true,
-    },
-  );
-  clearRoomCache();
-  return response;
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
+    method: "POST",
+    auth: true,
+  });
 }
 
 /**
@@ -730,16 +750,9 @@ export async function createRoomInvite(roomId) {
  */
 export async function fetchRoomPreview(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  const cacheKey = `roomPreview:${roomId}`;
-  const cached = getRoomCache(cacheKey);
-  if (cached) return cached;
-  const data = await requestApi(
-    `/api/rooms/${encodeURIComponent(roomId)}/preview`,
-    {
-      auth: true,
-    },
-  );
-  return setRoomCache(cacheKey, data);
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/preview`, {
+    auth: true,
+  });
 }
 
 /**
@@ -747,14 +760,9 @@ export async function fetchRoomPreview(roomId) {
  */
 export async function fetchRoomInvitePreview(token) {
   if (!token) throw new Error("Missing invite token");
-  const cacheKey = `invitePreview:${token}`;
-  const cached = getRoomCache(cacheKey);
-  if (cached) return cached;
-  const data = await requestApi(
-    `/api/rooms/invites/${encodeURIComponent(token)}/preview`,
-    { auth: true },
-  );
-  return setRoomCache(cacheKey, data);
+  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/preview`, {
+    auth: true,
+  });
 }
 
 /**
@@ -762,15 +770,10 @@ export async function fetchRoomInvitePreview(token) {
  */
 export async function joinRoomWithInvite(token) {
   if (!token) throw new Error("Missing invite token");
-  const response = await requestApi(
-    `/api/rooms/invites/${encodeURIComponent(token)}/join`,
-    {
-      method: "POST",
-      auth: true,
-    },
-  );
-  clearRoomCache();
-  return response;
+  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+    auth: true,
+  });
 }
 
 /**

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchRoomInvitePreview, fetchRoomPreview } from "../../utils/social";
 
 export default function RoomLinkPreviewCard({
@@ -9,38 +10,26 @@ export default function RoomLinkPreviewCard({
   className = "",
 }) {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [room, setRoom] = useState(null);
-  const [error, setError] = useState("");
+  const queryKey = useMemo(
+    () =>
+      inviteToken
+        ? ["rooms", "invitePreview", inviteToken]
+        : ["rooms", "preview", roomId],
+    [inviteToken, roomId],
+  );
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const data = inviteToken
-          ? await fetchRoomInvitePreview(inviteToken)
-          : await fetchRoomPreview(roomId);
-        if (!mounted) return;
-        setRoom(data || null);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err.message || "Failed to load room preview");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    if (inviteToken || roomId) {
-      load();
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [roomId, inviteToken]);
+  const {
+    data: room,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey,
+    queryFn: () =>
+      inviteToken
+        ? fetchRoomInvitePreview(inviteToken)
+        : fetchRoomPreview(roomId),
+    enabled: !!inviteToken || !!roomId,
+  });
 
   const handleOpen = () => {
     if (inviteToken) {

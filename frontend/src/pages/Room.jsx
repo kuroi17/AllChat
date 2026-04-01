@@ -9,6 +9,7 @@ import {
   Share2,
   Link2,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
 import {
@@ -29,10 +30,9 @@ export default function Room() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user } = useUser();
+  const queryClient = useQueryClient();
 
   const [room, setRoom] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [roomMedia, setRoomMedia] = useState([]);
   const [toast, setToast] = useState(
     location?.state?.showToast
@@ -68,28 +68,20 @@ export default function Room() {
     };
   };
 
+  const {
+    data: roomData,
+    isLoading: loadingRoom,
+    error: roomError,
+  } = useQuery({
+    queryKey: ["rooms", "detail", roomId],
+    queryFn: () => fetchRoom(roomId),
+    enabled: !!roomId,
+  });
+
   useEffect(() => {
-    let mounted = true;
-
-    const loadRoom = async () => {
-      try {
-        const data = await fetchRoom(roomId);
-        if (!mounted) return;
-        setRoom(normalizeRoom(data));
-        setLoadError("");
-      } catch (err) {
-        console.error("Failed to load room:", err);
-        if (mounted) setLoadError(err.message || "Failed to load room");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadRoom();
-    return () => {
-      mounted = false;
-    };
-  }, [roomId, profile?.id]);
+    if (!roomData) return;
+    setRoom(normalizeRoom(roomData));
+  }, [roomData, profile?.id]);
 
   useEffect(() => {
     if (!toast?.message) return;
@@ -129,6 +121,7 @@ export default function Room() {
               }
             : current,
         );
+        queryClient.invalidateQueries({ queryKey: ["rooms"] });
       }
 
       if (closeModal) {
@@ -181,6 +174,7 @@ export default function Room() {
       const avatarUrl = await uploadRoomAvatar({ roomId: room.id, file });
       const updated = await updateRoomAvatar(room.id, avatarUrl);
       setRoom(normalizeRoom(updated));
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setToast({ type: "success", message: "Room logo updated" });
     } catch (err) {
       setToast({ type: "error", message: err.message || "Upload failed" });
@@ -278,6 +272,9 @@ export default function Room() {
       setSendingMessage(false);
     }
   };
+
+  const loading = loadingRoom && !room;
+  const loadError = roomError?.message || "";
 
   if (loading) {
     return (

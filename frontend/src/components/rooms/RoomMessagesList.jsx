@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MoreVertical } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import {
   deleteMessage,
@@ -23,7 +24,6 @@ function dedupeMessages(items = []) {
 export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const { user, profile } = useUser();
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
@@ -33,24 +33,25 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const hiddenMessageStorageKey =
     user?.id && roomId ? `room_hidden_messages:${user.id}:${roomId}` : null;
 
+  const roomKey = `room:${roomId}`;
+
+  const { data: fetchedMessages = [], isLoading: loading } = useQuery({
+    queryKey: ["messages", "room", roomId],
+    queryFn: () => fetchMessages(roomKey),
+    enabled: !!roomId,
+  });
+
+  useEffect(() => {
+    const incoming = Array.isArray(fetchedMessages) ? fetchedMessages : [];
+    setMessages((prev) => {
+      if (prev.length === 0) return dedupeMessages(incoming);
+      return dedupeMessages([...incoming, ...prev]);
+    });
+  }, [fetchedMessages]);
+
   useEffect(() => {
     let mounted = true;
     let subscription;
-    const roomKey = `room:${roomId}`;
-
-    const load = async () => {
-      try {
-        const items = await fetchMessages(roomKey);
-        if (!mounted) return;
-        setMessages(dedupeMessages(items));
-      } catch (err) {
-        console.error("[RoomMessagesList] Load error:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
 
     const setupRealtime = async () => {
       try {

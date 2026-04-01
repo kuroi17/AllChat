@@ -1,46 +1,26 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Users, Lock } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import { fetchRoomInvitePreview, joinRoomWithInvite } from "../utils/social";
 
 export default function RoomInvite() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [room, setRoom] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let mounted = true;
+  const { data: room, isLoading: loading } = useQuery({
+    queryKey: ["rooms", "invitePreview", token],
+    queryFn: () => fetchRoomInvitePreview(token),
+    enabled: !!token,
+  });
 
-    const load = async () => {
-      try {
-        const data = await fetchRoomInvitePreview(token);
-        if (!mounted) return;
-        setRoom(data || null);
-        setError("");
-      } catch (err) {
-        if (!mounted) return;
-        setError(err.message || "Failed to load invite");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    if (token) load();
-
-    return () => {
-      mounted = false;
-    };
-  }, [token]);
-
-  const handleJoin = async () => {
-    if (!token) return;
-    try {
-      setJoining(true);
-      const response = await joinRoomWithInvite(token);
+  const joinMutation = useMutation({
+    mutationFn: () => joinRoomWithInvite(token),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
       const roomId = response?.roomId || room?.id;
       navigate(`/rooms/${roomId}`, {
         state: {
@@ -48,11 +28,20 @@ export default function RoomInvite() {
           message: response?.alreadyMember ? "Already joined" : "Joined room",
         },
       });
-    } catch (err) {
+    },
+    onError: (err) => {
       setError(err.message || "Failed to join room");
-    } finally {
-      setJoining(false);
+    },
+  });
+
+  const handleJoin = async () => {
+    if (!token) return;
+    if (room?.is_member && room?.id) {
+      navigate(`/rooms/${room.id}`);
+      return;
     }
+    setError("");
+    joinMutation.mutate();
   };
 
   return (
@@ -114,10 +103,14 @@ export default function RoomInvite() {
                 </button>
                 <button
                   onClick={handleJoin}
-                  disabled={joining}
+                  disabled={joinMutation.isPending}
                   className="text-sm bg-red-800 text-white px-4 py-1.5 rounded-lg disabled:opacity-60"
                 >
-                  {joining ? "Joining..." : "Join room"}
+                  {room?.is_member
+                    ? "Open room"
+                    : joinMutation.isPending
+                      ? "Joining..."
+                      : "Join room"}
                 </button>
               </div>
             </>

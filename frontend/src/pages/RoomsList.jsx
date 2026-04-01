@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import {
@@ -15,18 +16,14 @@ import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
 import RoomCreateModal from "../components/rooms/RoomCreateModal";
 
 export default function RoomsList() {
-  const [rooms, setRooms] = useState([]);
-  const [joinedRooms, setJoinedRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [previewRoom, setPreviewRoom] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
-  const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const navigate = useNavigate();
   const { profile } = useUser();
+  const queryClient = useQueryClient();
 
   const colors = [
     "bg-blue-400",
@@ -51,36 +48,75 @@ export default function RoomsList() {
     };
   };
 
+  const { data: publicRooms = [], isLoading: loadingPublicRooms } = useQuery({
+    queryKey: ["rooms", "public", 100],
+    queryFn: () => fetchPublicRooms(100),
+    enabled: !!profile?.id,
+  });
+
+  const { data: joinedRoomsRaw = [], isLoading: loadingJoinedRooms } = useQuery(
+    {
+      queryKey: ["rooms", "joined"],
+      queryFn: fetchJoinedRooms,
+      enabled: !!profile?.id,
+    },
+  );
+
+  const rooms = useMemo(
+    () => (Array.isArray(publicRooms) ? publicRooms : []).map(normalizeRoom),
+    [publicRooms, profile?.id],
+  );
+
+  const joinedRooms = useMemo(
+    () =>
+      (Array.isArray(joinedRoomsRaw) ? joinedRoomsRaw : []).map(normalizeRoom),
+    [joinedRoomsRaw, profile?.id],
+  );
+
+  const loading = loadingPublicRooms || loadingJoinedRooms;
+
   const joinedIds = useMemo(
     () => new Set(joinedRooms.map((room) => room.id)),
     [joinedRooms],
   );
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const [publicList, joinedList] = await Promise.all([
-          fetchPublicRooms(100),
-          fetchJoinedRooms(),
-        ]);
-        if (!mounted) return;
-        setRooms(
-          (Array.isArray(publicList) ? publicList : []).map(normalizeRoom),
-        );
-        setJoinedRooms(
-          (Array.isArray(joinedList) ? joinedList : []).map(normalizeRoom),
-        );
-      } catch (err) {
-        console.error("Failed to load rooms:", err);
-      } finally {
-        if (mounted) setLoading(false);
+  const joinMutation = useMutation({
+    mutationFn: (targetRoomId) => joinPublicRoom(targetRoomId),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      const targetRoomId = previewRoom?.id;
+      setPreviewRoom(null);
+      if (targetRoomId) {
+        navigate(`/rooms/${targetRoomId}`, {
+          state: {
+            showToast: true,
+            message: response?.alreadyMember ? "Already joined" : "Joined room",
+          },
+        });
       }
-    };
+    },
+    onError: (err) => {
+      setJoinError(err.message || "Failed to join room");
+    },
+  });
 
-    load();
-    return () => (mounted = false);
-  }, []);
+  const createMutation = useMutation({
+    mutationFn: createPublicRoom,
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      if (!created?.id) {
+        setCreateError("Room creation failed");
+        return;
+      }
+      setShowCreate(false);
+      navigate(`/rooms/${created.id}`, {
+        state: { showToast: true, message: "Room created" },
+      });
+    },
+    onError: (err) => {
+      setCreateError(err.message || "Failed to create room");
+    },
+  });
 
   const totalRooms = useMemo(() => {
     const ids = new Set();
@@ -137,69 +173,13 @@ export default function RoomsList() {
 
   const handleJoin = async () => {
     if (!previewRoom) return;
-
-    try {
-      setJoining(true);
-      setJoinError("");
-      const response = await joinPublicRoom(previewRoom.id);
-
-      const normalized = normalizeRoom({
-        ...previewRoom,
-        is_member: true,
-      });
-
-      setJoinedRooms((prev) => {
-        if (prev.some((room) => room.id === normalized.id)) return prev;
-        return [normalized, ...prev];
-      });
-
-      setRooms((prev) =>
-        prev.map((room) =>
-          room.id === normalized.id ? { ...room, is_member: true } : room,
-        ),
-      );
-
-      setPreviewRoom(null);
-      navigate(`/rooms/${previewRoom.id}`, {
-        state: {
-          showToast: true,
-          message: response?.alreadyMember ? "Already joined" : "Joined room",
-        },
-      });
-    } catch (err) {
-      setJoinError(err.message || "Failed to join room");
-    } finally {
-      setJoining(false);
-    }
+    setJoinError("");
+    joinMutation.mutate(previewRoom.id);
   };
 
   const handleCreateRoom = async (payload) => {
-    try {
-      setCreating(true);
-      setCreateError("");
-      const created = await createPublicRoom(payload);
-
-      if (!created?.id) {
-        throw new Error("Room creation failed");
-      }
-
-      const normalized = normalizeRoom({
-        ...created,
-        is_member: true,
-      });
-
-      setJoinedRooms((prev) => [normalized, ...prev]);
-      setRooms((prev) => [normalized, ...prev]);
-
-      setShowCreate(false);
-      navigate(`/rooms/${normalized.id}`, {
-        state: { showToast: true, message: "Room created" },
-      });
-    } catch (err) {
-      setCreateError(err.message || "Failed to create room");
-    } finally {
-      setCreating(false);
-    }
+    setCreateError("");
+    createMutation.mutate(payload);
   };
 
   const renderSkeleton = () => (
@@ -331,7 +311,7 @@ export default function RoomsList() {
           room={previewRoom}
           onClose={() => setPreviewRoom(null)}
           onJoin={handleJoin}
-          joining={joining}
+          joining={joinMutation.isPending}
           error={joinError}
         />
       )}
@@ -340,7 +320,7 @@ export default function RoomsList() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreate={handleCreateRoom}
-        creating={creating}
+        creating={createMutation.isPending}
         error={createError}
       />
     </div>
