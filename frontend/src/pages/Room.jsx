@@ -6,6 +6,9 @@ import {
   Users,
   MessageCircle,
   LayoutGrid,
+  Info,
+  Share2,
+  Link2,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import MobileNavMenuButton from "../components/navigation/MobileNavMenuButton";
@@ -38,6 +41,7 @@ export default function Room() {
       ? { type: "success", message: location.state.message || "" }
       : null,
   );
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [previewRoom, setPreviewRoom] = useState(null);
   const [joinPasscode, setJoinPasscode] = useState("");
   const [joining, setJoining] = useState(false);
@@ -227,6 +231,21 @@ export default function Room() {
   const isCreator = room.creatorId && profile?.id === room.creatorId;
   const isMember = room.isMember || isCreator || joinedIds.has(room.id);
 
+  const roomLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/rooms/${room.id}`
+      : "";
+
+  const handleShareRoom = async () => {
+    if (!roomLink) return;
+    try {
+      await navigator.clipboard.writeText(roomLink);
+      setToast({ type: "success", message: "Room link copied" });
+    } catch (err) {
+      setToast({ type: "error", message: "Failed to copy link" });
+    }
+  };
+
   const visiblePublicRooms = publicRooms.filter(
     (item) => !joinedIds.has(item.id),
   );
@@ -413,6 +432,16 @@ export default function Room() {
                     Join
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowInfoPanel(true)}
+                  className="xl:hidden w-9 h-9 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center"
+                  aria-label="Open room info"
+                  title="Room info"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </header>
@@ -486,6 +515,22 @@ export default function Room() {
 
         <aside className="hidden xl:block w-72 border-l border-gray-200 bg-white overflow-y-auto">
           <div className="p-4 space-y-5">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <Link2 size={14} />
+                  Share group
+                </div>
+                <button
+                  onClick={handleShareRoom}
+                  className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg"
+                >
+                  Copy link
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500 break-all">{roomLink}</p>
+            </div>
+
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Room info</h3>
               <p className="text-xs text-gray-500 mt-1">
@@ -557,9 +602,147 @@ export default function Room() {
                 </div>
               )}
             </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                Shared media
+              </h4>
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                No images shared in this room yet.
+              </div>
+            </div>
           </div>
         </aside>
       </div>
+
+      {showInfoPanel && (
+        <div className="fixed inset-0 z-50 xl:hidden">
+          <button
+            type="button"
+            onClick={() => setShowInfoPanel(false)}
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close room info"
+          />
+          <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-white border-l border-gray-200 overflow-y-auto">
+            <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <Share2 size={14} /> Room info
+              </div>
+              <button
+                onClick={() => setShowInfoPanel(false)}
+                className="text-gray-500 text-sm"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-4 space-y-5">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <Link2 size={14} />
+                    Share group
+                  </div>
+                  <button
+                    onClick={handleShareRoom}
+                    className="text-xs font-semibold text-red-800 bg-white border border-red-100 px-2 py-1 rounded-lg"
+                  >
+                    Copy link
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500 break-all">
+                  {roomLink}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Room info
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {room.description || "No description"}
+                </p>
+              </div>
+
+              <div className="space-y-2 text-xs text-gray-500">
+                <div>
+                  <span className="font-semibold text-gray-700">
+                    Created by:
+                  </span>{" "}
+                  {room.profiles?.username ?? "Unknown"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Status:</span>{" "}
+                  {room.isPublic ? "Public" : "Private"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">Capacity:</span>{" "}
+                  {room.capacity ?? "-"}
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-700">
+                    Participants:
+                  </span>{" "}
+                  {room.participantCount}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                  Members preview
+                </h4>
+                {membersLoading ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div
+                        key={`member-skeleton-mobile-${index}`}
+                        className="w-12 h-12 rounded-full bg-gray-100 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="text-xs text-gray-400">
+                    No members to preview yet.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {members.map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden"
+                        title={member.profiles?.username || "Member"}
+                      >
+                        {member.profiles?.avatar_url ? (
+                          <img
+                            src={member.profiles.avatar_url}
+                            alt={member.profiles.username}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-600">
+                            {(member.profiles?.username || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                  Shared media
+                </h4>
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 text-center">
+                  No images shared in this room yet.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewRoom && (
         <RoomPreviewModal
