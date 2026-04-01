@@ -36,11 +36,12 @@ DROP POLICY IF EXISTS "Room members read" ON room_members;
 CREATE POLICY "Room members read"
   ON room_members FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1
-      FROM room_members AS rm
-      WHERE rm.room_id = room_members.room_id
-        AND rm.user_id = auth.uid()
+    user_id = auth.uid()
+    OR room_id IN (
+      SELECT public_rooms.id
+      FROM public_rooms
+      WHERE public_rooms.is_public = true
+        OR public_rooms.creator_id = auth.uid()
     )
   );
 
