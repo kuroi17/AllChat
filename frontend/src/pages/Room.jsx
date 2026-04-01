@@ -234,7 +234,54 @@ export default function Room() {
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+
+        <div className="flex-1 flex min-w-0 overflow-hidden">
+          <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-56 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-hidden">
+              <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 h-full flex flex-col min-h-0">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex-1 min-h-0 p-4 animate-pulse">
+                  <div className="h-4 w-32 bg-gray-200 rounded mb-4" />
+                  <div className="h-3 w-64 bg-gray-200 rounded mb-3" />
+                  <div className="h-3 w-56 bg-gray-200 rounded mb-6" />
+                  <div className="h-64 bg-gray-100 rounded-xl" />
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <aside className="hidden xl:block w-72 border-l border-gray-200 bg-white overflow-y-auto">
+            <div className="p-4 space-y-5 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-gray-200" />
+                <div className="space-y-2">
+                  <div className="h-3 w-24 bg-gray-200 rounded" />
+                  <div className="h-3 w-32 bg-gray-200 rounded" />
+                </div>
+              </div>
+              <div className="h-20 bg-gray-100 rounded-xl" />
+              <div className="h-32 bg-gray-100 rounded-xl" />
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
   if (loadError) return <div className="p-6">{loadError}</div>;
   if (!room) return <div className="p-6">Room not found</div>;
 

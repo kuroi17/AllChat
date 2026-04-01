@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MoreVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
@@ -68,8 +68,18 @@ export default function DirectMessageMessagesPane({
     >
       <div className="max-w-4xl mx-auto px-2 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4">
         {loadingMessages ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+          <div className="space-y-4 py-6 animate-pulse">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={`dm-skeleton-${index}`}
+                className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
+              >
+                <div className="max-w-[70%] bg-white rounded-2xl px-4 py-3 shadow-sm space-y-2">
+                  <div className="h-3 w-24 bg-gray-200 rounded" />
+                  <div className="h-3 w-40 bg-gray-200 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : visibleMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
