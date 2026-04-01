@@ -6,11 +6,13 @@ import { useUser } from "../contexts/UserContext";
 import {
   fetchJoinedRooms,
   fetchPublicRooms,
+  createPublicRoom,
   joinPublicRoom,
 } from "../utils/social";
 import RoomsHeader from "../components/rooms/RoomsHeader";
 import RoomCard from "../components/rooms/RoomCard";
 import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
+import RoomCreateModal from "../components/rooms/RoomCreateModal";
 
 export default function RoomsList() {
   const [rooms, setRooms] = useState([]);
@@ -18,9 +20,12 @@ export default function RoomsList() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [previewRoom, setPreviewRoom] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [joinPasscode, setJoinPasscode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
   const navigate = useNavigate();
   const { profile } = useUser();
 
@@ -180,6 +185,35 @@ export default function RoomsList() {
     }
   };
 
+  const handleCreateRoom = async (payload) => {
+    try {
+      setCreating(true);
+      setCreateError("");
+      const created = await createPublicRoom(payload);
+
+      if (!created?.id) {
+        throw new Error("Room creation failed");
+      }
+
+      const normalized = normalizeRoom({
+        ...created,
+        is_member: true,
+      });
+
+      setJoinedRooms((prev) => [normalized, ...prev]);
+      setRooms((prev) => [normalized, ...prev]);
+
+      setShowCreate(false);
+      navigate(`/rooms/${normalized.id}`, {
+        state: { showToast: true, message: "Room created" },
+      });
+    } catch (err) {
+      setCreateError(err.message || "Failed to create room");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const renderSkeleton = () => (
     <div className="space-y-3">
       {Array.from({ length: 5 }).map((_, index) => (
@@ -203,6 +237,11 @@ export default function RoomsList() {
     </div>
   );
 
+  const openCreate = () => {
+    setCreateError("");
+    setShowCreate(true);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <div className="hidden md:block">
@@ -214,7 +253,7 @@ export default function RoomsList() {
           roomsCount={totalRooms}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onCreate={() => navigate("/")}
+          onCreate={openCreate}
         />
 
         <div className="flex-1 overflow-y-auto bg-gray-100">
@@ -310,6 +349,14 @@ export default function RoomsList() {
           error={joinError}
         />
       )}
+
+      <RoomCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreate={handleCreateRoom}
+        creating={creating}
+        error={createError}
+      />
     </div>
   );
 }
