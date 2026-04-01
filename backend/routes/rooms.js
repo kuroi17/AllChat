@@ -112,6 +112,7 @@ router.get("/joined", verifyToken, async (req, res) => {
 router.get("/invites/:token/preview", async (req, res) => {
   try {
     const { token } = req.params;
+    const authContext = await resolveOptionalAuth(req);
 
     let preview = null;
 
@@ -127,6 +128,17 @@ router.get("/invites/:token/preview", async (req, res) => {
     }
 
     if (preview) {
+      let isMember = false;
+      if (authContext?.userId && preview.room_id) {
+        const { data: membership } = await authContext.userClient
+          .from("room_members")
+          .select("room_id")
+          .eq("room_id", preview.room_id)
+          .eq("user_id", authContext.userId)
+          .maybeSingle();
+        isMember = !!membership;
+      }
+
       return res.json({
         id: preview.room_id,
         title: preview.title,
@@ -136,6 +148,7 @@ router.get("/invites/:token/preview", async (req, res) => {
         capacity: preview.capacity,
         avatar_url: preview.avatar_url,
         invite_token: preview.token,
+        is_member: isMember,
       });
     }
 
@@ -162,11 +175,22 @@ router.get("/invites/:token/preview", async (req, res) => {
     }
 
     const limitedDescription = room.is_public ? room.description : null;
+    let isMember = false;
+    if (authContext?.userId) {
+      const { data: membership } = await authContext.userClient
+        .from("room_members")
+        .select("room_id")
+        .eq("room_id", room.id)
+        .eq("user_id", authContext.userId)
+        .maybeSingle();
+      isMember = !!membership;
+    }
 
     res.json({
       ...room,
       description: limitedDescription,
       invite_token: token,
+      is_member: isMember,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -249,14 +273,15 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
 
     if (insertError) throw insertError;
 
-    const { data, error } = await supabase.rpc("increment_room_participants", {
-      p_room_id: inviteRoomId,
-    });
+    const { data: updatedRoom, error: countError } = await supabase
+      .from("public_rooms")
+      .select("participant_count")
+      .eq("id", inviteRoomId)
+      .single();
 
-    if (error) throw error;
+    if (countError) throw countError;
 
-    const participantCount =
-      Array.isArray(data) && data[0] ? data[0].participant_count : null;
+    const participantCount = updatedRoom?.participant_count ?? null;
 
     try {
       const io = req.app.get("io");
@@ -378,6 +403,7 @@ router.get("/:roomId/preview", async (req, res) => {
       participant_count: room.participant_count,
       capacity: room.capacity,
       avatar_url: room.avatar_url,
+      is_member: isMember,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -520,14 +546,15 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
 
     if (insertError) throw insertError;
 
-    const { data, error } = await supabase.rpc("increment_room_participants", {
-      p_room_id: roomId,
-    });
+    const { data: updatedRoom, error: countError } = await supabase
+      .from("public_rooms")
+      .select("participant_count")
+      .eq("id", roomId)
+      .single();
 
-    if (error) throw error;
+    if (countError) throw countError;
 
-    const participantCount =
-      Array.isArray(data) && data[0] ? data[0].participant_count : null;
+    const participantCount = updatedRoom?.participant_count ?? null;
 
     // Broadcast update over Socket.IO if available
     try {

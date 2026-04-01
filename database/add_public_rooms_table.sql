@@ -69,6 +69,41 @@ CREATE POLICY "Room members delete self"
   ON room_members FOR DELETE
   USING (user_id = auth.uid());
 
+-- Keep participant_count synchronized with room_members.
+CREATE OR REPLACE FUNCTION public.sync_room_participant_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  target_room_id UUID;
+BEGIN
+  target_room_id := COALESCE(NEW.room_id, OLD.room_id);
+  UPDATE public_rooms
+  SET participant_count = (
+    SELECT COUNT(*)
+    FROM room_members
+    WHERE room_id = target_room_id
+  )
+  WHERE id = target_room_id;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_room_members_sync_count ON room_members;
+CREATE TRIGGER trg_room_members_sync_count
+AFTER INSERT OR DELETE ON room_members
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_room_participant_count();
+
+-- Backfill participant_count for existing rooms.
+UPDATE public_rooms
+SET participant_count = COALESCE(
+  (SELECT COUNT(*) FROM room_members WHERE room_members.room_id = public_rooms.id),
+  0
+);
+
 CREATE INDEX IF NOT EXISTS idx_public_rooms_is_public ON public_rooms(is_public);
 CREATE INDEX IF NOT EXISTS idx_public_rooms_created_at ON public_rooms(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_public_rooms_creator ON public_rooms(creator_id);
