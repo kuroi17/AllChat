@@ -63,12 +63,6 @@ export default function RoomCard({
               {room.participantCount}/{room.capacity ?? "-"}
             </span>
 
-            {room.profiles?.username && (
-              <span className="text-[11px] text-gray-500">
-                Created by {room.profiles.username}
-              </span>
-            )}
-
             {isJoined && (
               <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
                 Joined

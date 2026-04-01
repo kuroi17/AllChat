@@ -123,11 +123,21 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
       if (!clientTempId || !message) return;
       if (message.room !== roomKey) return;
       setMessages((prev) => {
-        const withoutTemp = prev.filter(
+        const index = prev.findIndex(
           (item) =>
-            item.id !== clientTempId && item.clientTempId !== clientTempId,
+            item.id === clientTempId || item.clientTempId === clientTempId,
         );
-        return dedupeMessages([message, ...withoutTemp]);
+        if (index === -1) {
+          return dedupeMessages([...prev, message]);
+        }
+
+        const next = [...prev];
+        const previous = next[index] || {};
+        next[index] = {
+          ...message,
+          profiles: message.profiles || previous.profiles || null,
+        };
+        return dedupeMessages(next);
       });
     };
 

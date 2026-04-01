@@ -75,6 +75,9 @@ export default function RoomLinkPreviewCard({
     );
   }
 
+  const isMember = room.is_member || room.isMember;
+  const participantCount = room.participant_count ?? room.participantCount ?? 0;
+
   return (
     <div
       className={`mt-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm ${className}`}
@@ -101,16 +104,22 @@ export default function RoomLinkPreviewCard({
             {room.description || "Invite-only room"}
           </p>
         </div>
-        <button
-          onClick={handleOpen}
-          className="text-xs font-semibold text-red-800 bg-red-50 border border-red-100 px-2 py-1 rounded-lg"
-        >
-          Open
-        </button>
+        {isMember ? (
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-red-50 text-red-700 border border-red-100">
+            Joined
+          </span>
+        ) : (
+          <button
+            onClick={handleOpen}
+            className="text-xs font-semibold text-red-800 bg-red-50 border border-red-100 px-2 py-1 rounded-lg"
+          >
+            Open
+          </button>
+        )}
       </div>
       <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
         <Users size={12} />
-        {room.participant_count ?? 0} members
+        {participantCount} members
         {!room.is_public && (
           <span className="inline-flex items-center gap-1 ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-600 border border-gray-100">
             <Lock size={10} /> Private
