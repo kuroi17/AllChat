@@ -4,13 +4,6 @@ import { useUser } from "../../contexts/UserContext";
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useUser();
 
-  console.log(
-    "[ProtectedRoute] loading:",
-    loading,
-    "user:",
-    user ? "exists" : "null",
-  );
-
   if (loading) {
     // Show loading spinner while checking auth
     return (

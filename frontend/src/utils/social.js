@@ -2,6 +2,27 @@ import { supabase } from "./supabase";
 import { getChatSocket } from "./messages";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const ROOM_CACHE_TTL_MS = 30000;
+const roomCache = new Map();
+
+function getRoomCache(key) {
+  const entry = roomCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > ROOM_CACHE_TTL_MS) {
+    roomCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setRoomCache(key, value) {
+  roomCache.set(key, { value, timestamp: Date.now() });
+  return value;
+}
+
+function clearRoomCache() {
+  roomCache.clear();
+}
 
 async function getAccessToken() {
   const {
@@ -614,11 +635,14 @@ export async function createAnnouncement({ title, content }) {
 export async function fetchPublicRooms(limit = 20) {
   try {
     const safeLimit = Number.isFinite(limit) ? limit : 20;
+    const cacheKey = `publicRooms:${safeLimit}`;
+    const cached = getRoomCache(cacheKey);
+    if (cached) return cached;
     const data = await requestApi(
       `/api/rooms?limit=${encodeURIComponent(safeLimit)}`,
       { auth: true },
     );
-    return Array.isArray(data) ? data : [];
+    return setRoomCache(cacheKey, Array.isArray(data) ? data : []);
   } catch (error) {
     console.error("[Rooms] Fetch failed:", error);
     return [];
@@ -630,8 +654,11 @@ export async function fetchPublicRooms(limit = 20) {
  */
 export async function fetchJoinedRooms() {
   try {
+    const cacheKey = "joinedRooms";
+    const cached = getRoomCache(cacheKey);
+    if (cached) return cached;
     const data = await requestApi("/api/rooms/joined", { auth: true });
-    return Array.isArray(data) ? data : [];
+    return setRoomCache(cacheKey, Array.isArray(data) ? data : []);
   } catch (error) {
     console.error("[Rooms] Fetch joined failed:", error);
     return [];
@@ -648,11 +675,13 @@ export async function createPublicRoom({
   location = null,
   capacity = null,
 }) {
-  return requestApi("/api/rooms", {
+  const response = await requestApi("/api/rooms", {
     method: "POST",
     auth: true,
     body: { title, description, isPublic, location, capacity },
   });
+  clearRoomCache();
+  return response;
 }
 
 /**
@@ -660,7 +689,13 @@ export async function createPublicRoom({
  */
 export async function fetchRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}`, { auth: true });
+  const cacheKey = `room:${roomId}`;
+  const cached = getRoomCache(cacheKey);
+  if (cached) return cached;
+  const data = await requestApi(`/api/rooms/${encodeURIComponent(roomId)}`, {
+    auth: true,
+  });
+  return setRoomCache(cacheKey, data);
 }
 
 /**
@@ -668,10 +703,15 @@ export async function fetchRoom(roomId) {
  */
 export async function joinPublicRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
-    method: "POST",
-    auth: true,
-  });
+  const response = await requestApi(
+    `/api/rooms/${encodeURIComponent(roomId)}/join`,
+    {
+      method: "POST",
+      auth: true,
+    },
+  );
+  clearRoomCache();
+  return response;
 }
 
 /**
@@ -690,9 +730,16 @@ export async function createRoomInvite(roomId) {
  */
 export async function fetchRoomPreview(roomId) {
   if (!roomId) throw new Error("Missing room ID");
-  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/preview`, {
-    auth: true,
-  });
+  const cacheKey = `roomPreview:${roomId}`;
+  const cached = getRoomCache(cacheKey);
+  if (cached) return cached;
+  const data = await requestApi(
+    `/api/rooms/${encodeURIComponent(roomId)}/preview`,
+    {
+      auth: true,
+    },
+  );
+  return setRoomCache(cacheKey, data);
 }
 
 /**
@@ -700,7 +747,14 @@ export async function fetchRoomPreview(roomId) {
  */
 export async function fetchRoomInvitePreview(token) {
   if (!token) throw new Error("Missing invite token");
-  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/preview`);
+  const cacheKey = `invitePreview:${token}`;
+  const cached = getRoomCache(cacheKey);
+  if (cached) return cached;
+  const data = await requestApi(
+    `/api/rooms/invites/${encodeURIComponent(token)}/preview`,
+    { auth: true },
+  );
+  return setRoomCache(cacheKey, data);
 }
 
 /**
@@ -708,10 +762,15 @@ export async function fetchRoomInvitePreview(token) {
  */
 export async function joinRoomWithInvite(token) {
   if (!token) throw new Error("Missing invite token");
-  return requestApi(`/api/rooms/invites/${encodeURIComponent(token)}/join`, {
-    method: "POST",
-    auth: true,
-  });
+  const response = await requestApi(
+    `/api/rooms/invites/${encodeURIComponent(token)}/join`,
+    {
+      method: "POST",
+      auth: true,
+    },
+  );
+  clearRoomCache();
+  return response;
 }
 
 /**
