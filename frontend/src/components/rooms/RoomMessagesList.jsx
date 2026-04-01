@@ -21,7 +21,7 @@ function dedupeMessages(items = []) {
 }
 
 export default function RoomMessagesList({ roomId, onMediaUpdate }) {
-  const { user } = useUser();
+  const { user, profile } = useUser();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState(null);
@@ -89,11 +89,32 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
 
     setupRealtime();
 
+    const handleLocal = (event) => {
+      const msg = event.detail;
+      if (!msg || msg.room !== roomKey) return;
+      const enriched = msg.profiles
+        ? msg
+        : {
+            ...msg,
+            profiles:
+              msg.user_id === user?.id
+                ? {
+                    username: profile?.username || "You",
+                    avatar_url: profile?.avatar_url || null,
+                  }
+                : null,
+          };
+      setMessages((prev) => dedupeMessages([...prev, enriched]));
+    };
+
+    window.addEventListener("newMessage", handleLocal);
+
     return () => {
       mounted = false;
       if (subscription) unsubscribeMessages(subscription);
+      window.removeEventListener("newMessage", handleLocal);
     };
-  }, [roomId]);
+  }, [roomId, user?.id, profile?.username, profile?.avatar_url]);
 
   useEffect(() => {
     const element = containerRef.current;

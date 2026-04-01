@@ -6,7 +6,7 @@ dotenv.config();
 
 const http = require("http");
 const { Server } = require("socket.io");
-const { supabase } = require("./utils/supabase");
+const { supabase, createUserScopedClient } = require("./utils/supabase");
 const { createSocketRateLimiter } = require("./middleware/chatGuards");
 
 const app = express();
@@ -59,6 +59,7 @@ io.use(async (socket, next) => {
     if (error || !data?.user) return next(new Error("Unauthorized"));
 
     socket.userId = data.user.id;
+    socket.accessToken = token;
     next();
   } catch {
     next(new Error("Unauthorized"));
@@ -76,7 +77,10 @@ io.on("connection", (socket) => {
 
     if (room !== "global" && room.startsWith("room:")) {
       const roomId = room.replace("room:", "");
-      const { data, error } = await supabase
+      const db = socket.accessToken
+        ? createUserScopedClient(socket.accessToken)
+        : supabase;
+      const { data, error } = await db
         .from("room_members")
         .select("room_id")
         .eq("room_id", roomId)
