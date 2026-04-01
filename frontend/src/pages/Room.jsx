@@ -203,30 +203,75 @@ export default function Room() {
 
   const handleSendMessage = async (event) => {
     event?.preventDefault?.();
-    if (!room?.id || (!messageText.trim() && !selectedImage)) return;
+    const trimmedText = messageText.trim();
+    const hasText = !!trimmedText;
+    const hasImage = !!selectedImage;
+    if (!room?.id || (!hasText && !hasImage)) return;
+
+    const tempId = `temp-room-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    const roomKey = `room:${room.id}`;
+    const imageToSend = selectedImage;
+    const previewUrl = imagePreviewUrl;
+    const optimisticMessage = {
+      id: tempId,
+      clientTempId: tempId,
+      room: roomKey,
+      user_id: user?.id,
+      content: trimmedText,
+      image_url: previewUrl || null,
+      created_at: new Date().toISOString(),
+      profiles: {
+        username: profile?.username || "You",
+        avatar_url: profile?.avatar_url || null,
+      },
+      optimistic: true,
+    };
 
     try {
-      setSendingMessage(true);
-      let imageUrl = "";
-
-      if (selectedImage) {
-        setUploadingImage(true);
-        imageUrl = await uploadRoomMessageImage({
-          roomId: room.id,
-          file: selectedImage,
-        });
-      }
-
-      await sendMessage({
-        userId: user?.id,
-        content: messageText,
-        room: `room:${room.id}`,
-        imageUrl,
-      });
+      window.dispatchEvent(
+        new CustomEvent("roomMessage:optimistic", {
+          detail: optimisticMessage,
+        }),
+      );
 
       setMessageText("");
       clearSelectedImage();
+      setSendingMessage(hasImage);
+      let imageUrl = "";
+
+      if (imageToSend) {
+        setUploadingImage(true);
+        imageUrl = await uploadRoomMessageImage({
+          roomId: room.id,
+          file: imageToSend,
+        });
+      }
+
+      const created = await sendMessage({
+        userId: user?.id,
+        content: trimmedText,
+        room: roomKey,
+        imageUrl,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent("roomMessage:replace", {
+          detail: { clientTempId: tempId, message: created },
+        }),
+      );
     } catch (err) {
+      window.dispatchEvent(
+        new CustomEvent("roomMessage:remove", {
+          detail: { clientTempId: tempId },
+        }),
+      );
+      setMessageText(trimmedText);
+      if (imageToSend) {
+        setSelectedImage(imageToSend);
+        setImagePreviewUrl(previewUrl);
+      }
       setToast({ type: "error", message: err.message || "Send failed" });
     } finally {
       setUploadingImage(false);
@@ -408,20 +453,6 @@ export default function Room() {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-                    <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white">
-                      <MessageCircle size={16} />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-gray-900">
-                        Room chat
-                      </h2>
-                      <p className="text-xs text-gray-500">
-                        Share updates, files, and images here.
-                      </p>
-                    </div>
-                  </div>
-
                   <div className="flex-1 overflow-hidden">
                     <RoomMessagesList
                       roomId={room.id}

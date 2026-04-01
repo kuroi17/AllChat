@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import { defaultSettings, subscribeChatSettings } from "../utils/settings";
@@ -129,14 +129,22 @@ export default function DirectMessages() {
         <div className="flex-1 overflow-y-auto bg-gray-100">
           <div className="max-w-4xl mx-auto p-3 sm:p-6 pb-20 md:pb-6">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-14 sm:py-20">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-red-200 animate-pulse"></div>
-                  <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 animate-spin text-red-600" />
-                </div>
-                <p className="mt-4 text-gray-500 font-medium text-sm sm:text-base">
-                  Loading conversations...
-                </p>
+              <div className="space-y-3 sm:space-y-4 animate-pulse">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div
+                    key={`conversation-skeleton-${index}`}
+                    className="rounded-2xl bg-white border border-gray-100 px-4 py-3 sm:px-5 sm:py-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gray-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-32 bg-gray-200 rounded" />
+                        <div className="h-3 w-48 bg-gray-200 rounded" />
+                      </div>
+                      <div className="h-3 w-10 bg-gray-200 rounded" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filteredConversations.length === 0 ? (
               <div className="text-center py-14 sm:py-20">

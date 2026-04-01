@@ -35,17 +35,28 @@ CREATE INDEX IF NOT EXISTS idx_room_members_user_id ON room_members(user_id);
 
 ALTER TABLE room_members ENABLE ROW LEVEL SECURITY;
 
+-- Helper to check membership without RLS recursion
+CREATE OR REPLACE FUNCTION public.is_room_member(
+  p_room_id UUID,
+  p_user_id UUID
+) RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM room_members
+    WHERE room_id = p_room_id
+      AND user_id = p_user_id
+  );
+$$;
+
 DROP POLICY IF EXISTS "Room members read" ON room_members;
 CREATE POLICY "Room members read"
   ON room_members FOR SELECT
   USING (
-    user_id = auth.uid()
-    OR room_id IN (
-      SELECT public_rooms.id
-      FROM public_rooms
-      WHERE public_rooms.is_public = true
-        OR public_rooms.creator_id = auth.uid()
-    )
+    is_room_member(room_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS "Room members insert self" ON room_members;
@@ -72,12 +83,7 @@ CREATE POLICY "Public rooms read"
   USING (
     is_public = true
     OR creator_id = auth.uid()
-    OR EXISTS (
-      SELECT 1
-      FROM room_members
-      WHERE room_members.room_id = public_rooms.id
-        AND room_members.user_id = auth.uid()
-    )
+    OR is_room_member(public_rooms.id, auth.uid())
   );
 
 -- Allow authenticated users to create rooms (creator_id must match auth.uid())
@@ -131,16 +137,46 @@ CREATE INDEX IF NOT EXISTS idx_room_invites_created_by ON room_invites(created_b
 
 ALTER TABLE room_invites ENABLE ROW LEVEL SECURITY;
 
+-- Allow invite previews via a security definer RPC without exposing raw invites.
+CREATE OR REPLACE FUNCTION public.get_room_invite_preview(p_token UUID)
+RETURNS TABLE (
+  room_id UUID,
+  token UUID,
+  title TEXT,
+  description TEXT,
+  is_public BOOLEAN,
+  participant_count INTEGER,
+  capacity INTEGER,
+  avatar_url TEXT
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    rooms.id AS room_id,
+    invites.token,
+    rooms.title,
+    CASE WHEN rooms.is_public THEN rooms.description ELSE NULL END AS description,
+    rooms.is_public,
+    rooms.participant_count,
+    rooms.capacity,
+    rooms.avatar_url
+  FROM room_invites AS invites
+  JOIN public_rooms AS rooms ON rooms.id = invites.room_id
+  WHERE invites.token = p_token
+    AND invites.revoked = false
+  LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_room_invite_preview(UUID)
+  TO anon, authenticated;
+
 DROP POLICY IF EXISTS "Room invites read" ON room_invites;
 CREATE POLICY "Room invites read"
   ON room_invites FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1
-      FROM room_members
-      WHERE room_members.room_id = room_invites.room_id
-        AND room_members.user_id = auth.uid()
-    )
+    is_room_member(room_invites.room_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS "Room invites insert" ON room_invites;
@@ -148,12 +184,7 @@ CREATE POLICY "Room invites insert"
   ON room_invites FOR INSERT
   WITH CHECK (
     created_by = auth.uid()
-    AND EXISTS (
-      SELECT 1
-      FROM room_members
-      WHERE room_members.room_id = room_invites.room_id
-        AND room_members.user_id = auth.uid()
-    )
+    AND is_room_member(room_invites.room_id, auth.uid())
   );
 
 DROP POLICY IF EXISTS "Room invites update" ON room_invites;

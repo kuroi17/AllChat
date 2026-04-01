@@ -113,6 +113,32 @@ router.get("/invites/:token/preview", async (req, res) => {
   try {
     const { token } = req.params;
 
+    let preview = null;
+
+    try {
+      const { data, error } = await supabase.rpc("get_room_invite_preview", {
+        p_token: token,
+      });
+      if (!error) {
+        preview = Array.isArray(data) ? data[0] : data;
+      }
+    } catch (rpcError) {
+      // Fallback to direct lookup when RPC is unavailable.
+    }
+
+    if (preview) {
+      return res.json({
+        id: preview.room_id,
+        title: preview.title,
+        description: preview.description,
+        is_public: preview.is_public,
+        participant_count: preview.participant_count,
+        capacity: preview.capacity,
+        avatar_url: preview.avatar_url,
+        invite_token: preview.token,
+      });
+    }
+
     const { data: invite, error: inviteError } = await supabase
       .from("room_invites")
       .select("room_id, revoked")
@@ -153,21 +179,40 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     const { token } = req.params;
     const userId = req.userId;
     const db = req.supabase || supabase;
+    let inviteRoomId = null;
 
-    const { data: invite, error: inviteError } = await supabase
-      .from("room_invites")
-      .select("room_id, revoked")
-      .eq("token", token)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase.rpc("get_room_invite_preview", {
+        p_token: token,
+      });
+      if (!error) {
+        const preview = Array.isArray(data) ? data[0] : data;
+        if (preview?.room_id) {
+          inviteRoomId = preview.room_id;
+        }
+      }
+    } catch (rpcError) {
+      // Fallback to direct lookup when RPC is unavailable.
+    }
 
-    if (inviteError || !invite || invite.revoked) {
-      return res.status(404).json({ error: "Invite not found" });
+    if (!inviteRoomId) {
+      const { data: invite, error: inviteError } = await supabase
+        .from("room_invites")
+        .select("room_id, revoked")
+        .eq("token", token)
+        .maybeSingle();
+
+      if (inviteError || !invite || invite.revoked) {
+        return res.status(404).json({ error: "Invite not found" });
+      }
+
+      inviteRoomId = invite.room_id;
     }
 
     const { data: room, error: roomError } = await supabase
       .from("public_rooms")
       .select("id,capacity,participant_count,creator_id")
-      .eq("id", invite.room_id)
+      .eq("id", inviteRoomId)
       .single();
 
     if (roomError || !room) {
@@ -177,7 +222,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     const { data: existingMember, error: memberError } = await db
       .from("room_members")
       .select("room_id")
-      .eq("room_id", invite.room_id)
+      .eq("room_id", inviteRoomId)
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -187,7 +232,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
       return res.json({
         participantCount: room.participant_count,
         alreadyMember: true,
-        roomId: invite.room_id,
+        roomId: inviteRoomId,
       });
     }
 
@@ -197,7 +242,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
 
     const { error: insertError } = await db.from("room_members").insert([
       {
-        room_id: invite.room_id,
+        room_id: inviteRoomId,
         user_id: userId,
       },
     ]);
@@ -205,7 +250,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     if (insertError) throw insertError;
 
     const { data, error } = await supabase.rpc("increment_room_participants", {
-      p_room_id: invite.room_id,
+      p_room_id: inviteRoomId,
     });
 
     if (error) throw error;
@@ -217,7 +262,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
       const io = req.app.get("io");
       if (io) {
         io.emit("rooms:updated", {
-          roomId: invite.room_id,
+          roomId: inviteRoomId,
           participantCount,
         });
       }
@@ -228,7 +273,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     res.json({
       participantCount,
       alreadyMember: false,
-      roomId: invite.room_id,
+      roomId: inviteRoomId,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
