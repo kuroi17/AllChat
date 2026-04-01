@@ -38,13 +38,33 @@ router.get("/", async (req, res) => {
 });
 
 // GET messages by room
-router.get("/:room", async (req, res) => {
+router.get("/:room", verifyToken, async (req, res) => {
   try {
     const { room } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+    const targetRoom = room || "global";
+
+    if (targetRoom !== "global" && targetRoom.startsWith("room:")) {
+      const roomId = targetRoom.replace("room:", "");
+      const { data: membership, error: memberError } = await db
+        .from("room_members")
+        .select("room_id")
+        .eq("room_id", roomId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (memberError) throw memberError;
+
+      if (!membership) {
+        return res.status(403).json({ error: "Not a room member" });
+      }
+    }
+
     const { data, error } = await supabase
       .from("messages")
       .select("*, profiles:user_id(username, avatar_url)")
-      .eq("room", room)
+      .eq("room", targetRoom)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -63,20 +83,38 @@ router.post(
   createMessageAntiSpamGuard,
   async (req, res) => {
     try {
-      const { content, room } = req.body;
+      const { content, room, imageUrl } = req.body;
       const userId = req.userId;
       const db = req.supabase || supabase;
       const cleanedContent = typeof content === "string" ? content.trim() : "";
       const targetRoom =
         typeof room === "string" && room.trim() ? room.trim() : "global";
+      const cleanedImageUrl =
+        typeof imageUrl === "string" ? imageUrl.trim() : "";
 
       // Validation
-      if (!cleanedContent) {
-        return res.status(400).json({ error: "Content is required" });
+      if (!cleanedContent && !cleanedImageUrl) {
+        return res.status(400).json({ error: "Message is required" });
       }
 
       if (cleanedContent.length > 2000) {
         return res.status(400).json({ error: "Message is too long" });
+      }
+
+      if (targetRoom !== "global" && targetRoom.startsWith("room:")) {
+        const roomId = targetRoom.replace("room:", "");
+        const { data: membership, error: memberError } = await db
+          .from("room_members")
+          .select("room_id")
+          .eq("room_id", roomId)
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (memberError) throw memberError;
+
+        if (!membership) {
+          return res.status(403).json({ error: "Not a room member" });
+        }
       }
 
       // Ensure a profile row exists to satisfy FK constraints.
@@ -104,8 +142,9 @@ router.post(
         .insert([
           {
             user_id: userId,
-            content: cleanedContent,
+            content: cleanedContent || "",
             room: targetRoom,
+            image_url: cleanedImageUrl || null,
           },
         ])
         .select();
@@ -147,13 +186,28 @@ router.delete("/:id", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    // Hard delete for global chat (UI currently expects removed messages)
-    const { error: deleteError } = await db
-      .from("messages")
-      .delete()
-      .eq("id", id);
+    const isRoomMessage =
+      typeof message.room === "string" && message.room.startsWith("room:");
 
-    if (deleteError) throw deleteError;
+    if (isRoomMessage) {
+      const { error: updateError } = await db
+        .from("messages")
+        .update({
+          content: "__BSUALLCHAT_ROOM_DELETED__",
+          image_url: null,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+    } else {
+      // Hard delete for global chat (UI expects removed messages)
+      const { error: deleteError } = await db
+        .from("messages")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) throw deleteError;
+    }
 
     const io = req.app.get("io");
     if (io) {

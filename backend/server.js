@@ -69,10 +69,28 @@ io.use(async (socket, next) => {
 io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
 
-  socket.on("room:join", (payload, ack) => {
+  socket.on("room:join", async (payload, ack) => {
     if (!socketRoomActionRateLimiter(socket, ack)) return;
 
     const room = payload?.room || "global";
+
+    if (room !== "global" && room.startsWith("room:")) {
+      const roomId = room.replace("room:", "");
+      const { data, error } = await supabase
+        .from("room_members")
+        .select("room_id")
+        .eq("room_id", roomId)
+        .eq("user_id", socket.userId)
+        .maybeSingle();
+
+      if (error || !data) {
+        if (typeof ack === "function") {
+          ack({ ok: false, error: "Not authorized" });
+        }
+        return;
+      }
+    }
+
     socket.join("room:" + room);
 
     if (typeof ack === "function") {

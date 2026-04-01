@@ -1,7 +1,7 @@
 const express = require("express");
 const { supabase, createUserScopedClient } = require("../utils/supabase");
 const { verifyToken } = require("../middleware/auth");
-const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ function parseLimit(value, fallback = 20, max = 100) {
 }
 
 const ROOM_SELECT =
-  "id,title,description,location,creator_id,is_public,capacity,participant_count,status,last_updated,created_at,profiles:creator_id(username, avatar_url)";
+  "id,title,description,location,creator_id,is_public,capacity,participant_count,status,last_updated,created_at,avatar_url,profiles:creator_id(username, avatar_url)";
 
 async function resolveOptionalAuth(req) {
   const authHeader = req.headers.authorization || "";
@@ -108,6 +108,237 @@ router.get("/joined", verifyToken, async (req, res) => {
   }
 });
 
+// GET invite preview (limited info)
+router.get("/invites/:token/preview", async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const { data: invite, error: inviteError } = await supabase
+      .from("room_invites")
+      .select("room_id, revoked")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (inviteError || !invite || invite.revoked) {
+      return res.status(404).json({ error: "Invite not found" });
+    }
+
+    const { data: room, error: roomError } = await supabase
+      .from("public_rooms")
+      .select(
+        "id,title,description,is_public,participant_count,capacity,avatar_url",
+      )
+      .eq("id", invite.room_id)
+      .single();
+
+    if (roomError || !room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    const limitedDescription = room.is_public ? room.description : null;
+
+    res.json({
+      ...room,
+      description: limitedDescription,
+      invite_token: token,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Join a room via invite token
+router.post("/invites/:token/join", verifyToken, async (req, res) => {
+  try {
+    const { token } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+
+    const { data: invite, error: inviteError } = await supabase
+      .from("room_invites")
+      .select("room_id, revoked")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (inviteError || !invite || invite.revoked) {
+      return res.status(404).json({ error: "Invite not found" });
+    }
+
+    const { data: room, error: roomError } = await supabase
+      .from("public_rooms")
+      .select("id,capacity,participant_count,creator_id")
+      .eq("id", invite.room_id)
+      .single();
+
+    if (roomError || !room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    const { data: existingMember, error: memberError } = await db
+      .from("room_members")
+      .select("room_id")
+      .eq("room_id", invite.room_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (memberError) throw memberError;
+
+    if (existingMember || room.creator_id === userId) {
+      return res.json({
+        participantCount: room.participant_count,
+        alreadyMember: true,
+        roomId: invite.room_id,
+      });
+    }
+
+    if (room.capacity && room.participant_count >= room.capacity) {
+      return res.status(409).json({ error: "Room is full" });
+    }
+
+    const { error: insertError } = await db.from("room_members").insert([
+      {
+        room_id: invite.room_id,
+        user_id: userId,
+      },
+    ]);
+
+    if (insertError) throw insertError;
+
+    const { data, error } = await supabase.rpc("increment_room_participants", {
+      p_room_id: invite.room_id,
+    });
+
+    if (error) throw error;
+
+    const participantCount =
+      Array.isArray(data) && data[0] ? data[0].participant_count : null;
+
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("rooms:updated", {
+          roomId: invite.room_id,
+          participantCount,
+        });
+      }
+    } catch (e) {
+      // ignore socket errors
+    }
+
+    res.json({
+      participantCount,
+      alreadyMember: false,
+      roomId: invite.room_id,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create or fetch an invite token for a room
+router.post("/:roomId/invites", verifyToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+
+    const { data: membership, error: membershipError } = await db
+      .from("room_members")
+      .select("room_id")
+      .eq("room_id", roomId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (membershipError) throw membershipError;
+
+    if (!membership) {
+      return res.status(403).json({ error: "Not a room member" });
+    }
+
+    const { data: existingInvite, error: inviteError } = await db
+      .from("room_invites")
+      .select("token, revoked")
+      .eq("room_id", roomId)
+      .eq("revoked", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (inviteError) throw inviteError;
+
+    if (existingInvite?.token) {
+      return res.json({ token: existingInvite.token, roomId });
+    }
+
+    const token = crypto.randomUUID();
+
+    const { data, error } = await db
+      .from("room_invites")
+      .insert([
+        {
+          token,
+          room_id: roomId,
+          created_by: userId,
+        },
+      ])
+      .select("token")
+      .single();
+
+    if (error) throw error;
+
+    res.json({ token: data.token, roomId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET room preview (limited info)
+router.get("/:roomId/preview", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const authContext = await resolveOptionalAuth(req);
+    const db = authContext?.userClient || supabase;
+
+    const { data: room, error } = await db
+      .from("public_rooms")
+      .select(
+        "id,title,description,is_public,participant_count,capacity,avatar_url,creator_id",
+      )
+      .eq("id", roomId)
+      .single();
+
+    if (error || !room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    let isMember = false;
+
+    if (authContext?.userId) {
+      const { data: membership } = await db
+        .from("room_members")
+        .select("room_id")
+        .eq("room_id", roomId)
+        .eq("user_id", authContext.userId)
+        .maybeSingle();
+      isMember = !!membership || room.creator_id === authContext.userId;
+    }
+
+    const canShowDetails = room.is_public || isMember;
+
+    res.json({
+      id: room.id,
+      title: room.title,
+      description: canShowDetails ? room.description : null,
+      is_public: room.is_public,
+      participant_count: room.participant_count,
+      capacity: room.capacity,
+      avatar_url: room.avatar_url,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET single room (authenticated)
 router.get("/:roomId", verifyToken, async (req, res) => {
   try {
@@ -149,7 +380,6 @@ router.post("/", verifyToken, async (req, res) => {
       location,
       isPublic = true,
       capacity,
-      passcode,
     } = req.body;
     const createdBy = req.userId;
     const db = req.supabase || supabase;
@@ -157,17 +387,6 @@ router.post("/", verifyToken, async (req, res) => {
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
     }
-
-    if (!isPublic) {
-      if (!passcode || passcode.length < 4) {
-        return res
-          .status(400)
-          .json({ error: "Passcode must be at least 4 characters" });
-      }
-    }
-
-    const passcodeHash =
-      !isPublic && passcode ? await bcrypt.hash(passcode, 10) : null;
 
     const { data, error } = await db
       .from("public_rooms")
@@ -179,7 +398,6 @@ router.post("/", verifyToken, async (req, res) => {
           is_public: !!isPublic,
           capacity: capacity || null,
           creator_id: createdBy,
-          passcode_hash: passcodeHash,
         },
       ])
       .select(ROOM_SELECT);
@@ -211,15 +429,12 @@ router.post("/", verifyToken, async (req, res) => {
 router.post("/:roomId/join", verifyToken, async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { passcode } = req.body || {};
     const userId = req.userId;
     const db = req.supabase || supabase;
 
     const { data: room, error: roomError } = await supabase
       .from("public_rooms")
-      .select(
-        "id,is_public,capacity,participant_count,passcode_hash,creator_id",
-      )
+      .select("id,is_public,capacity,participant_count,creator_id")
       .eq("id", roomId)
       .single();
 
@@ -228,19 +443,7 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
     }
 
     if (!room.is_public) {
-      if (!passcode) {
-        return res.status(400).json({ error: "Passcode required" });
-      }
-
-      if (!room.passcode_hash) {
-        return res.status(400).json({ error: "Room passcode not set" });
-      }
-
-      const validPasscode = await bcrypt.compare(passcode, room.passcode_hash);
-
-      if (!validPasscode) {
-        return res.status(403).json({ error: "Incorrect passcode" });
-      }
+      return res.status(403).json({ error: "Invite required" });
     }
 
     const { data: existingMember, error: memberError } = await db
@@ -313,6 +516,46 @@ router.get("/:roomId/members", verifyToken, async (req, res) => {
 
     if (error) throw error;
     res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update room avatar (owner only)
+router.patch("/:roomId/avatar", verifyToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { avatarUrl } = req.body || {};
+    const db = req.supabase || supabase;
+
+    if (!avatarUrl) {
+      return res.status(400).json({ error: "Missing avatarUrl" });
+    }
+
+    const { data: room, error: roomError } = await db
+      .from("public_rooms")
+      .select("creator_id")
+      .eq("id", roomId)
+      .single();
+
+    if (roomError || !room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    if (room.creator_id !== req.userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const { data: updated, error } = await db
+      .from("public_rooms")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", roomId)
+      .select(ROOM_SELECT)
+      .single();
+
+    if (error) throw error;
+
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
