@@ -98,7 +98,7 @@ export default function Message({
     );
   }
   return (
-    <div className="flex items-start gap-2 sm:gap-3 group">
+    <div className="flex items-start gap-2 sm:gap-3">
       <div className="relative" ref={menuRef}>
         <div
           className={`cursor-pointer w-8 h-8 sm:w-9 sm:h-9 rounded-full ${color} flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 hover:ring-2 hover:ring-red-300 transition-all overflow-hidden`}
@@ -136,45 +136,43 @@ export default function Message({
         )}
       </div>
 
-      <div className="max-w-xs sm:max-w-md relative">
+      <div className="max-w-xs sm:max-w-md">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold text-xs sm:text-sm text-gray-800">
             {user}
           </span>
           <span className="text-[11px] sm:text-xs text-gray-400">{time}</span>
+          {!me && (
+            <div ref={actionsRef} className="relative ml-auto">
+              <button
+                type="button"
+                onClick={() => setShowActions((prev) => !prev)}
+                className={`h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
+                  showActions ? "opacity-100" : "opacity-70 hover:opacity-100"
+                }`}
+                aria-label="Message actions"
+                title="Message actions"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {showActions && (
+                <div className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden z-50">
+                  <button
+                    type="button"
+                    onClick={handleReport}
+                    className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                  >
+                    Report message
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md">
           {text}
         </div>
-        {!me && (
-          <div ref={actionsRef} className="absolute top-0 right-0">
-            <button
-              type="button"
-              onClick={() => setShowActions((prev) => !prev)}
-              className={`h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
-                showActions
-                  ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100"
-              }`}
-              aria-label="Message actions"
-              title="Message actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {showActions && (
-              <div className="absolute right-0 mt-2 w-40 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden z-50">
-                <button
-                  type="button"
-                  onClick={handleReport}
-                  className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Report message
-                </button>
-              </div>
-            )}
-          </div>
-        )}
         {roomLink && (
           <RoomLinkPreviewCard
             roomId={roomLink.type === "room" ? roomLink.value : null}
