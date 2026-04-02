@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import ReportMessageModal from "../modals/ReportMessageModal";
+import AppToast from "../common/AppToast";
 import {
   fetchMessages,
   fetchProfilesByIds,
@@ -32,6 +33,7 @@ export default function MessagesList({ scrollRef }) {
   const containerRef = useRef(null);
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const [initialMessages] = useState(() => {
     try {
@@ -88,13 +90,26 @@ export default function MessagesList({ scrollRef }) {
         description,
       });
       setReportTarget(null);
+      setToast({
+        type: "success",
+        message: "Report submitted successfully. Thank you.",
+      });
     } catch (error) {
       console.error("[MessagesList] Report submit failed:", error);
-      alert(error.message || "Failed to submit report.");
+      setToast({
+        type: "error",
+        message: error.message || "Failed to submit report.",
+      });
     } finally {
       setReporting(false);
     }
   };
+
+  useEffect(() => {
+    if (!toast?.message) return;
+    const timer = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     if (!Array.isArray(fetchedMessages)) return;
@@ -254,6 +269,8 @@ export default function MessagesList({ scrollRef }) {
         reporting={reporting}
         reportedUsername={reportTarget?.username}
       />
+
+      <AppToast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

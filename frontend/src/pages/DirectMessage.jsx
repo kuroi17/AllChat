@@ -8,6 +8,7 @@ import DirectMessageMessagesPane from "../components/directMessage/DirectMessage
 import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
 import DirectMessageInfoSection from "../components/directMessage/DirectMessageInfoSection";
 import ReportMessageModal from "../components/modals/ReportMessageModal";
+import AppToast from "../components/common/AppToast";
 import {
   getOrCreateConversation,
   fetchConversationContext,
@@ -71,6 +72,7 @@ export default function DirectMessage() {
   const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
+  const [toast, setToast] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
   const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
@@ -481,13 +483,26 @@ export default function DirectMessage() {
         description,
       });
       setReportTarget(null);
+      setToast({
+        type: "success",
+        message: "Report submitted successfully. Thank you.",
+      });
     } catch (error) {
       console.error("Error submitting report:", error);
-      alert(error.message || "Failed to submit report.");
+      setToast({
+        type: "error",
+        message: error.message || "Failed to submit report.",
+      });
     } finally {
       setReporting(false);
     }
   }
+
+  useEffect(() => {
+    if (!toast?.message) return;
+    const timer = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   async function handleUnsendForEveryone(messageId) {
     if (!user?.id || deletingMessageId) return;
@@ -865,6 +880,12 @@ export default function DirectMessage() {
         onSubmit={handleSubmitReport}
         reporting={reporting}
         reportedUsername={otherUser?.username}
+      />
+
+      <AppToast
+        toast={toast}
+        onClose={() => setToast(null)}
+        className="xl:right-88"
       />
     </div>
   );
