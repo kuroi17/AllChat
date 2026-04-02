@@ -62,7 +62,9 @@ const chatLimits = {
   directMessageMaxChars: parsePositiveInt("DIRECT_MESSAGE_MAX_CHARS", 1500),
   directMessageFetchLimit: parsePositiveInt("DIRECT_MESSAGE_FETCH_LIMIT", 75),
 
-  mediaUploadsEnabled: parseBoolean("ENABLE_MEDIA_UPLOADS", !isProduction),
+  // Force media uploads off by default to protect free-tier usage.
+  // Set ENABLE_MEDIA_UPLOADS=true in the environment to re-enable.
+  mediaUploadsEnabled: parseBoolean("ENABLE_MEDIA_UPLOADS", false),
   maxMediaMessagesPerDay: parsePositiveInt("MAX_MEDIA_MESSAGES_PER_DAY", 5),
   allowedMediaHosts,
 };

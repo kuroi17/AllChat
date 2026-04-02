@@ -19,9 +19,10 @@ function parseBoolean(value, fallbackValue) {
 export const API_BASE_URL =
   trimmedApiUrl || (import.meta.env.DEV ? defaultDevApiUrl : "");
 
+// Force media uploads off by default; set VITE_ENABLE_MEDIA_UPLOADS=true to allow uploads.
 export const ENABLE_MEDIA_UPLOADS = parseBoolean(
   import.meta.env.VITE_ENABLE_MEDIA_UPLOADS,
-  import.meta.env.DEV,
+  false,
 );
 
 export const MAX_MEDIA_UPLOAD_BYTES = parsePositiveInt(
