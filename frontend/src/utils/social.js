@@ -466,6 +466,38 @@ export async function markConversationAsRead(conversationId, userId) {
   }
 }
 
+// ==================== REPORTS ====================
+
+export async function submitMessageReport({
+  messageId,
+  messageType,
+  reportedUserId,
+  roomId,
+  conversationId,
+  reason,
+  description,
+}) {
+  if (!messageId || !messageType || !reason) {
+    throw new Error("Missing report details");
+  }
+
+  return requestApi("/api/reports", {
+    method: "POST",
+    auth: true,
+    body: {
+      messageId,
+      messageType,
+      reportedUserId,
+      roomId,
+      conversationId,
+      reason,
+      description,
+    },
+  });
+}
+
+// ==================== REPORTS ====================
+
 /**
  * Delete a conversation the current user is part of
  */

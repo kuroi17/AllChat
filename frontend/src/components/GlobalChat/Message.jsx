@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, MessageCircle } from "lucide-react";
+import { User, MessageCircle, MoreVertical } from "lucide-react";
 import { useUser } from "../../contexts/UserContext";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
@@ -13,10 +13,13 @@ export default function Message({
   me,
   userId,
   avatarUrl,
+  onReport,
 }) {
   const { profile } = useUser();
   const [showMenu, setShowMenu] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const menuRef = useRef(null);
+  const actionsRef = useRef(null);
   const navigate = useNavigate();
 
   // Close menu when clicking outside
@@ -25,16 +28,19 @@ export default function Message({
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setShowMenu(false);
       }
+      if (actionsRef.current && !actionsRef.current.contains(event.target)) {
+        setShowActions(false);
+      }
     };
 
-    if (showMenu) {
+    if (showMenu || showActions) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showMenu]);
+  }, [showMenu, showActions]);
 
   const handleAvatarClick = () => {
     if (!me) {
@@ -50,6 +56,11 @@ export default function Message({
   const handleSendMessage = () => {
     setShowMenu(false);
     navigate(`/dm/new?userId=${userId}`);
+  };
+
+  const handleReport = () => {
+    setShowActions(false);
+    onReport?.({ userId, username: user });
   };
 
   const roomLink = extractRoomLink(text);
@@ -87,7 +98,7 @@ export default function Message({
     );
   }
   return (
-    <div className="flex items-start gap-2 sm:gap-3">
+    <div className="flex items-start gap-2 sm:gap-3 group">
       <div className="relative" ref={menuRef}>
         <div
           className={`cursor-pointer w-8 h-8 sm:w-9 sm:h-9 rounded-full ${color} flex items-center justify-center text-white text-xs sm:text-sm font-bold shrink-0 hover:ring-2 hover:ring-red-300 transition-all overflow-hidden`}
@@ -125,7 +136,7 @@ export default function Message({
         )}
       </div>
 
-      <div className="max-w-xs sm:max-w-md">
+      <div className="max-w-xs sm:max-w-md relative">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold text-xs sm:text-sm text-gray-800">
             {user}
@@ -135,6 +146,35 @@ export default function Message({
         <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md">
           {text}
         </div>
+        {!me && (
+          <div ref={actionsRef} className="absolute top-0 right-0">
+            <button
+              type="button"
+              onClick={() => setShowActions((prev) => !prev)}
+              className={`h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
+                showActions
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100"
+              }`}
+              aria-label="Message actions"
+              title="Message actions"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showActions && (
+              <div className="absolute right-0 mt-2 w-40 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden z-50">
+                <button
+                  type="button"
+                  onClick={handleReport}
+                  className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Report message
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {roomLink && (
           <RoomLinkPreviewCard
             roomId={roomLink.type === "room" ? roomLink.value : null}

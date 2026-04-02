@@ -16,6 +16,7 @@ export default function DirectMessageMessagesPane({
   onToggleMessageMenu,
   onUnsendForYou,
   onUnsendForEveryone,
+  onReportMessage,
   messagesEndRef,
 }) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -186,6 +187,16 @@ export default function DirectMessageMessagesPane({
                         >
                           Unsend for you
                         </button>
+
+                        {!isMe && (
+                          <button
+                            type="button"
+                            onClick={() => onReportMessage?.(msg)}
+                            className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Report message
+                          </button>
+                        )}
 
                         {isMe && (
                           <button

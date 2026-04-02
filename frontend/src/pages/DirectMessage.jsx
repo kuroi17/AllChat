@@ -7,6 +7,7 @@ import DirectMessageHeader from "../components/directMessage/DirectMessageHeader
 import DirectMessageMessagesPane from "../components/directMessage/DirectMessageMessagesPane";
 import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
 import DirectMessageInfoSection from "../components/directMessage/DirectMessageInfoSection";
+import ReportMessageModal from "../components/modals/ReportMessageModal";
 import {
   getOrCreateConversation,
   fetchConversationContext,
@@ -22,6 +23,7 @@ import {
   unfollowUser,
   fetchFollowers,
   fetchFollowing,
+  submitMessageReport,
   subscribeConversationRealtime,
   unsubscribeConversationRealtime,
 } from "../utils/social";
@@ -67,6 +69,8 @@ export default function DirectMessage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeMessageMenuId, setActiveMessageMenuId] = useState(null);
   const [deletingMessageId, setDeletingMessageId] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reporting, setReporting] = useState(false);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
   const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
@@ -459,6 +463,32 @@ export default function DirectMessage() {
     setActiveMessageMenuId((prev) => (prev === messageId ? null : messageId));
   }
 
+  function handleReportMessage(message) {
+    setReportTarget(message);
+    setActiveMessageMenuId(null);
+  }
+
+  async function handleSubmitReport({ reason, description }) {
+    if (!reportTarget || !conversationId) return;
+    try {
+      setReporting(true);
+      await submitMessageReport({
+        messageId: reportTarget.id,
+        messageType: "dm",
+        reportedUserId: reportTarget.sender_id,
+        conversationId,
+        reason,
+        description,
+      });
+      setReportTarget(null);
+    } catch (error) {
+      console.error("Error submitting report:", error);
+      alert(error.message || "Failed to submit report.");
+    } finally {
+      setReporting(false);
+    }
+  }
+
   async function handleUnsendForEveryone(messageId) {
     if (!user?.id || deletingMessageId) return;
 
@@ -741,6 +771,7 @@ export default function DirectMessage() {
           onToggleMessageMenu={toggleMessageMenu}
           onUnsendForYou={handleUnsendForYou}
           onUnsendForEveryone={handleUnsendForEveryone}
+          onReportMessage={handleReportMessage}
           messagesEndRef={messagesEndRef}
         />
 
@@ -827,6 +858,14 @@ export default function DirectMessage() {
           />
         </div>
       </aside>
+
+      <ReportMessageModal
+        open={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        onSubmit={handleSubmitReport}
+        reporting={reporting}
+        reportedUsername={otherUser?.username}
+      />
     </div>
   );
 }

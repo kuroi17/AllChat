@@ -2,12 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
+import ReportMessageModal from "../modals/ReportMessageModal";
 import {
   fetchMessages,
   fetchProfilesByIds,
   subscribeMessages,
   unsubscribeMessages,
 } from "../../utils/messages";
+import { submitMessageReport } from "../../utils/social";
 
 const GLOBAL_MESSAGES_CACHE_KEY = "global_messages_cache_v1";
 
@@ -28,6 +30,8 @@ export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const [messages, setMessages] = useState([]);
   const containerRef = useRef(null);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reporting, setReporting] = useState(false);
 
   const [initialMessages] = useState(() => {
     try {
@@ -65,6 +69,31 @@ export default function MessagesList({ scrollRef }) {
         return prev;
       return [...prev, incoming];
     });
+  };
+
+  const handleReportMessage = (target) => {
+    if (!target?.userId) return;
+    setReportTarget(target);
+  };
+
+  const handleSubmitReport = async ({ reason, description }) => {
+    if (!reportTarget?.userId) return;
+    try {
+      setReporting(true);
+      await submitMessageReport({
+        messageId: reportTarget.messageId,
+        messageType: "global",
+        reportedUserId: reportTarget.userId,
+        reason,
+        description,
+      });
+      setReportTarget(null);
+    } catch (error) {
+      console.error("[MessagesList] Report submit failed:", error);
+      alert(error.message || "Failed to submit report.");
+    } finally {
+      setReporting(false);
+    }
   };
 
   useEffect(() => {
@@ -209,8 +238,22 @@ export default function MessagesList({ scrollRef }) {
           })}
           text={msg.content}
           me={msg.user_id === user.id}
+          onReport={(payload) =>
+            handleReportMessage({
+              ...payload,
+              messageId: msg.id,
+            })
+          }
         />
       ))}
+
+      <ReportMessageModal
+        open={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        onSubmit={handleSubmitReport}
+        reporting={reporting}
+        reportedUsername={reportTarget?.username}
+      />
     </div>
   );
 }
