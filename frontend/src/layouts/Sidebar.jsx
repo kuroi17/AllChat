@@ -162,7 +162,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
               Campus
             </p>
             <p className="text-sm font-bold text-red-800 leading-tight">
-              Global Chat
+              AllChat
             </p>
           </div>
           {/* (rooms icon moved into main nav) */}
