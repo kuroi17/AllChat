@@ -404,20 +404,6 @@ export default function EditProfileModal({ isOpen, onClose }) {
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Website
-                </label>
-                <input
-                  type="text"
-                  name="website_url"
-                  value={formData.website_url}
-                  onChange={handleChange}
-                  placeholder="Portfolio, Linktree, or personal site"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
-                />
-              </div>
             </div>
           </div>
 
@@ -432,41 +418,6 @@ export default function EditProfileModal({ isOpen, onClose }) {
               value={formData.department}
               onChange={handleChange}
               placeholder="e.g., Computer Science"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
-            />
-          </div>
-
-          {/* Year Level */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Year Level
-            </label>
-            <select
-              name="year_level"
-              value={formData.year_level}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
-            >
-              <option value="">Select year level</option>
-              <option value="1st Year">1st Year</option>
-              <option value="2nd Year">2nd Year</option>
-              <option value="3rd Year">3rd Year</option>
-              <option value="4th Year">4th Year</option>
-              <option value="5th Year">5th Year</option>
-            </select>
-          </div>
-
-          {/* Student ID */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Student ID
-            </label>
-            <input
-              type="text"
-              name="student_id"
-              value={formData.student_id}
-              onChange={handleChange}
-              placeholder="e.g., BSU-2023-0456"
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
           </div>
