@@ -38,8 +38,23 @@ export async function getChatSocket() {
 
     socketInstance = io(API_BASE_URL, {
       auth: { token },
-      transports: ["websocket"],
+      // allow polling fallback when websocket upgrades fail (some proxies/load-balancers)
+      transports: ["websocket", "polling"],
       withCredentials: true,
+      path: "/socket.io",
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    // Helpful debug logs for connection issues
+    socketInstance.on("connect_error", (err) => {
+      // eslint-disable-next-line no-console
+      console.warn("Socket connect_error:", err?.message || err);
+    });
+    socketInstance.on("connect", () => {
+      // eslint-disable-next-line no-console
+      console.info("Socket connected -> id:", socketInstance.id);
     });
     socketToken = token;
   }
