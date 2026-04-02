@@ -8,6 +8,7 @@ import {
   fetchAnnouncements,
   fetchFollowing,
 } from "../../utils/social";
+import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
 import PublicRooms from "../PublicRooms";
 import { useUser } from "../../contexts/UserContext";
 
@@ -18,8 +19,8 @@ export default function Sidebar() {
 
   const { data: onlineUsers = [] } = useQuery({
     queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(1000),
-    refetchInterval: 30000,
+    queryFn: () => fetchOnlineUsers(500),
+    refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
   });
 
   const { data: followingUsers = [] } = useQuery({

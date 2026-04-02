@@ -14,6 +14,8 @@ export default function DirectMessageComposer({
   setMessageText,
   onSubmit,
   placeholder,
+  allowImageUpload = true,
+  uploadDisabledReason = "Image uploads are disabled.",
 }) {
   return (
     <div className="bg-white border-t border-gray-200 px-2 sm:px-6 py-2 sm:py-4 shrink-0">
@@ -56,9 +58,9 @@ export default function DirectMessageComposer({
             type="button"
             onClick={() => imageInputRef.current?.click()}
             className="p-2.5 sm:p-3 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-100 hover:text-red-700 transition-colors shrink-0"
-            title="Attach image"
+            title={allowImageUpload ? "Attach image" : uploadDisabledReason}
             aria-label="Attach image"
-            disabled={sending || uploadingImage}
+            disabled={sending || uploadingImage || !allowImageUpload}
           >
             <ImagePlus className="w-5 h-5" />
           </button>

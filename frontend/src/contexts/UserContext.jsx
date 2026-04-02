@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../utils/supabase";
 import { updatePresence } from "../utils/social";
 import { defaultSettings, subscribeChatSettings } from "../utils/settings";
+import { PRESENCE_UPDATE_INTERVAL_MS } from "../utils/runtimeConfig";
 
 const UserContext = createContext();
 
@@ -88,7 +89,7 @@ export default function UserProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  // Track user presence (update every 2 minutes)
+  // Track user presence with throttled activity updates.
   useEffect(() => {
     if (!user?.id) return;
 
@@ -108,28 +109,25 @@ export default function UserProvider({ children }) {
     // Update presence immediately
     updatePresence(user.id);
 
-    // Update presence every 2 minutes
-    const interval = setInterval(
-      () => {
-        updatePresence(user.id);
-      },
-      2 * 60 * 1000,
-    ); // 2 minutes
+    // Update presence on a fixed interval.
+    const interval = setInterval(() => {
+      updatePresence(user.id);
+    }, PRESENCE_UPDATE_INTERVAL_MS);
 
-    // Update presence when user is active (mouse move, keyboard, etc.)
+    // Trigger updates on meaningful user activity.
     const handleActivity = () => {
       updatePresence(user.id);
     };
 
-    window.addEventListener("mousemove", handleActivity);
     window.addEventListener("keydown", handleActivity);
     window.addEventListener("click", handleActivity);
+    window.addEventListener("focus", handleActivity);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("mousemove", handleActivity);
       window.removeEventListener("keydown", handleActivity);
       window.removeEventListener("click", handleActivity);
+      window.removeEventListener("focus", handleActivity);
     };
   }, [user?.id, showOnlineStatus]);
 

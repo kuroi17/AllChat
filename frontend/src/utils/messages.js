@@ -1,6 +1,12 @@
 import { supabase } from "./supabase";
 import { io } from "socket.io-client";
-import { API_BASE_URL } from "./runtimeConfig";
+import {
+  API_BASE_URL,
+  ENABLE_MEDIA_UPLOADS,
+  MAX_GLOBAL_MESSAGE_CHARS,
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+} from "./runtimeConfig";
 
 let socketInstance = null;
 let socketToken = null;
@@ -53,8 +59,8 @@ async function getAccessToken() {
   return session.access_token;
 }
 
-// Fetch messages for a room (limit to last 100 for performance)
-export async function fetchMessages(room = "global", limit = 100) {
+// Fetch messages for a room (limit to last 50 for better egress control)
+export async function fetchMessages(room = "global", limit = 50) {
   const encodedRoom = encodeURIComponent(room);
   const token = await getAccessToken();
   const response = await fetch(`${API_BASE_URL}/api/messages/${encodedRoom}`, {
@@ -90,6 +96,12 @@ export async function sendMessage({
 
   if (!trimmed && !trimmedImageUrl) {
     throw new Error("Message cannot be empty");
+  }
+
+  if (trimmed.length > MAX_GLOBAL_MESSAGE_CHARS) {
+    throw new Error(
+      `Message is too long (max ${MAX_GLOBAL_MESSAGE_CHARS} characters).`,
+    );
   }
 
   const {
@@ -215,12 +227,16 @@ export async function uploadRoomMessageImage({ roomId, file }) {
   if (!roomId) throw new Error("Missing room ID");
   if (!file) throw new Error("No image selected");
 
+  if (!ENABLE_MEDIA_UPLOADS) {
+    throw new Error("Image uploads are currently disabled.");
+  }
+
   if (!file.type.startsWith("image/")) {
     throw new Error("Only image files are allowed");
   }
 
-  if (file.size > 8 * 1024 * 1024) {
-    throw new Error("Image size must be 8MB or less");
+  if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
+    throw new Error(`Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less`);
   }
 
   const {

@@ -24,6 +24,11 @@ import RoomMessagesList from "../components/rooms/RoomMessagesList";
 import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
 import { sendMessage, uploadRoomMessageImage } from "../utils/messages";
 import { useUser } from "../contexts/UserContext";
+import {
+  ENABLE_MEDIA_UPLOADS,
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+} from "../utils/runtimeConfig";
 
 export default function Room() {
   const { roomId } = useParams();
@@ -186,8 +191,34 @@ export default function Room() {
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!ENABLE_MEDIA_UPLOADS) {
+      setToast({
+        type: "error",
+        message: "Image uploads are currently disabled.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setToast({ type: "error", message: "Please select a valid image file." });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
+      setToast({
+        type: "error",
+        message: `Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less.`,
+      });
+      event.target.value = "";
+      return;
+    }
+
     setSelectedImage(file);
     setImagePreviewUrl(URL.createObjectURL(file));
+    event.target.value = "";
   };
 
   const clearSelectedImage = () => {
@@ -472,6 +503,8 @@ export default function Room() {
                     setMessageText={setMessageText}
                     onSubmit={handleSendMessage}
                     placeholder="Send a message to the room..."
+                    allowImageUpload={ENABLE_MEDIA_UPLOADS}
+                    uploadDisabledReason="Image uploads are disabled in this deployment."
                   />
                 </div>
               )}

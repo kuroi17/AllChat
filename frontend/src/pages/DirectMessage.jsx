@@ -29,6 +29,11 @@ import {
   unsubscribeConversationRealtime,
 } from "../utils/social";
 import { getChatSocket } from "../utils/messages";
+import {
+  ENABLE_MEDIA_UPLOADS,
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+} from "../utils/runtimeConfig";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 const DM_MESSAGES_CACHE_PREFIX = "dm_messages_cache:";
@@ -554,13 +559,22 @@ export default function DirectMessage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!ENABLE_MEDIA_UPLOADS) {
+      setToast({
+        type: "error",
+        message: "Image uploads are currently disabled.",
+      });
+      event.target.value = "";
+      return;
+    }
+
     if (!file.type.startsWith("image/")) {
       alert("Please select a valid image file.");
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert("Image size must be 8MB or less.");
+    if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
+      alert(`Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less.`);
       return;
     }
 
@@ -811,6 +825,8 @@ export default function DirectMessage() {
           setMessageText={setMessageText}
           onSubmit={handleSendMessage}
           placeholder={`Message ${otherUser.username || "user"}...`}
+          allowImageUpload={ENABLE_MEDIA_UPLOADS}
+          uploadDisabledReason="Image uploads are disabled in this deployment."
         />
       </main>
 

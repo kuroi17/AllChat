@@ -13,6 +13,7 @@ import {
   subscribeUserRealtime,
   unsubscribeUserRealtime,
 } from "../../utils/social";
+import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -95,7 +96,7 @@ export default function ChatHeader() {
   useEffect(() => {
     const loadOnlineCount = async () => {
       try {
-        const users = await fetchOnlineUsers(1000); // Fetch all online users
+        const users = await fetchOnlineUsers(500);
         setOnlineCount(users.length);
       } catch (error) {
         console.error("[ChatHeader] Error loading online count:", error);
@@ -104,8 +105,10 @@ export default function ChatHeader() {
 
     loadOnlineCount();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(loadOnlineCount, 30 * 1000);
+    const interval = setInterval(
+      loadOnlineCount,
+      ONLINE_USERS_REFETCH_INTERVAL_MS,
+    );
     return () => clearInterval(interval);
   }, []);
 

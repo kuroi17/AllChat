@@ -1,10 +1,18 @@
 import { supabase } from "./supabase";
 import { getChatSocket } from "./messages";
-import { API_BASE_URL } from "./runtimeConfig";
+import {
+  API_BASE_URL,
+  ENABLE_MEDIA_UPLOADS,
+  MAX_DIRECT_MESSAGE_CHARS,
+  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_MEDIA_UPLOAD_MB,
+  PRESENCE_ACTIVITY_THROTTLE_MS,
+} from "./runtimeConfig";
 
 const REQUEST_CACHE_TTL_MS = 20000;
 const apiGetCache = new Map();
 const pendingGetRequests = new Map();
+let lastPresenceUpdateAt = 0;
 
 function buildRequestCacheKey({ method, path, authKey }) {
   return `${method}:${path}:${authKey || "public"}`;
@@ -121,6 +129,13 @@ async function requestApi(path, { method = "GET", body, auth = false } = {}) {
  */
 export async function updatePresence(userId) {
   if (!userId) return;
+
+  const now = Date.now();
+  if (now - lastPresenceUpdateAt < PRESENCE_ACTIVITY_THROTTLE_MS) {
+    return;
+  }
+
+  lastPresenceUpdateAt = now;
 
   try {
     await requestApi("/api/users/me/presence", {
@@ -334,12 +349,16 @@ export async function uploadDirectMessageImage({
   if (!conversationId || !userId)
     throw new Error("Missing conversation context");
 
+  if (!ENABLE_MEDIA_UPLOADS) {
+    throw new Error("Image uploads are currently disabled.");
+  }
+
   if (!file.type.startsWith("image/")) {
     throw new Error("Only image files are allowed");
   }
 
-  if (file.size > 8 * 1024 * 1024) {
-    throw new Error("Image size must be 8MB or less");
+  if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
+    throw new Error(`Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less`);
   }
 
   const extension = file.name.split(".").pop() || "jpg";
@@ -381,6 +400,12 @@ export async function sendDirectMessage({
     throw new Error("Message must include text or an image");
   }
 
+  if (cleanedContent.length > MAX_DIRECT_MESSAGE_CHARS) {
+    throw new Error(
+      `Message is too long (max ${MAX_DIRECT_MESSAGE_CHARS} characters).`,
+    );
+  }
+
   return requestApi("/api/direct-messages", {
     method: "POST",
     auth: true,
@@ -411,11 +436,11 @@ export async function unsendDirectMessageForEveryone({ messageId, senderId }) {
 /**
  * Fetch messages in a conversation
  */
-export async function fetchDirectMessages(conversationId, limit = 100) {
+export async function fetchDirectMessages(conversationId, limit = 75) {
   if (!conversationId) return [];
 
   try {
-    const safeLimit = Number.isFinite(limit) ? limit : 100;
+    const safeLimit = Number.isFinite(limit) ? limit : 75;
     const data = await requestApi(
       `/api/direct-messages/${encodeURIComponent(conversationId)}?limit=${encodeURIComponent(safeLimit)}`,
       { auth: true },
