@@ -1,8 +1,7 @@
 import { supabase } from "./supabase";
+import { API_BASE_URL } from "./runtimeConfig";
 
 // API client for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
 // Helper function to get auth token
 const getToken = async () => {
   const { data } = await supabase.auth.getSession();

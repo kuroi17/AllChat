@@ -4,10 +4,10 @@ BSU AllChat is a campus chat platform with global chat, direct messages, social 
 
 ## Current Release Line
 
-- Current recommended tag: **v2.0.0**
+- Current recommended tag: **v2.1.0**
 - Reason: major architecture/runtime shift from MVP (`v1.0.0`) to a dedicated Node.js + Socket.IO backend.
 
-See [CHANGELOG.md](CHANGELOG.md) for corrected `v1.0.0` notes and full `v2.0.0` release notes.
+See [CHANGELOG.md](CHANGELOG.md) for corrected `v1.0.0` notes and full `v2.1.0` release notes.
 
 ## Tech Stack
 

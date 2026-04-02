@@ -11,6 +11,11 @@ const { createSocketRateLimiter } = require("./middleware/chatGuards");
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === "production";
+if (isProduction && !process.env.FRONTEND_URL) {
+  throw new Error("Missing FRONTEND_URL in production environment variables.");
+}
+
 const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
 app.set("trust proxy", 1);
 app.use(

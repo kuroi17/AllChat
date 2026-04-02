@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import { getChatSocket } from "./messages";
+import { API_BASE_URL } from "./runtimeConfig";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 const REQUEST_CACHE_TTL_MS = 20000;
 const apiGetCache = new Map();
 const pendingGetRequests = new Map();
