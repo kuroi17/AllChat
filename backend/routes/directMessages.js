@@ -5,20 +5,25 @@ const {
   createRateLimiter,
   createAntiSpamGuard,
 } = require("../middleware/chatGuards");
+const {
+  chatLimits,
+  validateMediaImageUrl,
+  enforceDailyMediaQuota,
+} = require("../utils/chatLimits");
 
 const router = express.Router();
 
 const createDirectMessageRateLimiter = createRateLimiter({
   scope: "direct-message-send",
-  windowMs: 10000,
-  maxRequests: 10,
+  windowMs: chatLimits.directMessageRateWindowMs,
+  maxRequests: chatLimits.directMessageRateMax,
   errorMessage:
     "Too many direct messages sent. Please wait a moment and try again.",
 });
 
 const createDirectMessageAntiSpamGuard = createAntiSpamGuard({
   scope: "direct-message-spam",
-  minIntervalMs: 150,
+  minIntervalMs: chatLimits.directMessageMinIntervalMs,
   duplicateWindowMs: 10000,
 });
 
@@ -432,7 +437,11 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.userId;
     const db = req.supabase || supabase;
-    const limit = parseLimit(req.query.limit, 100, 500);
+    const limit = parseLimit(
+      req.query.limit,
+      chatLimits.directMessageFetchLimit,
+      200,
+    );
 
     // Verify user is participant
     const participant = await ensureConversationParticipant(
@@ -471,19 +480,27 @@ router.post(
       const senderId = req.userId;
       const db = req.supabase || supabase;
       const cleanedContent = typeof content === "string" ? content.trim() : "";
+      const mediaValidation = validateMediaImageUrl(imageUrl);
+      const cleanedImageUrl = mediaValidation.ok ? mediaValidation.value : "";
 
       if (!conversationId) {
         return res.status(400).json({ error: "conversationId is required" });
       }
 
-      if (!cleanedContent && !imageUrl) {
+      if (!cleanedContent && !cleanedImageUrl) {
         return res
           .status(400)
           .json({ error: "Message must include text or an image" });
       }
 
-      if (cleanedContent.length > 4000) {
+      if (cleanedContent.length > chatLimits.directMessageMaxChars) {
         return res.status(400).json({ error: "Message is too long" });
+      }
+
+      if (!mediaValidation.ok) {
+        return res
+          .status(mediaValidation.status || 400)
+          .json({ error: mediaValidation.error });
       }
 
       // Verify sender belongs to the conversation.
@@ -500,6 +517,21 @@ router.post(
         return res.status(403).json({ error: "Not authorized" });
       }
 
+      if (cleanedImageUrl) {
+        const mediaQuota = await enforceDailyMediaQuota({
+          db,
+          table: "direct_messages",
+          userColumn: "sender_id",
+          userId: senderId,
+        });
+
+        if (!mediaQuota.ok) {
+          return res
+            .status(mediaQuota.status || 429)
+            .json({ error: mediaQuota.error });
+        }
+      }
+
       const { data, error } = await db
         .from("direct_messages")
         .insert([
@@ -507,7 +539,7 @@ router.post(
             conversation_id: conversationId,
             sender_id: senderId,
             content: cleanedContent || "",
-            image_url: imageUrl || null,
+            image_url: cleanedImageUrl || null,
           },
         ])
         .select();

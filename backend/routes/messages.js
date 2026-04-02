@@ -5,19 +5,24 @@ const {
   createRateLimiter,
   createAntiSpamGuard,
 } = require("../middleware/chatGuards");
+const {
+  chatLimits,
+  validateMediaImageUrl,
+  enforceDailyMediaQuota,
+} = require("../utils/chatLimits");
 
 const router = express.Router();
 
 const createMessageRateLimiter = createRateLimiter({
   scope: "global-message-send",
-  windowMs: 10000,
-  maxRequests: 8,
+  windowMs: chatLimits.globalMessageRateWindowMs,
+  maxRequests: chatLimits.globalMessageRateMax,
   errorMessage: "Too many messages sent. Please wait a moment and try again.",
 });
 
 const createMessageAntiSpamGuard = createAntiSpamGuard({
   scope: "global-message-spam",
-  minIntervalMs: 3000,
+  minIntervalMs: chatLimits.globalMessageMinIntervalMs,
   duplicateWindowMs: 12000,
 });
 
@@ -28,7 +33,7 @@ router.get("/", async (req, res) => {
       .from("messages")
       .select("*, profiles:user_id(username, avatar_url)")
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(chatLimits.globalMessageFetchLimit);
 
     if (error) throw error;
     res.json(data);
@@ -66,7 +71,7 @@ router.get("/:room", verifyToken, async (req, res) => {
       .select("*, profiles:user_id(username, avatar_url)")
       .eq("room", targetRoom)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(chatLimits.globalMessageFetchLimit);
 
     if (error) throw error;
     res.json(data);
@@ -89,16 +94,37 @@ router.post(
       const cleanedContent = typeof content === "string" ? content.trim() : "";
       const targetRoom =
         typeof room === "string" && room.trim() ? room.trim() : "global";
-      const cleanedImageUrl =
-        typeof imageUrl === "string" ? imageUrl.trim() : "";
+      const mediaValidation = validateMediaImageUrl(imageUrl);
+      const cleanedImageUrl = mediaValidation.ok ? mediaValidation.value : "";
 
       // Validation
       if (!cleanedContent && !cleanedImageUrl) {
         return res.status(400).json({ error: "Message is required" });
       }
 
-      if (cleanedContent.length > 2000) {
+      if (cleanedContent.length > chatLimits.globalMessageMaxChars) {
         return res.status(400).json({ error: "Message is too long" });
+      }
+
+      if (!mediaValidation.ok) {
+        return res
+          .status(mediaValidation.status || 400)
+          .json({ error: mediaValidation.error });
+      }
+
+      if (cleanedImageUrl) {
+        const mediaQuota = await enforceDailyMediaQuota({
+          db,
+          table: "messages",
+          userColumn: "user_id",
+          userId,
+        });
+
+        if (!mediaQuota.ok) {
+          return res
+            .status(mediaQuota.status || 429)
+            .json({ error: mediaQuota.error });
+        }
       }
 
       if (targetRoom !== "global" && targetRoom.startsWith("room:")) {

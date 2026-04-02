@@ -54,6 +54,13 @@ const socketDmJoinRateLimiter = createSocketRateLimiter({
     "Too many direct message room join attempts. Please wait a moment.",
 });
 
+const socketDmTypingRateLimiter = createSocketRateLimiter({
+  scope: "socket-dm-typing",
+  windowMs: 10000,
+  maxRequests: 40,
+  errorMessage: "Typing events are too frequent. Please slow down.",
+});
+
 // Socket.IO middleware to verify JWT tokens
 io.use(async (socket, next) => {
   try {
@@ -168,6 +175,8 @@ io.on("connection", (socket) => {
 
   // Handle typing indicator
   socket.on("dm:typing", (payload) => {
+    if (!socketDmTypingRateLimiter(socket)) return;
+
     const conversationId = payload?.conversationId;
     if (!conversationId) return;
 
