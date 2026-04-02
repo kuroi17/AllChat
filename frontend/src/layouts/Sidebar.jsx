@@ -88,11 +88,12 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
             const currentSettings = settingsRef.current;
 
-            if (currentSettings.soundEffects) {
+            if (!currentSettings.doNotDisturb && currentSettings.soundEffects) {
               playNotificationSoundEffect();
             }
 
             if (
+              !currentSettings.doNotDisturb &&
               currentSettings.desktopNotifications &&
               document.visibilityState === "hidden" &&
               "Notification" in window &&

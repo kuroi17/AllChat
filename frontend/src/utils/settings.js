@@ -1,6 +1,7 @@
 export const SETTINGS_STORAGE_KEY = "bsu_chat_settings";
 
 export const defaultSettings = {
+  doNotDisturb: false,
   desktopNotifications: true,
   soundEffects: true,
   showOnlineStatus: true,

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Bell,
+  BellOff,
   Volume2,
   Monitor,
   Shield,
@@ -188,6 +189,33 @@ export default function Settings() {
   function handleSimpleToggle(key) {
     return (value) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
+
+      if (key === "showOnlineStatus") {
+        setToast({
+          type: "success",
+          message: value
+            ? "Your online status is now visible."
+            : "Your online status is now hidden.",
+        });
+      }
+
+      if (key === "compactConversationCards") {
+        setToast({
+          type: "success",
+          message: value
+            ? "Compact conversation cards enabled."
+            : "Compact conversation cards disabled.",
+        });
+      }
+
+      if (key === "doNotDisturb") {
+        setToast({
+          type: "success",
+          message: value
+            ? "Do Not Disturb enabled. Alerts are now muted."
+            : "Do Not Disturb disabled. Alerts are active again.",
+        });
+      }
     };
   }
 
@@ -290,6 +318,14 @@ export default function Settings() {
                 </h2>
 
                 <ToggleRow
+                  icon={BellOff}
+                  title="Do Not Disturb"
+                  description="Mute all sound and desktop alerts while keeping unread counters updated."
+                  checked={settings.doNotDisturb}
+                  onChange={handleSimpleToggle("doNotDisturb")}
+                />
+
+                <ToggleRow
                   icon={Bell}
                   title="Desktop Notifications"
                   description="Allow browser pop-up alerts for new chat activity."
@@ -297,6 +333,7 @@ export default function Settings() {
                   onChange={handleDesktopNotificationsToggle}
                   actionLabel="Test"
                   onAction={handleTestDesktopNotification}
+                  actionDisabled={settings.doNotDisturb}
                 />
 
                 <ToggleRow
@@ -307,6 +344,7 @@ export default function Settings() {
                   onChange={handleSoundEffectsToggle}
                   actionLabel="Play"
                   onAction={handleTestSoundEffect}
+                  actionDisabled={settings.doNotDisturb}
                 />
 
                 <ToggleRow
