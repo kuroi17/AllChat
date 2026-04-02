@@ -1,6 +1,6 @@
 const rawApiUrl = import.meta.env.VITE_API_URL;
 const trimmedApiUrl = typeof rawApiUrl === "string" ? rawApiUrl.trim() : "";
-const defaultDevApiUrl = "http://localhost:4000";
+const defaultDevApiUrl = "https://allchatbackendservice.onrender.com";
 
 function parsePositiveInt(value, fallbackValue) {
   const parsed = Number.parseInt(value, 10);

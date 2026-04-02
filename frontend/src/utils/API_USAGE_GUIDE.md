@@ -4,9 +4,9 @@
 
 1. Add `VITE_API_URL` to your `.env.local` file:
 
-   ```
-   VITE_API_URL=http://localhost:4000
-   ```
+```
+VITE_API_URL=https://allchatbackendservice.onrender.com
+```
 
 2. For production, use:
    ```

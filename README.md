@@ -42,7 +42,7 @@ npm install
 npm run dev
 ```
 
-Backend default URL: `http://localhost:4000`
+Backend default URL: `https://allchatbackendservice.onrender.com`
 
 Required backend environment variables:
 
@@ -67,13 +67,13 @@ npm install
 npm run dev
 ```
 
-Frontend default URL: `http://localhost:5173`
+Frontend default URL: `https://allchat-3dfr.onrender.com`
 
 Required frontend environment variables:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_API_URL` (example: `http://localhost:4000`)
+- `VITE_API_URL` (example: `https://allchatbackendservice.onrender.com`)
 
 Recommended frontend guardrails for launch:
 

@@ -73,8 +73,9 @@ This adds:
    ```
 
 2. **Open the app:**
-   - Go to http://localhost:5173
-   - Sign in with your account
+
+- Go to https://allchat-3dfr.onrender.com
+- Sign in with your account
 
 3. **Test Online Presence:**
    - You should appear in "Online Now" section (right panel)

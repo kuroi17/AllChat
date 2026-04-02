@@ -16,7 +16,7 @@ if (isProduction && !process.env.FRONTEND_URL) {
   throw new Error("Missing FRONTEND_URL in production environment variables.");
 }
 
-const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
+const frontendOrigin = process.env.FRONTEND_URL || "https://allchat-3dfr.onrender.com";
 app.set("trust proxy", 1);
 app.use(
   cors({

@@ -50,14 +50,15 @@ Complete step-by-step guide to add Google OAuth to your bsuAllChat app.
 4. Fill in:
    - **Name:** `bsuAllChat Web Client`
    - **Authorized JavaScript origins:**
-     ```
-     http://localhost:5173
-     ```
+   ````
+      https://allchat-3dfr.onrender.com
+      ```
    - **Authorized redirect URIs:**
-     ```
-     https://isvykxiszyhaupmydzrv.supabase.co/auth/v1/callback
-     ```
-     (Replace `isvykxiszyhaupmydzrv` with your Supabase project ref from `.env`)
+   ````
+   https://isvykxiszyhaupmydzrv.supabase.co/auth/v1/callback
+   ```
+   (Replace `isvykxiszyhaupmydzrv` with your Supabase project ref from `.env`)
+   ```
 5. Click **Create**
 6. **IMPORTANT:** Copy and save:
    - **Client ID** (looks like: `123456789-abc...googleusercontent.com`)
@@ -118,7 +119,7 @@ npm run dev
 
 ### 4.2 Test Login Flow
 
-1. Go to: http://localhost:5173/auth
+1. Go to: https://allchat-3dfr.onrender.com/auth
 2. Click **"Continue with Google"** button
 3. Choose your Google account
 4. Approve permissions (email, profile)
