@@ -1,4 +1,5 @@
-import { Loader2, UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus } from "lucide-react";
+import Skeleton from "../ui/Skeleton";
 
 export default function DirectMessageInfoSection({
   otherUser,
@@ -66,7 +67,10 @@ export default function DirectMessageInfoSection({
             className="w-full mb-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {actionLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Skeleton
+                as="span"
+                className="w-4 h-4 rounded-full inline-block"
+              />
             ) : (
               <UserMinus className="w-4 h-4" />
             )}
@@ -79,7 +83,10 @@ export default function DirectMessageInfoSection({
             className="w-full mb-2 px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {actionLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Skeleton
+                as="span"
+                className="w-4 h-4 rounded-full inline-block"
+              />
             ) : (
               <UserPlus className="w-4 h-4" />
             )}

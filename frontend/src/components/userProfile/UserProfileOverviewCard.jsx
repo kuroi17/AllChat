@@ -4,8 +4,8 @@ import {
   MessageCircle,
   Calendar,
   Users,
-  Loader2,
 } from "lucide-react";
+import Skeleton from "../ui/Skeleton";
 import ProfileBanner from "../profile/ProfileBanner";
 import ProfileSocialLinks from "../profile/ProfileSocialLinks";
 
@@ -51,7 +51,10 @@ export default function UserProfileOverviewCard({
                 className="cursor-pointer flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-white border-2 border-red-600 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {actionLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Skeleton
+                    as="span"
+                    className="w-5 h-5 rounded-full inline-block"
+                  />
                 ) : (
                   <MessageCircle className="w-5 h-5" />
                 )}

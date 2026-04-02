@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import Skeleton from "../components/ui/Skeleton";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../layouts/Sidebar";
 import UserProfileOverviewCard from "../components/userProfile/UserProfileOverviewCard";
@@ -123,7 +124,7 @@ export default function UserProfile() {
           <Sidebar showExtras={false} />
         </div>
         <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+          <Skeleton className="w-8 h-8 rounded-full text-red-600" />
         </main>
       </div>
     );

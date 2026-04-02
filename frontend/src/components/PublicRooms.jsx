@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { MapPin, Users, X, Check, RefreshCw } from "lucide-react";
+import Skeleton from "./ui/Skeleton";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -134,7 +135,11 @@ export default function PublicRooms() {
           aria-label="Refresh public rooms"
           disabled={isFetching}
         >
-          <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
+          {isFetching ? (
+            <Skeleton className="w-3 h-3 rounded-full inline-block" />
+          ) : (
+            <RefreshCw size={14} />
+          )}
         </button>
       </div>
 

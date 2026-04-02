@@ -1,4 +1,5 @@
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import Skeleton from "../ui/Skeleton";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 
@@ -92,7 +93,7 @@ export default function ConversationCard({
         disabled={deletingConversationId === conversation.conversationId}
       >
         {deletingConversationId === conversation.conversationId ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <Skeleton as="span" className="w-4 h-4 rounded-full inline-block" />
         ) : (
           <Trash2 className="w-4 h-4" />
         )}

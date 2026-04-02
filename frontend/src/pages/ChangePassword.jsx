@@ -9,6 +9,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
+import Skeleton from "../components/ui/Skeleton";
 
 export default function ChangePassword() {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ export default function ChangePassword() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <Skeleton className="w-12 h-12 rounded-full mx-auto mb-4" />
           <p className="text-gray-600">Verifying reset link...</p>
         </div>
       </div>
@@ -232,7 +233,10 @@ export default function ChangePassword() {
                   >
                     {loading ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <Skeleton
+                          as="span"
+                          className="w-5 h-5 rounded-full inline-block"
+                        />
                         <span>Updating...</span>
                       </>
                     ) : (

@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
+import Skeleton from "../ui/Skeleton";
 
 export default function PublicRoute({ children }) {
   const { user, loading } = useUser();
@@ -16,7 +17,7 @@ export default function PublicRoute({ children }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-red-800 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <Skeleton className="w-12 h-12 rounded-full mx-auto mb-4" />
           <p className="text-gray-600 text-sm">Loading...</p>
         </div>
       </div>

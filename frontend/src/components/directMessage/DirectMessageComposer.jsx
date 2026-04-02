@@ -1,5 +1,6 @@
-import { Loader2, Send, ImagePlus, X } from "lucide-react";
+import { Send, ImagePlus, X } from "lucide-react";
 import EmojiPickerButton from "../common/EmojiPickerButton";
+import Skeleton from "../ui/Skeleton";
 
 export default function DirectMessageComposer({
   imagePreviewUrl,
@@ -97,7 +98,10 @@ export default function DirectMessageComposer({
             className="p-2.5 sm:p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending || uploadingImage ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Skeleton
+                as="span"
+                className="w-5 h-5 rounded-full inline-block"
+              />
             ) : (
               <Send className="w-5 h-5" />
             )}

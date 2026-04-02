@@ -1,4 +1,5 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import Skeleton from "../ui/Skeleton";
 
 export default function DeleteConversationModal({
   conversationToDelete,
@@ -44,7 +45,10 @@ export default function DeleteConversationModal({
           >
             {deletingConversationId ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Skeleton
+                  as="span"
+                  className="w-4 h-4 rounded-full inline-block"
+                />
                 Deleting...
               </>
             ) : (

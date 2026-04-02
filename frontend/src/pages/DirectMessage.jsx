@@ -1,6 +1,7 @@
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
+import Skeleton from "../components/ui/Skeleton";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import DirectMessageHeader from "../components/directMessage/DirectMessageHeader";
@@ -724,7 +725,7 @@ export default function DirectMessage() {
           <Sidebar showExtras={false} />
         </div>
         <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+          <Skeleton className="w-8 h-8 rounded-full text-red-600" />
         </main>
       </div>
     );
@@ -768,7 +769,7 @@ export default function DirectMessage() {
           <Sidebar showExtras={false} />
         </div>
         <main className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+          <Skeleton className="w-8 h-8 rounded-full text-red-600" />
         </main>
       </div>
     );

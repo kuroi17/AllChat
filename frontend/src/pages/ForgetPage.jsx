@@ -8,6 +8,7 @@ import {
   Send,
   CheckCircle,
 } from "lucide-react";
+import Skeleton from "../components/ui/Skeleton";
 
 export default function ForgetPage() {
   const [email, setEmail] = useState("");
@@ -152,7 +153,10 @@ export default function ForgetPage() {
                   >
                     {loading ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <Skeleton
+                          as="span"
+                          className="w-5 h-5 rounded-full inline-block"
+                        />
                         <span>Sending...</span>
                       </>
                     ) : (

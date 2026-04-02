@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Save, Camera } from "lucide-react";
+import Skeleton from "../ui/Skeleton";
 import { useUser } from "../../contexts/UserContext";
 import { supabase } from "../../utils/supabase";
 
@@ -447,7 +448,10 @@ export default function EditProfileModal({ isOpen, onClose }) {
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <Skeleton
+                  as="span"
+                  className="w-4 h-4 rounded-full inline-block"
+                />
                 <span>Saving...</span>
               </>
             ) : (
