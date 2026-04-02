@@ -90,7 +90,7 @@ export default function Auth() {
             <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
-            Campus Global Chat
+            AllChat
           </h1>
         </div>
         <div className="hidden sm:flex items-center gap-4">
@@ -281,7 +281,7 @@ export default function Auth() {
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
             <p>
-              © 2024 Campus Global Chat Platform. All university guidelines
+              © 2026 AllChat. All university guidelines
               apply.
             </p>
             <div className="mt-2 flex justify-center gap-4">

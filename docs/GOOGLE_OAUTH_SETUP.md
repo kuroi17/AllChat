@@ -27,7 +27,7 @@ Complete step-by-step guide to add Google OAuth to your bsuAllChat app.
 2. Choose **External** (unless you have a Google Workspace)
 3. Click **Create**
 4. Fill in the form:
-   - **App name:** `Campus Global Chat`
+   - **App name:** `AllChat`
    - **User support email:** Your email
    - **App logo:** (optional, can skip for now)
    - **Authorized domains:** Leave empty for now
@@ -192,7 +192,7 @@ When deploying to production (e.g., Vercel, Netlify):
 ### "This app isn't verified" warning
 
 - **Expected:** Normal in testing mode
-- **Action:** Click "Advanced" → "Go to Campus Global Chat (unsafe)" during development
+- **Action:** Click "Advanced" → "Go to AllChat (unsafe)" during development
 - **Fix for production:** Submit your app for Google verification
 
 ---

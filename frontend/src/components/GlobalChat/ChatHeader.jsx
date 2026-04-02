@@ -143,7 +143,7 @@ export default function ChatHeader() {
         #
       </span>
       <h2 className="font-bold text-gray-800 text-sm sm:text-base truncate">
-        Campus Global Chat
+        AllChat
       </h2>
       <div className="hidden sm:flex items-center gap-1.5 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

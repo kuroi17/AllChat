@@ -92,7 +92,7 @@ export default function ChangePassword() {
             <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
-            Campus Global Chat
+          AllChat
           </h1>
         </div>
       </header>
@@ -254,7 +254,7 @@ export default function ChangePassword() {
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
             <p>
-              © 2024 Campus Global Chat Platform. All university guidelines
+              © 2024 AllChat. All university guidelines
               apply.
             </p>
           </footer>
