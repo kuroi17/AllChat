@@ -14,6 +14,40 @@ function parseLimit(value, fallback = 20, max = 100) {
 const ROOM_SELECT =
   "id,title,description,location,creator_id,is_public,capacity,participant_count,status,last_updated,created_at,avatar_url,profiles:creator_id(username, avatar_url)";
 
+async function postRoomJoinMessage({
+  db,
+  io,
+  roomId,
+  userId,
+  joinerName,
+  isPublic,
+  invitedByName,
+}) {
+  const safeJoiner = joinerName || "User";
+  const safeInviter = invitedByName || "";
+  const inviteSuffix =
+    !isPublic && safeInviter ? ` Invited by ${safeInviter}.` : "";
+  const content = `${safeJoiner} joined the ${isPublic ? "room chat" : "chat"}.${inviteSuffix}`;
+
+  const { data: inserted, error } = await db
+    .from("messages")
+    .insert([
+      {
+        user_id: userId,
+        content,
+        room: `room:${roomId}`,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  if (io && inserted) {
+    io.to(`room:room:${roomId}`).emit("message:new", inserted);
+  }
+}
+
 async function resolveOptionalAuth(req) {
   const authHeader = req.headers.authorization || "";
   const [scheme, token] = authHeader.split(" ");
@@ -204,6 +238,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     const userId = req.userId;
     const db = req.supabase || supabase;
     let inviteRoomId = null;
+    let invitedByName = "";
 
     try {
       const { data, error } = await supabase.rpc("get_room_invite_preview", {
@@ -213,6 +248,9 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
         const preview = Array.isArray(data) ? data[0] : data;
         if (preview?.room_id) {
           inviteRoomId = preview.room_id;
+        }
+        if (preview?.invited_by_username) {
+          invitedByName = preview.invited_by_username;
         }
       }
     } catch (rpcError) {
@@ -282,6 +320,28 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     if (countError) throw countError;
 
     const participantCount = updatedRoom?.participant_count ?? null;
+
+    try {
+      const { data: joinerProfile } = await db
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const io = req.app.get("io");
+      await postRoomJoinMessage({
+        db,
+        io,
+        roomId: inviteRoomId,
+        userId,
+        joinerName: joinerProfile?.username || "User",
+        isPublic: false,
+        invitedByName,
+      });
+    } catch (messageError) {
+      // Do not block join on message failures
+      console.error("[Rooms] Failed to post join message:", messageError);
+    }
 
     try {
       const io = req.app.get("io");
@@ -564,6 +624,26 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
       }
     } catch (e) {
       // ignore socket errors
+    }
+
+    try {
+      const { data: joinerProfile } = await db
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const io = req.app.get("io");
+      await postRoomJoinMessage({
+        db,
+        io,
+        roomId,
+        userId,
+        joinerName: joinerProfile?.username || "User",
+        isPublic: true,
+      });
+    } catch (messageError) {
+      console.error("[Rooms] Failed to post join message:", messageError);
     }
 
     res.json({ participantCount, alreadyMember: false });

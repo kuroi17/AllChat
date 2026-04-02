@@ -177,6 +177,8 @@ CREATE OR REPLACE FUNCTION public.get_room_invite_preview(p_token UUID)
 RETURNS TABLE (
   room_id UUID,
   token UUID,
+  invited_by UUID,
+  invited_by_username TEXT,
   title TEXT,
   description TEXT,
   is_public BOOLEAN,
@@ -191,6 +193,8 @@ AS $$
   SELECT
     rooms.id AS room_id,
     invites.token,
+    invites.created_by AS invited_by,
+    inviter.username AS invited_by_username,
     rooms.title,
     CASE WHEN rooms.is_public THEN rooms.description ELSE NULL END AS description,
     rooms.is_public,
@@ -199,6 +203,7 @@ AS $$
     rooms.avatar_url
   FROM room_invites AS invites
   JOIN public_rooms AS rooms ON rooms.id = invites.room_id
+  LEFT JOIN profiles AS inviter ON inviter.id = invites.created_by
   WHERE invites.token = p_token
     AND invites.revoked = false
   LIMIT 1;
@@ -235,6 +240,7 @@ CREATE POLICY "Room invites delete"
 -- Messages table: support room media
 ALTER TABLE messages
   ADD COLUMN IF NOT EXISTS image_url TEXT;
+
 
 CREATE INDEX IF NOT EXISTS idx_messages_room_created
   ON messages(room, created_at DESC);
