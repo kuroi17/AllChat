@@ -15,10 +15,21 @@ import { useUser } from "../contexts/UserContext";
 import {
   defaultSettings,
   getChatSettings,
+  playNotificationSoundEffect,
   setChatSettings,
 } from "../utils/settings";
+import AppToast from "../components/common/AppToast";
 
-function ToggleRow({ icon: Icon, title, description, checked, onChange }) {
+function ToggleRow({
+  icon: Icon,
+  title,
+  description,
+  checked,
+  onChange,
+  actionLabel,
+  onAction,
+  actionDisabled,
+}) {
   return (
     <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-4">
       <div className="flex items-start gap-3 min-w-0">
@@ -33,20 +44,33 @@ function ToggleRow({ icon: Icon, title, description, checked, onChange }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-          checked ? "bg-red-600" : "bg-gray-300"
-        }`}
-        aria-pressed={checked}
-      >
-        <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-            checked ? "translate-x-6" : "translate-x-1"
+      <div className="flex items-center gap-2 shrink-0">
+        {actionLabel && (
+          <button
+            type="button"
+            onClick={onAction}
+            disabled={actionDisabled}
+            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {actionLabel}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => onChange(!checked)}
+          className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+            checked ? "bg-red-600" : "bg-gray-300"
           }`}
-        />
-      </button>
+          aria-pressed={checked}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+              checked ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </div>
     </div>
   );
 }
@@ -55,6 +79,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, profile } = useUser();
   const [settings, setSettings] = useState(defaultSettings);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     setSettings(getChatSettings());
@@ -64,21 +89,100 @@ export default function Settings() {
     setChatSettings(settings);
   }, [settings]);
 
+  useEffect(() => {
+    if (!toast?.message) return;
+    const timer = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
   const accountLabel = useMemo(() => {
     return profile?.username || user?.email?.split("@")[0] || "User";
   }, [profile?.username, user?.email]);
 
   async function handleDesktopNotificationsToggle(enabled) {
+    if (enabled && !("Notification" in window)) {
+      setSettings((prev) => ({ ...prev, desktopNotifications: false }));
+      setToast({
+        type: "error",
+        message: "Desktop notifications are not supported in this browser.",
+      });
+      return;
+    }
+
     if (enabled && "Notification" in window) {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        alert("Desktop notifications are blocked in your browser settings.");
         setSettings((prev) => ({ ...prev, desktopNotifications: false }));
+        setToast({
+          type: "error",
+          message:
+            "Desktop notifications are blocked in your browser settings.",
+        });
         return;
       }
+
+      setToast({
+        type: "success",
+        message: "Desktop notifications enabled.",
+      });
+    }
+
+    if (!enabled) {
+      setToast({ type: "success", message: "Desktop notifications disabled." });
     }
 
     setSettings((prev) => ({ ...prev, desktopNotifications: enabled }));
+  }
+
+  function handleSoundEffectsToggle(enabled) {
+    setSettings((prev) => ({ ...prev, soundEffects: enabled }));
+    if (enabled) {
+      playNotificationSoundEffect();
+      setToast({ type: "success", message: "Message sound effects enabled." });
+    } else {
+      setToast({ type: "success", message: "Message sound effects disabled." });
+    }
+  }
+
+  async function handleTestDesktopNotification() {
+    if (!settings.desktopNotifications) {
+      setToast({
+        type: "error",
+        message: "Enable desktop notifications first.",
+      });
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      setToast({
+        type: "error",
+        message: "Desktop notifications are not supported in this browser.",
+      });
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      setToast({
+        type: "error",
+        message: "Notification permission is not granted.",
+      });
+      return;
+    }
+
+    new Notification("BSU All Chat", {
+      body: "Desktop notifications are working.",
+    });
+    setToast({ type: "success", message: "Test desktop notification sent." });
+  }
+
+  function handleTestSoundEffect() {
+    if (!settings.soundEffects) {
+      setToast({ type: "error", message: "Enable sound effects first." });
+      return;
+    }
+
+    playNotificationSoundEffect();
+    setToast({ type: "success", message: "Sound effect played." });
   }
 
   function handleSimpleToggle(key) {
@@ -191,6 +295,8 @@ export default function Settings() {
                   description="Allow browser pop-up alerts for new chat activity."
                   checked={settings.desktopNotifications}
                   onChange={handleDesktopNotificationsToggle}
+                  actionLabel="Test"
+                  onAction={handleTestDesktopNotification}
                 />
 
                 <ToggleRow
@@ -198,7 +304,9 @@ export default function Settings() {
                   title="Message Sound Effects"
                   description="Play an alert sound when new direct messages arrive."
                   checked={settings.soundEffects}
-                  onChange={handleSimpleToggle("soundEffects")}
+                  onChange={handleSoundEffectsToggle}
+                  actionLabel="Play"
+                  onAction={handleTestSoundEffect}
                 />
 
                 <ToggleRow
@@ -251,6 +359,8 @@ export default function Settings() {
           </div>
         </div>
       </main>
+
+      <AppToast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
