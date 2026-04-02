@@ -16,11 +16,23 @@ if (isProduction && !process.env.FRONTEND_URL) {
   throw new Error("Missing FRONTEND_URL in production environment variables.");
 }
 
-const frontendOrigin = process.env.FRONTEND_URL || "https://allchat-3dfr.onrender.com";
+const frontendOrigin =
+  process.env.FRONTEND_URL || "https://allchat-3dfr.onrender.com";
+// Allow local dev origins when not in production
+const devLocalOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const allowedOrigins = [frontendOrigin];
+if (!isProduction) {
+  allowedOrigins.push(...devLocalOrigins);
+}
 app.set("trust proxy", 1);
 app.use(
   cors({
-    origin: frontendOrigin,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (server-side or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
@@ -30,7 +42,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: frontendOrigin,
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PATCH", "DELETE"],
     credentials: true,
   },
