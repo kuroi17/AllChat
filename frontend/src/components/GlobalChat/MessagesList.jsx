@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import {
@@ -27,8 +27,23 @@ function dedupeMessagesById(items = []) {
 export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
   const containerRef = useRef(null);
+
+  const [initialMessages] = useState(() => {
+    try {
+      const cachedRaw = sessionStorage.getItem(GLOBAL_MESSAGES_CACHE_KEY);
+      const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+      return Array.isArray(cached) ? cached : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const { data: fetchedMessages, isLoading } = useQuery({
+    queryKey: ["messages", "global"],
+    queryFn: () => fetchMessages("global"),
+    initialData: initialMessages.length ? initialMessages : undefined,
+  });
 
   // Helper to append message with dedup
   const appendMessage = (incoming) => {
@@ -53,44 +68,17 @@ export default function MessagesList({ scrollRef }) {
   };
 
   useEffect(() => {
+    if (!Array.isArray(fetchedMessages)) return;
+    setMessages((prev) => {
+      if (!prev.length) return dedupeMessagesById(fetchedMessages);
+      return dedupeMessagesById([...fetchedMessages, ...prev]);
+    });
+  }, [fetchedMessages]);
+
+  useEffect(() => {
     let mounted = true;
     let subscription;
     const bc = new BroadcastChannel("bsu_messages");
-
-    const load = async () => {
-      let hydratedFromCache = false;
-
-      try {
-        const cachedRaw = sessionStorage.getItem(GLOBAL_MESSAGES_CACHE_KEY);
-        const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
-
-        if (Array.isArray(cached) && cached.length > 0) {
-          setMessages(dedupeMessagesById(cached));
-          setLoading(false);
-          hydratedFromCache = true;
-        }
-      } catch {
-        // Ignore cache read failures and continue to network fetch.
-      }
-
-      try {
-        const msgs = await fetchMessages("global");
-        const uniq = dedupeMessagesById(msgs);
-        setMessages(uniq);
-        sessionStorage.setItem(
-          GLOBAL_MESSAGES_CACHE_KEY,
-          JSON.stringify(uniq.slice(-200)),
-        );
-        console.log("[MessagesList] Loaded", uniq.length, "messages");
-      } catch (err) {
-        console.error("[MessagesList] Load error:", err);
-      }
-
-      if (!hydratedFromCache) {
-        setLoading(false);
-      }
-    };
-    load();
 
     const setupRealtime = async () => {
       try {
@@ -181,12 +169,24 @@ export default function MessagesList({ scrollRef }) {
     scrollToBottom();
     const t = setTimeout(scrollToBottom, 100);
     return () => clearTimeout(t);
-  }, [messages.length, scrollRef, loading]);
+  }, [messages.length, scrollRef, isLoading]);
 
-  if (loading) {
+  const showLoading = isLoading && messages.length === 0;
+
+  if (showLoading) {
     return (
-      <div className="flex items-center justify-center h-full py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
+      <div className="px-2 sm:px-6 py-4 space-y-3 sm:space-y-4 animate-pulse">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={`global-skeleton-${index}`}
+            className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
+          >
+            <div className="max-w-[70%] bg-white rounded-2xl px-4 py-3 shadow-sm space-y-2">
+              <div className="h-3 w-24 bg-gray-200 rounded" />
+              <div className="h-3 w-40 bg-gray-200 rounded" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

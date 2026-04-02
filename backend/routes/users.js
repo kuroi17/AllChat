@@ -162,7 +162,9 @@ router.get("/:userId/followers", async (req, res) => {
     const { userId } = req.params;
     const { data, error } = await supabase
       .from("follows")
-      .select("follower_id, profiles:follower_id(username, avatar_url)")
+      .select(
+        "follower_id, profiles:follower_id(id, username, avatar_url, bio, last_seen)",
+      )
       .eq("following_id", userId);
 
     if (error) throw error;
@@ -178,7 +180,9 @@ router.get("/:userId/following", async (req, res) => {
     const { userId } = req.params;
     const { data, error } = await supabase
       .from("follows")
-      .select("following_id, profiles:following_id(username, avatar_url)")
+      .select(
+        "following_id, profiles:following_id(id, username, avatar_url, bio, last_seen)",
+      )
       .eq("follower_id", userId);
 
     if (error) throw error;

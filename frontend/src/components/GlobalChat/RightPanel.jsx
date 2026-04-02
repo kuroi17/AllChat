@@ -1,31 +1,43 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Calendar, Megaphone, Coffee } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   fetchOnlineUsers,
   isUserOnline,
   fetchCampusEvents,
   fetchAnnouncements,
+  fetchFollowing,
 } from "../../utils/social";
 import PublicRooms from "../PublicRooms";
+import { useUser } from "../../contexts/UserContext";
 
 export default function Sidebar() {
-  const [onlineUsers, setOnlineUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const { user } = useUser();
 
-  // Fetch online users
-  useEffect(() => {
-    const loadOnlineUsers = async () => {
-      const users = await fetchOnlineUsers(15); // Get up to 15 online users
-      setOnlineUsers(users);
-    };
+  const { data: onlineUsers = [] } = useQuery({
+    queryKey: ["presence", "onlineUsers"],
+    queryFn: () => fetchOnlineUsers(1000),
+    refetchInterval: 30000,
+  });
 
-    loadOnlineUsers();
+  const { data: followingUsers = [] } = useQuery({
+    queryKey: ["follows", "following", user?.id],
+    queryFn: () => fetchFollowing(user.id),
+    enabled: !!user?.id,
+    refetchInterval: 60000,
+  });
 
-    // Refresh every 30 seconds
-    const interval = setInterval(loadOnlineUsers, 30 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const followingIds = useMemo(
+    () => new Set((followingUsers || []).map((profile) => profile.id)),
+    [followingUsers],
+  );
+
+  const onlineFollowings = useMemo(
+    () => (onlineUsers || []).filter((profile) => followingIds.has(profile.id)),
+    [onlineUsers, followingIds],
+  );
 
   // Fetch campus events
   useEffect(() => {
@@ -70,12 +82,12 @@ export default function Sidebar() {
           </span>
         </div>
         <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-          {onlineUsers.length === 0 ? (
+          {onlineFollowings.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-2">
-              No one online right now
+              No followings online right now
             </p>
           ) : (
-            onlineUsers.map((u, index) => (
+            onlineFollowings.map((u, index) => (
               <div key={u.id} className="flex items-center gap-2.5">
                 <div className="relative shrink-0">
                   {u.avatar_url ? (

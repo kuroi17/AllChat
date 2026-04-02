@@ -202,8 +202,8 @@ export async function fetchFollowing(userId) {
       `/api/users/${encodeURIComponent(userId)}/following`,
     );
     return (Array.isArray(data) ? data : [])
-      .map((item) => item?.profiles)
-      .filter(Boolean);
+      .map((item) => item?.profiles || { id: item?.following_id })
+      .filter((profile) => profile?.id);
   } catch (error) {
     console.error("[Follows] Fetch following failed:", error);
     return [];
@@ -221,8 +221,8 @@ export async function fetchFollowers(userId) {
       `/api/users/${encodeURIComponent(userId)}/followers`,
     );
     return (Array.isArray(data) ? data : [])
-      .map((item) => item?.profiles)
-      .filter(Boolean);
+      .map((item) => item?.profiles || { id: item?.follower_id })
+      .filter((profile) => profile?.id);
   } catch (error) {
     console.error("[Follows] Fetch followers failed:", error);
     return [];

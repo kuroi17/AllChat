@@ -1,58 +1,63 @@
-import React, { useState, useEffect } from "react";
-import { MapPin, Users, X, Check } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { MapPin, Users, X, Check, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../contexts/UserContext";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchPublicRooms, joinPublicRoom } from "../utils/social";
 import { getChatSocket } from "../utils/messages";
 
 export default function PublicRooms() {
-  const [rooms, setRooms] = useState([]);
   const { profile } = useUser();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [showJoin, setShowJoin] = useState(false);
   const [joinTarget, setJoinTarget] = useState(null);
   const [joinError, setJoinError] = useState("");
 
+  const normalizeRoom = (r) => ({
+    ...r,
+    participantCount: r.participantCount ?? r.participant_count ?? 0,
+    creatorId: r.creatorId ?? r.creator_id ?? null,
+    isPublic: r.isPublic ?? r.is_public ?? true,
+    isMember: r.isMember ?? r.is_member ?? false,
+  });
+
+  const {
+    data: rooms = [],
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["rooms", "public", "sidebar"],
+    queryFn: () => fetchPublicRooms(5),
+  });
+
+  const normalizedRooms = useMemo(
+    () => (Array.isArray(rooms) ? rooms : []).map(normalizeRoom),
+    [rooms],
+  );
+
   useEffect(() => {
-    let mounted = true;
-
-    const normalizeRoom = (r) => ({
-      ...r,
-      participantCount: r.participantCount ?? r.participant_count ?? 0,
-      creatorId: r.creatorId ?? r.creator_id ?? null,
-      isPublic: r.isPublic ?? r.is_public ?? true,
-      isMember: r.isMember ?? r.is_member ?? false,
-    });
-
-    const load = async () => {
-      try {
-        const list = await fetchPublicRooms(50);
-        if (mounted)
-          setRooms((Array.isArray(list) ? list : []).map(normalizeRoom));
-      } catch (err) {
-        console.error("Failed to load rooms:", err);
-      }
-    };
-
-    load();
-
     // subscribe to socket updates
     (async () => {
       try {
         const socket = await getChatSocket();
         const handler = (payload) => {
           if (!payload || !payload.roomId) return;
-          setRooms((prev) =>
-            prev.map((r) =>
-              r.id === payload.roomId
-                ? {
-                    ...r,
-                    participantCount:
-                      payload.participantCount ?? r.participantCount,
-                  }
-                : r,
-            ),
+          queryClient.setQueryData(
+            ["rooms", "public", "sidebar"],
+            (prev = []) =>
+              prev.map((r) =>
+                r.id === payload.roomId
+                  ? {
+                      ...r,
+                      participant_count:
+                        payload.participantCount ?? r.participant_count,
+                      participantCount:
+                        payload.participantCount ?? r.participantCount,
+                    }
+                  : r,
+              ),
           );
         };
 
@@ -63,7 +68,6 @@ export default function PublicRooms() {
     })();
 
     return () => {
-      mounted = false;
       (async () => {
         try {
           const s = await getChatSocket();
@@ -71,7 +75,7 @@ export default function PublicRooms() {
         } catch (e) {}
       })();
     };
-  }, []);
+  }, [queryClient]);
 
   function openJoin(room) {
     setJoinTarget(room);
@@ -88,10 +92,16 @@ export default function PublicRooms() {
         const participantCount =
           res?.participantCount ?? joinTarget.participantCount + 1;
 
-        setRooms((prev) =>
+        queryClient.setQueryData(["rooms", "public", "sidebar"], (prev = []) =>
           prev.map((r) =>
             r.id === joinTarget.id
-              ? { ...r, participantCount, isMember: true }
+              ? {
+                  ...r,
+                  participant_count: participantCount,
+                  participantCount,
+                  is_member: true,
+                  isMember: true,
+                }
               : r,
           ),
         );
@@ -117,10 +127,19 @@ export default function PublicRooms() {
         <p className="text-[10px] font-bold text-gray-400 tracking-widest">
           PUBLIC ROOMS
         </p>
+        <button
+          onClick={() => refetch()}
+          className="text-gray-400 hover:text-gray-600"
+          title="Refresh public rooms"
+          aria-label="Refresh public rooms"
+          disabled={isFetching}
+        >
+          <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
+        </button>
       </div>
 
       <div className="space-y-2">
-        {rooms.map((room) => (
+        {normalizedRooms.map((room) => (
           <div key={room.id} className="border border-gray-200 rounded-xl p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
