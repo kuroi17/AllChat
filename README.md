@@ -49,8 +49,15 @@ Required backend environment variables:
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` (recommended for server operations)
-- `FRONTEND_URL` (optional, defaults to `http://localhost:5173`)
+- `FRONTEND_URL` (required in production)
 - `PORT` (optional, defaults to `4000`)
+
+Recommended backend guardrails for launch:
+
+- `ENABLE_MEDIA_UPLOADS` (set `false` on free tier)
+- `MAX_MEDIA_MESSAGES_PER_DAY` (default `5`)
+- `GLOBAL_MESSAGE_RATE_MAX` (default `5`)
+- `DIRECT_MESSAGE_RATE_MAX` (default `6`)
 
 ### 2. Frontend
 
@@ -67,6 +74,19 @@ Required frontend environment variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_API_URL` (example: `http://localhost:4000`)
+
+Recommended frontend guardrails for launch:
+
+- `VITE_ENABLE_MEDIA_UPLOADS` (`false` to disable uploads by default)
+- `VITE_MAX_MEDIA_UPLOAD_BYTES` (default `1048576`, 1MB)
+- `VITE_ONLINE_USERS_REFETCH_INTERVAL_MS` (default `60000`)
+
+## Launch Readiness
+
+- Apply SQL migrations before deployment, including:
+  - `database/add_message_reports.sql`
+  - `database/add_message_retention_policy.sql`
+- Follow [`docs/DEPLOY_GUARDRAILS.md`](docs/DEPLOY_GUARDRAILS.md) for monitoring thresholds and canary rollout.
 
 ## Versioning
 
