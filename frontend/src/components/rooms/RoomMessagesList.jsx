@@ -414,28 +414,6 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="px-3 sm:px-6 py-4 space-y-4 h-full animate-pulse">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div
-            key={`room-message-skeleton-${index}`}
-            className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
-          >
-            <div className="max-w-[85%] w-64 bg-white rounded-2xl border border-gray-100 px-4 py-3 space-y-2 shadow-sm">
-              <div className="h-3 w-24 bg-gray-200 rounded" />
-              <div className="h-3 w-44 bg-gray-200 rounded" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const visibleMessages = messages.filter(
-    (msg) => !hiddenMessageIds.includes(msg.id),
-  );
-
   const typingLabel = useMemo(() => {
     if (!typingUserIds.length) return "";
 
@@ -457,6 +435,28 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
 
     return "Someone is typing...";
   }, [typingUserIds, messages]);
+
+  if (loading) {
+    return (
+      <div className="px-3 sm:px-6 py-4 space-y-4 h-full animate-pulse">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={`room-message-skeleton-${index}`}
+            className={`flex ${index % 2 === 0 ? "justify-start" : "justify-end"}`}
+          >
+            <div className="max-w-[85%] w-64 bg-white rounded-2xl border border-gray-100 px-4 py-3 space-y-2 shadow-sm">
+              <div className="h-3 w-24 bg-gray-200 rounded" />
+              <div className="h-3 w-44 bg-gray-200 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  const visibleMessages = messages.filter(
+    (msg) => !hiddenMessageIds.includes(msg.id),
+  );
 
   const deleteTargetIsMe = deleteTarget?.user_id === user?.id;
   const deleteTargetIsDeleted =

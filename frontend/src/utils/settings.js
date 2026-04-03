@@ -64,6 +64,7 @@ export function subscribeChatSettings(callback) {
 
 let sharedAudioContext = null;
 let hasBoundAudioUnlock = false;
+let hasUserInteracted = false;
 
 function getSharedAudioContext() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -82,6 +83,8 @@ function bindAudioUnlockHandlers() {
   hasBoundAudioUnlock = true;
 
   const unlock = async () => {
+    hasUserInteracted = true;
+
     const context = getSharedAudioContext();
     if (!context) return;
 
@@ -124,6 +127,11 @@ export function triggerNotificationHaptic() {
 
 export function playNotificationSoundEffect() {
   try {
+    if (!hasUserInteracted) {
+      triggerNotificationHaptic();
+      return;
+    }
+
     const audioContext = getSharedAudioContext();
     if (!audioContext) {
       triggerNotificationHaptic();
