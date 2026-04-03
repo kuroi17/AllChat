@@ -23,6 +23,7 @@ import {
 } from "../utils/social";
 import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
 import RoomMessagesList from "../components/rooms/RoomMessagesList";
+import RoomMembersPanel from "../components/rooms/RoomMembersPanel";
 import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
 import { sendMessage, uploadRoomMessageImage } from "../utils/messages";
 import { useUser } from "../contexts/UserContext";
@@ -631,6 +632,8 @@ export default function Room() {
               </div>
             )}
 
+            <RoomMembersPanel roomId={room.id} isMember={isMember} />
+
             <div>
               <h4 className="text-sm font-semibold text-gray-900 mb-3">
                 Shared media
@@ -765,6 +768,8 @@ export default function Room() {
                   account.
                 </div>
               )}
+
+              <RoomMembersPanel roomId={room.id} isMember={isMember} />
 
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-3">
