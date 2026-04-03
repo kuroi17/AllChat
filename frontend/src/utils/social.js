@@ -1007,6 +1007,49 @@ export async function uploadRoomAvatar({ roomId, file }) {
     throw new Error("Image size must be 5MB or less");
   }
 
+  if (MEDIA_STORAGE_PROVIDER === "cloudinary") {
+    const signedUpload = await requestApi("/api/media/cloudinary/signature", {
+      method: "POST",
+      auth: true,
+      body: {
+        resourceType: "image",
+        folder: `${CLOUDINARY_UPLOAD_FOLDER}/room-avatars/${roomId}`,
+      },
+    });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", String(signedUpload.apiKey));
+    formData.append("timestamp", String(signedUpload.timestamp));
+    formData.append("signature", signedUpload.signature);
+
+    if (signedUpload.folder) {
+      formData.append("folder", signedUpload.folder);
+    }
+
+    const uploadResponse = await fetch(signedUpload.uploadUrl, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const cloudinaryError = await readErrorResponse(
+        uploadResponse,
+        "Cloudinary upload failed",
+      );
+      throw new Error(cloudinaryError);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const uploadedUrl = uploadData?.secure_url || uploadData?.url;
+
+    if (!uploadedUrl) {
+      throw new Error("Cloudinary upload did not return a media URL");
+    }
+
+    return uploadedUrl;
+  }
+
   const extension = file.name.split(".").pop() || "jpg";
   const safeExtension = extension.toLowerCase();
   const filePath = `${roomId}/avatar-${Date.now()}.${safeExtension}`;
