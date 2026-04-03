@@ -9,6 +9,7 @@ import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
 import DirectMessages from "./pages/DirectMessages";
 import Settings from "./pages/Settings";
+import RoomArchive from "./pages/RoomArchive";
 import Room from "./pages/Room";
 import RoomsList from "./pages/RoomsList";
 import RoomInvite from "./pages/RoomInvite";
@@ -100,6 +101,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/rooms-archive"
+            element={
+              <ProtectedRoute>
+                <RoomArchive />
               </ProtectedRoute>
             }
           />

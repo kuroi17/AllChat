@@ -8,6 +8,7 @@ import {
   Info,
   Share2,
   Link2,
+  LogOut,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
@@ -16,6 +17,7 @@ import {
   createRoomInvite,
   fetchRoom,
   joinPublicRoom,
+  leaveRoom,
   updateRoomAvatar,
   uploadRoomAvatar,
 } from "../utils/social";
@@ -51,6 +53,7 @@ export default function Room() {
   const [inviteLink, setInviteLink] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [leavingRoom, setLeavingRoom] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
@@ -185,6 +188,30 @@ export default function Room() {
       setToast({ type: "error", message: err.message || "Upload failed" });
     } finally {
       setAvatarUploading(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!room?.id || isCreator || !isMember || leavingRoom) return;
+
+    const confirmed = window.confirm(
+      `Leave "${room.title}"? The room will be moved to your archive in Settings.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLeavingRoom(true);
+      await leaveRoom(room.id);
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      navigate("/settings/rooms-archive");
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: err.message || "Failed to leave room",
+      });
+    } finally {
+      setLeavingRoom(false);
     }
   };
 
@@ -366,6 +393,14 @@ export default function Room() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+
       <div className="hidden md:block">
         <Sidebar />
       </div>
@@ -571,6 +606,31 @@ export default function Room() {
               </p>
             </div>
 
+            {isMember && !isCreator && (
+              <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                <p className="text-xs text-red-700 mb-2">
+                  Leaving this room removes it from your joined list and stores
+                  it in your archive.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleLeaveRoom}
+                  disabled={leavingRoom}
+                  className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold text-red-700 bg-white border border-red-200 px-3 py-2 rounded-lg disabled:opacity-60"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  {leavingRoom ? "Leaving..." : "Leave room"}
+                </button>
+              </div>
+            )}
+
+            {isCreator && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">
+                You created this room, so leave is disabled for the owner
+                account.
+              </div>
+            )}
+
             <div>
               <h4 className="text-sm font-semibold text-gray-900 mb-3">
                 Shared media
@@ -659,13 +719,6 @@ export default function Room() {
                 </div>
               </div>
 
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarChange}
-              />
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -688,6 +741,30 @@ export default function Room() {
                   {displayInviteLink}
                 </p>
               </div>
+
+              {isMember && !isCreator && (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-xs text-red-700 mb-2">
+                    Leaving this room moves it to your archive.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleLeaveRoom}
+                    disabled={leavingRoom}
+                    className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold text-red-700 bg-white border border-red-200 px-3 py-2 rounded-lg disabled:opacity-60"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    {leavingRoom ? "Leaving..." : "Leave room"}
+                  </button>
+                </div>
+              )}
+
+              {isCreator && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-500">
+                  You created this room, so leave is disabled for the owner
+                  account.
+                </div>
+              )}
 
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 mb-3">

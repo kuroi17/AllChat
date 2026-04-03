@@ -813,6 +813,23 @@ export async function fetchJoinedRooms() {
 }
 
 /**
+ * Fetch archived rooms for current user
+ */
+export async function fetchArchivedRooms(limit = 50) {
+  try {
+    const safeLimit = Number.isFinite(limit) ? limit : 50;
+    const data = await requestApi(
+      `/api/rooms/archive?limit=${encodeURIComponent(safeLimit)}`,
+      { auth: true },
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    logDebugError("[Rooms] Fetch archive failed:", error);
+    return [];
+  }
+}
+
+/**
  * Create a public room (authenticated)
  */
 export async function createPublicRoom({
@@ -845,6 +862,17 @@ export async function fetchRoom(roomId) {
 export async function joinPublicRoom(roomId) {
   if (!roomId) throw new Error("Missing room ID");
   return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/join`, {
+    method: "POST",
+    auth: true,
+  });
+}
+
+/**
+ * Leave a room and archive it for the current user
+ */
+export async function leaveRoom(roomId) {
+  if (!roomId) throw new Error("Missing room ID");
+  return requestApi(`/api/rooms/${encodeURIComponent(roomId)}/leave`, {
     method: "POST",
     auth: true,
   });

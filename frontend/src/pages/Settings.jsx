@@ -10,6 +10,7 @@ import {
   RotateCcw,
   KeyRound,
   User,
+  Archive,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
@@ -368,6 +369,30 @@ export default function Settings() {
                 <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                   Maintenance
                 </h2>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-red-50 text-red-700 flex items-center justify-center shrink-0">
+                      <Archive className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Room Archive
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        View rooms you left and rejoin public ones quickly.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/settings/rooms-archive")}
+                    className="w-full sm:w-auto px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Open Archive
+                  </button>
+                </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-start gap-3">

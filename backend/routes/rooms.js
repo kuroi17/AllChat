@@ -14,6 +14,52 @@ function parseLimit(value, fallback = 20, max = 100) {
 const ROOM_SELECT =
   "id,title,description,location,creator_id,is_public,capacity,participant_count,status,last_updated,created_at,avatar_url,profiles:creator_id(username, avatar_url)";
 
+function isArchiveTableMissing(error) {
+  if (!error) return false;
+
+  const message = String(error.message || "").toLowerCase();
+  return (
+    error.code === "42P01" ||
+    message.includes("room_member_archives") ||
+    message.includes("does not exist")
+  );
+}
+
+async function clearArchivedRoomEntry({ db, roomId, userId }) {
+  const { error } = await db
+    .from("room_member_archives")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("user_id", userId);
+
+  if (error && !isArchiveTableMissing(error)) {
+    throw error;
+  }
+}
+
+async function upsertArchivedRoomEntry({ db, userId, room }) {
+  if (!room?.id || !userId) return;
+
+  const { error } = await db.from("room_member_archives").upsert(
+    [
+      {
+        room_id: room.id,
+        user_id: userId,
+        room_title: room.title || "Room",
+        room_description: room.description || null,
+        room_avatar_url: room.avatar_url || null,
+        room_is_public: room.is_public !== false,
+        left_at: new Date().toISOString(),
+      },
+    ],
+    { onConflict: "room_id,user_id" },
+  );
+
+  if (error && !isArchiveTableMissing(error)) {
+    throw error;
+  }
+}
+
 async function postRoomJoinMessage({
   db,
   io,
@@ -137,6 +183,34 @@ router.get("/joined", verifyToken, async (req, res) => {
       .map((room) => ({ ...room, is_member: true }));
 
     res.json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET archived rooms for current user
+router.get("/archive", verifyToken, async (req, res) => {
+  try {
+    const limit = parseLimit(req.query.limit, 50, 200);
+    const db = req.supabase || supabase;
+
+    const { data, error } = await db
+      .from("room_member_archives")
+      .select(
+        "room_id, room_title, room_description, room_avatar_url, room_is_public, left_at",
+      )
+      .eq("user_id", req.userId)
+      .order("left_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      if (isArchiveTableMissing(error)) {
+        return res.json([]);
+      }
+      throw error;
+    }
+
+    res.json(Array.isArray(data) ? data : []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -310,6 +384,12 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
     ]);
 
     if (insertError) throw insertError;
+
+    await clearArchivedRoomEntry({
+      db,
+      roomId: inviteRoomId,
+      userId,
+    });
 
     const { data: updatedRoom, error: countError } = await supabase
       .from("public_rooms")
@@ -606,6 +686,12 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
 
     if (insertError) throw insertError;
 
+    await clearArchivedRoomEntry({
+      db,
+      roomId,
+      userId,
+    });
+
     const { data: updatedRoom, error: countError } = await supabase
       .from("public_rooms")
       .select("participant_count")
@@ -647,6 +733,87 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
     }
 
     res.json({ participantCount, alreadyMember: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Leave a room and move it to user's archive
+router.post("/:roomId/leave", verifyToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+
+    const { data: room, error: roomError } = await supabase
+      .from("public_rooms")
+      .select("id,title,description,avatar_url,is_public,creator_id")
+      .eq("id", roomId)
+      .maybeSingle();
+
+    if (roomError) throw roomError;
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+
+    if (room.creator_id === userId) {
+      return res.status(409).json({
+        error: "Room owners cannot leave their own room.",
+      });
+    }
+
+    const { data: membership, error: membershipError } = await db
+      .from("room_members")
+      .select("room_id")
+      .eq("room_id", roomId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (membershipError) throw membershipError;
+
+    if (!membership) {
+      return res.json({ alreadyLeft: true });
+    }
+
+    const { error: deleteError } = await db
+      .from("room_members")
+      .delete()
+      .eq("room_id", roomId)
+      .eq("user_id", userId);
+
+    if (deleteError) throw deleteError;
+
+    await upsertArchivedRoomEntry({
+      db,
+      userId,
+      room,
+    });
+
+    const { data: updatedRoom, error: countError } = await supabase
+      .from("public_rooms")
+      .select("participant_count")
+      .eq("id", roomId)
+      .single();
+
+    if (countError) throw countError;
+
+    const participantCount = updatedRoom?.participant_count ?? null;
+
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("rooms:updated", { roomId, participantCount });
+      }
+    } catch {
+      // ignore socket errors
+    }
+
+    res.json({
+      roomId,
+      participantCount,
+      archived: true,
+      alreadyLeft: false,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

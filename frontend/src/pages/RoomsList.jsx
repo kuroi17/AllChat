@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import {
+  fetchArchivedRooms,
   fetchJoinedRooms,
   fetchPublicRooms,
   createPublicRoom,
@@ -62,6 +63,13 @@ export default function RoomsList() {
     },
   );
 
+  const { data: archivedRoomsRaw = [], isLoading: loadingArchivedRooms } =
+    useQuery({
+      queryKey: ["rooms", "archive", 100],
+      queryFn: () => fetchArchivedRooms(100),
+      enabled: !!profile?.id,
+    });
+
   const rooms = useMemo(
     () => (Array.isArray(publicRooms) ? publicRooms : []).map(normalizeRoom),
     [publicRooms, profile?.id],
@@ -73,11 +81,22 @@ export default function RoomsList() {
     [joinedRoomsRaw, profile?.id],
   );
 
-  const loading = loadingPublicRooms || loadingJoinedRooms;
+  const loading =
+    loadingPublicRooms || loadingJoinedRooms || loadingArchivedRooms;
 
   const joinedIds = useMemo(
     () => new Set(joinedRooms.map((room) => room.id)),
     [joinedRooms],
+  );
+
+  const archivedIds = useMemo(
+    () =>
+      new Set(
+        (Array.isArray(archivedRoomsRaw) ? archivedRoomsRaw : [])
+          .map((room) => room?.room_id)
+          .filter(Boolean),
+      ),
+    [archivedRoomsRaw],
   );
 
   const joinMutation = useMutation({
@@ -138,6 +157,7 @@ export default function RoomsList() {
 
   const filteredJoined = joinedRooms.filter(filterRoom);
   const filteredPublic = rooms
+    .filter((room) => !archivedIds.has(room.id))
     .filter((room) => !joinedIds.has(room.id))
     .filter(filterRoom);
 
