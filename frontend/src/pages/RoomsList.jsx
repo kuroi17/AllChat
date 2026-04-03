@@ -20,6 +20,8 @@ import RoomCreateModal from "../components/rooms/RoomCreateModal";
 
 export default function RoomsList() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [joinedVisibleCount, setJoinedVisibleCount] = useState(12);
+  const [publicVisibleCount, setPublicVisibleCount] = useState(12);
   const [previewRoom, setPreviewRoom] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [joinError, setJoinError] = useState("");
@@ -187,6 +189,12 @@ export default function RoomsList() {
     .filter((room) => !joinedIds.has(room.id))
     .filter(filterRoom);
 
+  const visibleJoinedRooms = filteredJoined.slice(0, joinedVisibleCount);
+  const visiblePublicRooms = filteredPublic.slice(0, publicVisibleCount);
+
+  const hasMoreJoined = filteredJoined.length > visibleJoinedRooms.length;
+  const hasMorePublic = filteredPublic.length > visiblePublicRooms.length;
+
   const getRelativeTime = (dateString) => {
     if (!dateString) return "";
     const now = new Date();
@@ -256,6 +264,12 @@ export default function RoomsList() {
     setShowCreate(true);
   };
 
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setJoinedVisibleCount(12);
+    setPublicVisibleCount(12);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
       <div className="hidden md:block">
@@ -266,7 +280,7 @@ export default function RoomsList() {
         <RoomsHeader
           roomsCount={totalRooms}
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           onCreate={openCreate}
         />
 
@@ -300,7 +314,7 @@ export default function RoomsList() {
                       </span>
                     </div>
                     <div className="space-y-3">
-                      {filteredJoined.map((room, index) => (
+                      {visibleJoinedRooms.map((room, index) => (
                         <RoomCard
                           key={room.id}
                           room={room}
@@ -311,6 +325,18 @@ export default function RoomsList() {
                           getRelativeTime={getRelativeTime}
                         />
                       ))}
+
+                      {hasMoreJoined && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setJoinedVisibleCount((prev) => prev + 12)
+                          }
+                          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                        >
+                          Show more joined rooms
+                        </button>
+                      )}
                     </div>
                   </section>
                 )}
@@ -332,7 +358,7 @@ export default function RoomsList() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {filteredPublic.map((room, index) => (
+                      {visiblePublicRooms.map((room, index) => (
                         <RoomCard
                           key={room.id}
                           room={room}
@@ -343,6 +369,18 @@ export default function RoomsList() {
                           getRelativeTime={getRelativeTime}
                         />
                       ))}
+
+                      {hasMorePublic && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPublicVisibleCount((prev) => prev + 12)
+                          }
+                          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                        >
+                          Show more public rooms
+                        </button>
+                      )}
                     </div>
                   )}
                 </section>
