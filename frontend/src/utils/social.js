@@ -396,6 +396,7 @@ export async function sendDirectMessage({
   senderId,
   content,
   imageUrl = null,
+  replyToMessageId = null,
 }) {
   if (!conversationId || !senderId) {
     throw new Error("Missing message context");
@@ -420,8 +421,47 @@ export async function sendDirectMessage({
       conversationId,
       content: cleanedContent,
       imageUrl,
+      replyToMessageId,
     },
   });
+}
+
+export async function addDirectMessageReaction(messageId, emoji) {
+  if (!messageId) {
+    throw new Error("Missing message ID");
+  }
+
+  if (!emoji) {
+    throw new Error("Missing emoji");
+  }
+
+  return requestApi(
+    `/api/direct-messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "POST",
+      auth: true,
+      body: { emoji },
+    },
+  );
+}
+
+export async function removeDirectMessageReaction(messageId, emoji) {
+  if (!messageId) {
+    throw new Error("Missing message ID");
+  }
+
+  if (!emoji) {
+    throw new Error("Missing emoji");
+  }
+
+  return requestApi(
+    `/api/direct-messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "DELETE",
+      auth: true,
+      body: { emoji },
+    },
+  );
 }
 
 /**
@@ -602,7 +642,7 @@ export function unsubscribeUserRealtime(subscription) {
 
 export async function subscribeConversationRealtime(
   conversationId,
-  { onInsert, onDelete } = {},
+  { onInsert, onDelete, onReaction } = {},
 ) {
   if (!conversationId) {
     throw new Error("Missing conversation ID");
@@ -638,14 +678,25 @@ export async function subscribeConversationRealtime(
     }
   };
 
+  const handleReaction = (payload) => {
+    if (
+      payload?.conversationId === conversationId &&
+      typeof onReaction === "function"
+    ) {
+      onReaction(payload);
+    }
+  };
+
   socket.on("dm:new", handleInsert);
   socket.on("dm:deleted", handleDelete);
+  socket.on("dm:reaction", handleReaction);
 
   return {
     socket,
     conversationId,
     handleInsert,
     handleDelete,
+    handleReaction,
   };
 }
 
@@ -654,6 +705,7 @@ export function unsubscribeConversationRealtime(subscription) {
 
   subscription.socket.off("dm:new", subscription.handleInsert);
   subscription.socket.off("dm:deleted", subscription.handleDelete);
+  subscription.socket.off("dm:reaction", subscription.handleReaction);
   subscription.socket.emit("dm:leave", {
     conversationId: subscription.conversationId,
   });

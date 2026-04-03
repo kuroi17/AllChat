@@ -17,6 +17,8 @@ export default function DirectMessageMessagesPane({
   onUnsendForYou,
   onUnsendForEveryone,
   onReportMessage,
+  onReply,
+  onReactToggle,
   messagesEndRef,
 }) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -96,10 +98,33 @@ export default function DirectMessageMessagesPane({
               (typeof msg.content === "string" &&
                 msg.content.startsWith(DELETED_MESSAGE_MARKER)) ||
               msg.deletedByUsername;
+            const replyMessage = msg.reply_message || null;
             const deletedLabel =
               msg.deletedByUsername || (isMe ? "You" : otherUser.username);
             const roomLink =
               !isDeleted && msg.content ? extractRoomLink(msg.content) : null;
+            const reactionGroups = Array.isArray(msg.reactions)
+              ? msg.reactions.reduce((acc, item) => {
+                  if (!item?.emoji) return acc;
+
+                  if (!acc[item.emoji]) {
+                    acc[item.emoji] = {
+                      emoji: item.emoji,
+                      count: 0,
+                      reactedByMe: false,
+                    };
+                  }
+
+                  acc[item.emoji].count += 1;
+                  if (item.user_id === currentUserId) {
+                    acc[item.emoji].reactedByMe = true;
+                  }
+
+                  return acc;
+                }, {})
+              : {};
+
+            const reactionGroupList = Object.values(reactionGroups);
             // msg.profiles?.username || otherUser.username || "User")
             return (
               <div
@@ -188,6 +213,17 @@ export default function DirectMessageMessagesPane({
                           Unsend for you
                         </button>
 
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onReply?.(msg);
+                            onToggleMessageMenu(msg.id);
+                          }}
+                          className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          Reply
+                        </button>
+
                         {!isMe && (
                           <button
                             type="button"
@@ -233,6 +269,32 @@ export default function DirectMessageMessagesPane({
                             : "bg-white text-gray-900 rounded-bl-sm shadow-sm"
                         }`}
                       >
+                        {replyMessage && (
+                          <div
+                            className={`mb-2 rounded-xl px-2.5 py-1.5 border ${
+                              isMe
+                                ? "bg-red-700/70 border-red-300/40"
+                                : "bg-gray-50 border-gray-200"
+                            }`}
+                          >
+                            <p
+                              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                                isMe ? "text-red-100" : "text-gray-500"
+                              }`}
+                            >
+                              Replying to{" "}
+                              {replyMessage?.profiles?.username || "User"}
+                            </p>
+                            <p
+                              className={`text-xs truncate ${
+                                isMe ? "text-red-100" : "text-gray-600"
+                              }`}
+                            >
+                              {replyMessage?.content || "(no text)"}
+                            </p>
+                          </div>
+                        )}
+
                         {msg.image_url && (
                           <a
                             href={msg.image_url}
@@ -276,6 +338,76 @@ export default function DirectMessageMessagesPane({
                         minute: "2-digit",
                       })}
                     </p>
+
+                    {!isDeleted && (
+                      <div
+                        className={`mt-1 flex items-center gap-2 flex-wrap ${
+                          isMe ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onReply?.(msg)}
+                          className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
+                        >
+                          Reply
+                        </button>
+
+                        {["👍", "❤️", "😂"].map((emoji) => {
+                          const current = reactionGroups[emoji];
+                          return (
+                            <button
+                              key={`${msg.id}-${emoji}`}
+                              type="button"
+                              onClick={() =>
+                                onReactToggle?.({
+                                  messageId: msg.id,
+                                  emoji,
+                                  reactedByMe: !!current?.reactedByMe,
+                                })
+                              }
+                              className={`text-[11px] rounded-full border px-2 py-0.5 transition-colors ${
+                                current?.reactedByMe
+                                  ? "bg-red-50 border-red-200 text-red-700"
+                                  : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                              }`}
+                            >
+                              {emoji}
+                              {current?.count ? ` ${current.count}` : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {!isDeleted && reactionGroupList.length > 0 && (
+                      <div
+                        className={`mt-1 flex gap-1.5 flex-wrap ${
+                          isMe ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {reactionGroupList.map((group) => (
+                          <button
+                            key={`${msg.id}-group-${group.emoji}`}
+                            type="button"
+                            onClick={() =>
+                              onReactToggle?.({
+                                messageId: msg.id,
+                                emoji: group.emoji,
+                                reactedByMe: group.reactedByMe,
+                              })
+                            }
+                            className={`text-[11px] rounded-full border px-2 py-0.5 ${
+                              group.reactedByMe
+                                ? "bg-red-50 border-red-200 text-red-700"
+                                : "bg-white border-gray-200 text-gray-600"
+                            }`}
+                          >
+                            {group.emoji} {group.count}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

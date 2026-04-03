@@ -13,6 +13,10 @@ const {
 
 const router = express.Router();
 
+const DM_MESSAGE_BASE_SELECT = "*, profiles:sender_id(username, avatar_url)";
+const DM_MESSAGE_WITH_RELATIONS_SELECT =
+  "*, profiles:sender_id(username, avatar_url), reply_message:reply_to_message_id(id, sender_id, content, image_url, created_at, profiles:sender_id(username, avatar_url)), reactions:direct_message_reactions(user_id, emoji, created_at)";
+
 const createDirectMessageRateLimiter = createRateLimiter({
   scope: "direct-message-send",
   windowMs: chatLimits.directMessageRateWindowMs,
@@ -90,6 +94,103 @@ function parseLimit(value, fallback = 50, max = 200) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.min(parsed, max);
+}
+
+async function getDirectMessageRecord(db, messageId) {
+  const { data, error } = await db
+    .from("direct_messages")
+    .select("id, conversation_id, sender_id")
+    .eq("id", messageId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function fetchDirectMessageWithRelations(db, messageId) {
+  const { data, error } = await db
+    .from("direct_messages")
+    .select(DM_MESSAGE_WITH_RELATIONS_SELECT)
+    .eq("id", messageId)
+    .single();
+
+  if (!error) {
+    return {
+      ...data,
+      reply_message: data?.reply_message || null,
+      reactions: Array.isArray(data?.reactions) ? data.reactions : [],
+    };
+  }
+
+  // Allow read operations to keep working before the DM reactions/replies migration is applied.
+  if (error.code !== "PGRST200") {
+    throw error;
+  }
+
+  const { data: fallbackData, error: fallbackError } = await db
+    .from("direct_messages")
+    .select(DM_MESSAGE_BASE_SELECT)
+    .eq("id", messageId)
+    .single();
+
+  if (fallbackError) throw fallbackError;
+
+  return {
+    ...fallbackData,
+    reply_message: null,
+    reactions: [],
+  };
+}
+
+async function fetchConversationMessagesWithRelations(
+  db,
+  conversationId,
+  limit,
+) {
+  const { data, error } = await db
+    .from("direct_messages")
+    .select(DM_MESSAGE_WITH_RELATIONS_SELECT)
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (!error) {
+    return (data || []).map((message) => ({
+      ...message,
+      reply_message: message?.reply_message || null,
+      reactions: Array.isArray(message?.reactions) ? message.reactions : [],
+    }));
+  }
+
+  if (error.code !== "PGRST200") {
+    throw error;
+  }
+
+  const { data: fallbackData, error: fallbackError } = await db
+    .from("direct_messages")
+    .select(DM_MESSAGE_BASE_SELECT)
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (fallbackError) throw fallbackError;
+
+  return (fallbackData || []).map((message) => ({
+    ...message,
+    reply_message: null,
+    reactions: [],
+  }));
+}
+
+async function fetchDirectMessageReactions(db, messageId) {
+  const { data, error } = await db
+    .from("direct_message_reactions")
+    .select("user_id, emoji, created_at")
+    .eq("message_id", messageId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 // Helper function to ensure a user is a participant in a conversation
@@ -491,15 +592,12 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    const { data, error } = await db
-      .from("direct_messages")
-      .select("*, profiles:sender_id(username, avatar_url)")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-      .limit(limit);
-
-    if (error) throw error;
-    res.json((data || []).map(normalizeDeletedMessagePayload));
+    const messages = await fetchConversationMessagesWithRelations(
+      db,
+      conversationId,
+      limit,
+    );
+    res.json((messages || []).map(normalizeDeletedMessagePayload));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -513,7 +611,7 @@ router.post(
   createDirectMessageAntiSpamGuard,
   async (req, res) => {
     try {
-      const { conversationId, content, imageUrl } = req.body;
+      const { conversationId, content, imageUrl, replyToMessageId } = req.body;
       const senderId = req.userId;
       const db = req.supabase || supabase;
       const cleanedContent = typeof content === "string" ? content.trim() : "";
@@ -554,6 +652,26 @@ router.post(
         return res.status(403).json({ error: "Not authorized" });
       }
 
+      let validatedReplyToId = null;
+      if (replyToMessageId) {
+        const parentMessage = await getDirectMessageRecord(
+          db,
+          replyToMessageId,
+        );
+
+        if (!parentMessage) {
+          return res.status(404).json({ error: "Reply target not found" });
+        }
+
+        if (parentMessage.conversation_id !== conversationId) {
+          return res.status(400).json({
+            error: "Reply target must be in the same conversation",
+          });
+        }
+
+        validatedReplyToId = parentMessage.id;
+      }
+
       if (cleanedImageUrl) {
         const mediaQuota = await enforceDailyMediaQuota({
           db,
@@ -569,20 +687,25 @@ router.post(
         }
       }
 
+      const payload = {
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: cleanedContent || "",
+        image_url: cleanedImageUrl || null,
+      };
+
+      if (validatedReplyToId) {
+        payload.reply_to_message_id = validatedReplyToId;
+      }
+
       const { data, error } = await db
         .from("direct_messages")
-        .insert([
-          {
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: cleanedContent || "",
-            image_url: cleanedImageUrl || null,
-          },
-        ])
-        .select();
+        .insert([payload])
+        .select("id")
+        .single();
 
       if (error) throw error;
-      const createdMessage = data[0];
+      const createdMessage = await fetchDirectMessageWithRelations(db, data.id);
 
       const io = req.app.get("io");
       if (io) {
@@ -611,6 +734,126 @@ router.post(
     }
   },
 );
+
+// POST add reaction to a direct message
+router.post("/:messageId/reactions", verifyToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+    const rawEmoji = req.body?.emoji;
+    const emoji = typeof rawEmoji === "string" ? rawEmoji.trim() : "";
+
+    if (!emoji) {
+      return res.status(400).json({ error: "emoji is required" });
+    }
+
+    if (emoji.length > 16) {
+      return res.status(400).json({ error: "emoji is too long" });
+    }
+
+    const message = await getDirectMessageRecord(db, messageId);
+
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    const participant = await ensureConversationParticipant(
+      db,
+      message.conversation_id,
+      userId,
+    );
+
+    if (!participant) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const { error: insertError } = await db
+      .from("direct_message_reactions")
+      .upsert(
+        [
+          {
+            message_id: messageId,
+            user_id: userId,
+            emoji,
+          },
+        ],
+        { onConflict: "message_id,user_id,emoji" },
+      );
+
+    if (insertError) throw insertError;
+
+    const reactions = await fetchDirectMessageReactions(db, messageId);
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`dm:${message.conversation_id}`).emit("dm:reaction", {
+        messageId,
+        conversationId: message.conversation_id,
+        reactions,
+      });
+    }
+
+    res.status(201).json({ messageId, reactions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE remove reaction from a direct message
+router.delete("/:messageId/reactions", verifyToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+    const db = req.supabase || supabase;
+    const rawEmoji = req.body?.emoji;
+    const emoji = typeof rawEmoji === "string" ? rawEmoji.trim() : "";
+
+    if (!emoji) {
+      return res.status(400).json({ error: "emoji is required" });
+    }
+
+    const message = await getDirectMessageRecord(db, messageId);
+
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    const participant = await ensureConversationParticipant(
+      db,
+      message.conversation_id,
+      userId,
+    );
+
+    if (!participant) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    const { error: deleteError } = await db
+      .from("direct_message_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("user_id", userId)
+      .eq("emoji", emoji);
+
+    if (deleteError) throw deleteError;
+
+    const reactions = await fetchDirectMessageReactions(db, messageId);
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`dm:${message.conversation_id}`).emit("dm:reaction", {
+        messageId,
+        conversationId: message.conversation_id,
+        reactions,
+      });
+    }
+
+    res.json({ messageId, reactions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // DELETE direct message
 router.delete(

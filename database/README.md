@@ -35,6 +35,10 @@ Useful for debugging and understanding the current database state.
 
 Adds global/room chat reply support (`messages.reply_to_message_id`) and per-message emoji reactions (`message_reactions` table + RLS policies).
 
+### `add_dm_reactions_and_replies.sql`
+
+Adds direct message reply support (`direct_messages.reply_to_message_id`) and per-message emoji reactions for DMs (`direct_message_reactions` table + RLS policies).
+
 ## How to Setup
 
 1. Go to Supabase Dashboard → SQL Editor

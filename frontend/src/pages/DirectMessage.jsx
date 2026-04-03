@@ -16,6 +16,8 @@ import {
   fetchDirectMessages,
   fetchDirectMessageMedia,
   sendDirectMessage,
+  addDirectMessageReaction,
+  removeDirectMessageReaction,
   uploadDirectMessageImage,
   markConversationAsRead,
   unsendDirectMessageForEveryone,
@@ -56,7 +58,7 @@ export default function DirectMessage() {
   const { conversationId: routeConversationId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, profile } = useUser();
 
   const [conversationId, setConversationId] = useState(routeConversationId);
   const [otherUser, setOtherUser] = useState(null);
@@ -82,6 +84,7 @@ export default function DirectMessage() {
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
   const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
+  const [replyTarget, setReplyTarget] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -167,6 +170,22 @@ export default function DirectMessage() {
 
               markConversationAsRead(conversationId, user.id);
               scrollToBottom();
+            },
+            onReaction: (payload) => {
+              if (!mounted || !payload?.messageId) return;
+
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === payload.messageId
+                    ? {
+                        ...message,
+                        reactions: Array.isArray(payload.reactions)
+                          ? payload.reactions
+                          : [],
+                      }
+                    : message,
+                ),
+              );
             },
           });
         } catch (realtimeError) {
@@ -363,17 +382,17 @@ export default function DirectMessage() {
       // Fetch conversation context from backend REST API.
       const conversationContext =
         await fetchConversationContext(routeConversationId);
-      const profile = conversationContext?.otherUser;
+      const conversationProfile = conversationContext?.otherUser;
 
-      if (!profile?.id) {
+      if (!conversationProfile?.id) {
         throw new Error("Other user not found");
       }
 
-      const otherUserId = profile.id;
+      const otherUserId = conversationProfile.id;
 
       setOtherUser({
-        ...profile,
-        isOnline: isUserOnline(profile.last_seen),
+        ...conversationProfile,
+        isOnline: isUserOnline(conversationProfile.last_seen),
       });
 
       // Do not block the main page loader on social stats.
@@ -601,10 +620,12 @@ export default function DirectMessage() {
     if ((!hasText && !hasImage) || sending || !conversationId) return;
 
     const imageToSend = selectedImage;
+    const initialReplyToMessageId = replyTarget?.id || null;
     const textTempMessageId = hasText
       ? `temp-text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       : null;
     let textMessageSent = false;
+    let replyConsumed = false;
 
     try {
       setSending(hasImage);
@@ -633,9 +654,14 @@ export default function DirectMessage() {
           senderId: user.id,
           content: trimmedText,
           imageUrl: null,
+          replyToMessageId: initialReplyToMessageId,
         });
 
         textMessageSent = true;
+        if (initialReplyToMessageId && !replyConsumed) {
+          replyConsumed = true;
+          setReplyTarget(null);
+        }
         setMessages((prev) =>
           dedupeAndSortMessages(
             prev.map((msg) =>
@@ -657,7 +683,16 @@ export default function DirectMessage() {
           senderId: user.id,
           content: "",
           imageUrl,
+          replyToMessageId:
+            initialReplyToMessageId && !replyConsumed
+              ? initialReplyToMessageId
+              : null,
         });
+
+        if (initialReplyToMessageId && !replyConsumed) {
+          replyConsumed = true;
+          setReplyTarget(null);
+        }
 
         setMessages((prev) => dedupeAndSortMessages([...prev, imageMessage]));
 
@@ -715,6 +750,82 @@ export default function DirectMessage() {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop =
         messagesContainerRef.current.scrollHeight;
+    }
+  }
+
+  function handleReplySelect(message) {
+    if (!message?.id) return;
+
+    setReplyTarget({
+      id: message.id,
+      content: message.content || (message.image_url ? "(image)" : ""),
+      profiles: {
+        username:
+          message.sender_id === user.id
+            ? profile?.username || "You"
+            : otherUser?.username || "User",
+        avatar_url:
+          message.sender_id === user.id
+            ? profile?.avatar_url || null
+            : otherUser?.avatar_url || null,
+      },
+    });
+  }
+
+  function applyMessageReactions(messageId, reactions) {
+    if (!messageId) return;
+    const normalizedReactions = Array.isArray(reactions) ? reactions : [];
+
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === messageId
+          ? { ...message, reactions: normalizedReactions }
+          : message,
+      ),
+    );
+  }
+
+  async function handleToggleReaction({ messageId, emoji, reactedByMe }) {
+    if (!messageId || !emoji || !user?.id) return;
+
+    const previousMessage = messages.find((item) => item.id === messageId);
+    const previousReactions = Array.isArray(previousMessage?.reactions)
+      ? previousMessage.reactions
+      : [];
+
+    if (reactedByMe) {
+      let removed = false;
+      const nextReactions = previousReactions.filter((item) => {
+        if (!removed && item.user_id === user.id && item.emoji === emoji) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+      applyMessageReactions(messageId, nextReactions);
+    } else {
+      applyMessageReactions(messageId, [
+        ...previousReactions,
+        {
+          user_id: user.id,
+          emoji,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    try {
+      if (reactedByMe) {
+        await removeDirectMessageReaction(messageId, emoji);
+      } else {
+        await addDirectMessageReaction(messageId, emoji);
+      }
+    } catch (error) {
+      applyMessageReactions(messageId, previousReactions);
+      setToast({
+        type: "error",
+        message: error.message || "Failed to update reaction.",
+      });
     }
   }
 
@@ -802,6 +913,8 @@ export default function DirectMessage() {
           onUnsendForYou={handleUnsendForYou}
           onUnsendForEveryone={handleUnsendForEveryone}
           onReportMessage={handleReportMessage}
+          onReply={handleReplySelect}
+          onReactToggle={handleToggleReaction}
           messagesEndRef={messagesEndRef}
         />
 
@@ -817,6 +930,8 @@ export default function DirectMessage() {
           imagePreviewUrl={imagePreviewUrl}
           selectedImageName={selectedImage?.name}
           onClearSelectedImage={clearSelectedImage}
+          replyTarget={replyTarget}
+          onClearReply={() => setReplyTarget(null)}
           imageInputRef={imageInputRef}
           onImageChange={handleImageChange}
           sending={sending}

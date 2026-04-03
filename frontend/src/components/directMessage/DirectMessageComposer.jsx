@@ -6,6 +6,8 @@ export default function DirectMessageComposer({
   imagePreviewUrl,
   selectedImageName,
   onClearSelectedImage,
+  replyTarget,
+  onClearReply,
   imageInputRef,
   onImageChange,
   sending,
@@ -21,6 +23,26 @@ export default function DirectMessageComposer({
   return (
     <div className="bg-white border-t border-gray-200 px-2 sm:px-6 py-2 sm:py-4 shrink-0">
       <div className="max-w-4xl mx-auto">
+        {replyTarget && (
+          <div className="mb-2 sm:mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold truncate">
+                Replying to {replyTarget?.profiles?.username || "User"}
+              </p>
+              <p className="text-red-700 truncate">
+                {replyTarget?.content || "(no text)"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClearReply}
+              className="text-red-700 hover:text-red-900 font-semibold"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
         {imagePreviewUrl && (
           <div className="mb-2 sm:mb-3 inline-flex items-center gap-2 sm:gap-3 rounded-xl border border-gray-200 bg-gray-50 px-2 sm:px-3 py-2 max-w-full">
             <img
