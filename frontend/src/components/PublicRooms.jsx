@@ -15,8 +15,6 @@ export default function PublicRooms() {
   const [showJoin, setShowJoin] = useState(false);
   const [joinTarget, setJoinTarget] = useState(null);
   const [joinError, setJoinError] = useState("");
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-  const [listStart, setListStart] = useState(0);
 
   const normalizeRoom = (r) => ({
     ...r,
@@ -32,9 +30,9 @@ export default function PublicRooms() {
     refetch,
   } = useQuery({
     queryKey: ["rooms", "public", "sidebar"],
-    queryFn: () => fetchPublicRooms(30),
-    staleTime: 2 * 60 * 1000,
-    refetchInterval: 60 * 1000,
+    queryFn: () => fetchPublicRooms(5),
+    staleTime: 10 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
     placeholderData: (previousData) => previousData,
   });
 
@@ -48,75 +46,63 @@ export default function PublicRooms() {
     [normalizedRooms],
   );
 
-  const featuredRoom =
-    publicRooms.length > 0
-      ? publicRooms[featuredIndex % publicRooms.length]
-      : null;
-
-  const showcaseRooms = useMemo(() => {
-    if (!publicRooms.length) return [];
-
-    const count = Math.min(5, publicRooms.length);
-    return Array.from({ length: count }, (_, index) => {
-      return publicRooms[(listStart + index) % publicRooms.length];
-    });
-  }, [publicRooms, listStart]);
+  const previewRooms = useMemo(() => publicRooms.slice(0, 5), [publicRooms]);
 
   useEffect(() => {
-    if (publicRooms.length <= 1) return;
+    let socketRef = null;
+    let isDisposed = false;
 
-    const timer = setInterval(() => {
-      setFeaturedIndex((prev) => (prev + 1) % publicRooms.length);
-      setListStart((prev) => (prev + 1) % publicRooms.length);
-    }, 9000);
+    const handler = (payload) => {
+      if (!payload?.roomId) {
+        refetch();
+        return;
+      }
 
-    return () => clearInterval(timer);
-  }, [publicRooms.length]);
+      let shouldRefetch = payload.type === "created";
 
-  useEffect(() => {
-    setFeaturedIndex(0);
-    setListStart(0);
-  }, [publicRooms.length]);
+      queryClient.setQueryData(["rooms", "public", "sidebar"], (prev = []) => {
+        const roomExists = prev.some((room) => room.id === payload.roomId);
 
-  useEffect(() => {
-    // subscribe to socket updates
+        if (!roomExists) {
+          shouldRefetch = true;
+          return prev;
+        }
+
+        return prev.map((room) =>
+          room.id === payload.roomId
+            ? {
+                ...room,
+                participant_count:
+                  payload.participantCount ?? room.participant_count,
+                participantCount:
+                  payload.participantCount ?? room.participantCount,
+              }
+            : room,
+        );
+      });
+
+      if (shouldRefetch) {
+        refetch();
+      }
+    };
+
     (async () => {
       try {
-        const socket = await getChatSocket();
-        const handler = (payload) => {
-          if (!payload || !payload.roomId) return;
-          queryClient.setQueryData(
-            ["rooms", "public", "sidebar"],
-            (prev = []) =>
-              prev.map((r) =>
-                r.id === payload.roomId
-                  ? {
-                      ...r,
-                      participant_count:
-                        payload.participantCount ?? r.participant_count,
-                      participantCount:
-                        payload.participantCount ?? r.participantCount,
-                    }
-                  : r,
-              ),
-          );
-        };
-
-        socket.on("rooms:updated", handler);
+        socketRef = await getChatSocket();
+        if (isDisposed || !socketRef) return;
+        socketRef.on("rooms:updated", handler);
       } catch (e) {
         // ignore socket errors
       }
     })();
 
     return () => {
-      (async () => {
-        try {
-          const s = await getChatSocket();
-          s.off("rooms:updated");
-        } catch (e) {}
-      })();
+      isDisposed = true;
+      if (socketRef) {
+        socketRef.off("rooms:updated", handler);
+      }
     };
-  }, [queryClient]);
+  }, [queryClient, refetch]);
 
   function openJoin(room) {
     setJoinTarget(room);
@@ -184,34 +170,7 @@ export default function PublicRooms() {
       </div>
 
       <div className="space-y-2">
-        {featuredRoom && (
-          <div className="rounded-xl border border-red-100 bg-gradient-to-br from-red-50 via-white to-white p-3">
-            <p className="text-[10px] font-bold text-red-700 tracking-wider uppercase">
-              Live Showcase
-            </p>
-            <h4 className="text-sm font-semibold text-gray-900 truncate mt-1">
-              {featuredRoom.title}
-            </h4>
-            <p className="text-xs text-gray-500 truncate mt-1">
-              {featuredRoom.description || "No description"}
-            </p>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-gray-500">
-              <span className="inline-flex items-center gap-1">
-                <Users size={12} />
-                {featuredRoom.participantCount}/{featuredRoom.capacity ?? "-"}
-              </span>
-              <button
-                type="button"
-                onClick={() => navigate(`/rooms/${featuredRoom.id}`)}
-                className="text-red-700 font-semibold hover:text-red-800"
-              >
-                Open
-              </button>
-            </div>
-          </div>
-        )}
-
-        {showcaseRooms.map((room) => (
+        {previewRooms.map((room) => (
           <div key={room.id} className="border border-gray-200 rounded-xl p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -271,18 +230,10 @@ export default function PublicRooms() {
           </div>
         ))}
 
-        {publicRooms.length > 5 && (
-          <button
-            type="button"
-            onClick={() =>
-              setListStart(
-                (prev) => (prev + 5) % Math.max(publicRooms.length, 1),
-              )
-            }
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Show more rooms
-          </button>
+        {!previewRooms.length && (
+          <div className="rounded-xl border border-dashed border-gray-200 px-3 py-4 text-xs text-gray-500">
+            No public rooms available right now.
+          </div>
         )}
       </div>
 

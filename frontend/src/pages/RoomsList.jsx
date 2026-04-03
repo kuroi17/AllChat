@@ -54,8 +54,8 @@ export default function RoomsList() {
   };
 
   const { data: publicRooms = [], isLoading: loadingPublicRooms } = useQuery({
-    queryKey: ["rooms", "public", 100],
-    queryFn: () => fetchPublicRooms(100),
+    queryKey: ["rooms", "public", 1000],
+    queryFn: () => fetchPublicRooms(1000),
     enabled: !!profile?.id,
   });
 

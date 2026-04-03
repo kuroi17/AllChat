@@ -120,7 +120,7 @@ async function resolveOptionalAuth(req) {
 // GET public rooms (limited)
 router.get("/", async (req, res) => {
   try {
-    const limit = parseLimit(req.query.limit, 20, 200);
+    const limit = parseLimit(req.query.limit, 20, 1000);
     const authContext = await resolveOptionalAuth(req);
     const db = authContext?.userClient || supabase;
 
@@ -627,6 +627,19 @@ router.post("/", verifyToken, async (req, res) => {
         ]);
       } catch (memberError) {
         // ignore membership insert failures
+      }
+
+      try {
+        const io = req.app.get("io");
+        if (io) {
+          io.emit("rooms:updated", {
+            roomId: room.id,
+            participantCount: room.participant_count ?? 1,
+            type: "created",
+          });
+        }
+      } catch {
+        // ignore socket errors
       }
     }
 
