@@ -3,7 +3,7 @@ import { useUser } from "../../contexts/UserContext";
 import { emitRoomTyping, sendMessage } from "../../utils/messages";
 import EmojiPickerButton from "../common/EmojiPickerButton";
 
-const GLOBAL_CHAT_COOLDOWN_SECONDS = 15;
+const GLOBAL_CHAT_COOLDOWN_SECONDS = 2;
 
 export default function MessageInput() {
   const { user } = useUser();
@@ -28,6 +28,7 @@ export default function MessageInput() {
       await sendMessage({
         userId: user.id,
         content: text,
+        emitLocalEvent: false,
       });
       // We already dispatch a client event from sendMessage; still clear input
       setText("");

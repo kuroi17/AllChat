@@ -35,6 +35,61 @@ function dedupeMessagesById(items = []) {
   return uniq;
 }
 
+function mergeIncomingGlobalMessage(previousMessages = [], incomingMessage) {
+  if (!incomingMessage) return previousMessages;
+
+  const normalizedIncoming = {
+    ...incomingMessage,
+    reactions: Array.isArray(incomingMessage.reactions)
+      ? incomingMessage.reactions
+      : [],
+  };
+
+  if (!normalizedIncoming.id) {
+    if (
+      previousMessages.some(
+        (message) =>
+          message.content === normalizedIncoming.content &&
+          message.created_at === normalizedIncoming.created_at,
+      )
+    ) {
+      return previousMessages;
+    }
+
+    return [...previousMessages, normalizedIncoming];
+  }
+
+  const existingIndex = previousMessages.findIndex(
+    (message) => message.id === normalizedIncoming.id,
+  );
+
+  if (existingIndex === -1) {
+    return [...previousMessages, normalizedIncoming];
+  }
+
+  const existingMessage = previousMessages[existingIndex] || {};
+  const mergedMessage = {
+    ...existingMessage,
+    ...normalizedIncoming,
+    profiles: normalizedIncoming.profiles || existingMessage.profiles || null,
+    reactions: Array.isArray(normalizedIncoming.reactions)
+      ? normalizedIncoming.reactions
+      : Array.isArray(existingMessage.reactions)
+        ? existingMessage.reactions
+        : [],
+  };
+
+  const previousSignature = JSON.stringify(existingMessage);
+  const nextSignature = JSON.stringify(mergedMessage);
+  if (previousSignature === nextSignature) {
+    return previousMessages;
+  }
+
+  const next = [...previousMessages];
+  next[existingIndex] = mergedMessage;
+  return next;
+}
+
 export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const queryClient = useQueryClient();
@@ -70,28 +125,8 @@ export default function MessagesList({ scrollRef }) {
   // Helper to append message with dedup
   const appendMessage = (incoming) => {
     if (!incoming) return;
-    const normalizedIncoming = {
-      ...incoming,
-      reactions: Array.isArray(incoming.reactions) ? incoming.reactions : [],
-    };
 
-    setMessages((prev) => {
-      // dedupe by id (primary) or by content+timestamp fallback
-      if (normalizedIncoming.id) {
-        if (prev.some((p) => p.id === normalizedIncoming.id)) return prev;
-        return [...prev, normalizedIncoming];
-      }
-      // fallback for messages without id yet
-      if (
-        prev.some(
-          (p) =>
-            p.content === normalizedIncoming.content &&
-            p.created_at === normalizedIncoming.created_at,
-        )
-      )
-        return prev;
-      return [...prev, normalizedIncoming];
-    });
+    setMessages((prev) => mergeIncomingGlobalMessage(prev, incoming));
   };
 
   const applyMessageReactions = (messageId, reactions) => {
