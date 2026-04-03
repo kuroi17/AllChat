@@ -22,6 +22,7 @@ import {
   defaultSettings,
   playNotificationSoundEffect,
   subscribeChatSettings,
+  triggerNotificationHaptic,
 } from "../utils/settings";
 
 export default function Sidebar({ showExtras, onNavigate }) {
@@ -71,6 +72,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
     if (!user?.id) return;
 
     let subscription;
+    let handleSocketConnected;
 
     const setupRealtime = async () => {
       try {
@@ -85,8 +87,12 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
             const currentSettings = settingsRef.current;
 
-            if (!currentSettings.doNotDisturb && currentSettings.soundEffects) {
-              playNotificationSoundEffect();
+            if (!currentSettings.doNotDisturb) {
+              if (currentSettings.soundEffects) {
+                playNotificationSoundEffect();
+              }
+
+              triggerNotificationHaptic();
             }
 
             if (
@@ -102,6 +108,16 @@ export default function Sidebar({ showExtras, onNavigate }) {
             }
           },
         });
+
+        handleSocketConnected = () => {
+          queryClient.invalidateQueries({ queryKey: unreadCountQueryKey });
+          queryClient.invalidateQueries({
+            queryKey: ["directMessages", "conversations", user.id],
+          });
+          refetchUnreadCount();
+        };
+
+        subscription.socket.on("connect", handleSocketConnected);
       } catch (error) {
         console.error("[Sidebar] Realtime subscription failed:", error);
       }
@@ -113,11 +129,22 @@ export default function Sidebar({ showExtras, onNavigate }) {
       refetchUnreadCount();
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refetchUnreadCount();
+      }
+    };
+
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (subscription) {
+        if (handleSocketConnected) {
+          subscription.socket.off("connect", handleSocketConnected);
+        }
         unsubscribeUserRealtime(subscription);
       }
     };

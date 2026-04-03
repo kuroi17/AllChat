@@ -62,12 +62,84 @@ export function subscribeChatSettings(callback) {
   };
 }
 
+let sharedAudioContext = null;
+let hasBoundAudioUnlock = false;
+
+function getSharedAudioContext() {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    sharedAudioContext = new AudioCtx();
+  }
+
+  return sharedAudioContext;
+}
+
+function bindAudioUnlockHandlers() {
+  if (hasBoundAudioUnlock || typeof window === "undefined") return;
+
+  hasBoundAudioUnlock = true;
+
+  const unlock = async () => {
+    const context = getSharedAudioContext();
+    if (!context) return;
+
+    try {
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+
+      if (context.state === "running") {
+        ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+          window.removeEventListener(eventName, unlock);
+        });
+      }
+    } catch {
+      // Ignore unlock failures; we'll retry on next gesture.
+    }
+  };
+
+  ["pointerdown", "touchstart", "keydown"].forEach((eventName) => {
+    window.addEventListener(eventName, unlock, { passive: true });
+  });
+}
+
+if (typeof window !== "undefined") {
+  bindAudioUnlockHandlers();
+}
+
+export function triggerNotificationHaptic() {
+  try {
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.vibrate === "function"
+    ) {
+      navigator.vibrate([24, 32, 24]);
+    }
+  } catch {
+    // Ignore vibration failures on unsupported devices.
+  }
+}
+
 export function playNotificationSoundEffect() {
   try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
+    const audioContext = getSharedAudioContext();
+    if (!audioContext) {
+      triggerNotificationHaptic();
+      return;
+    }
 
-    const audioContext = new AudioCtx();
+    if (audioContext.state === "suspended") {
+      audioContext.resume().catch(() => {});
+    }
+
+    if (audioContext.state !== "running") {
+      // On mobile/background tabs, browsers may block audio; haptic fallback still notifies.
+      triggerNotificationHaptic();
+      return;
+    }
+
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -93,11 +165,8 @@ export function playNotificationSoundEffect() {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.2);
-
-    oscillator.onended = () => {
-      audioContext.close().catch(() => {});
-    };
   } catch (error) {
     console.error("Failed to play notification sound:", error);
+    triggerNotificationHaptic();
   }
 }

@@ -40,8 +40,11 @@ export async function getChatSocket() {
       withCredentials: true,
       path: "/socket.io",
       reconnection: true,
-      reconnectionAttempts: 5,
+      // Keep retrying in mobile/background resume scenarios.
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 8000,
+      randomizationFactor: 0.5,
     });
 
     socketToken = token;
