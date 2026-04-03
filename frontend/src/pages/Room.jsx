@@ -109,7 +109,14 @@ export default function Room() {
   }, [imagePreviewUrl]);
 
   useEffect(() => {
-    if (!room?.id || !isMember || !messageText.trim()) return;
+    const canTypeInRoom =
+      !!room?.id &&
+      !!(
+        room?.isMember ||
+        (room?.creatorId && profile?.id && profile.id === room.creatorId)
+      );
+
+    if (!canTypeInRoom || !messageText.trim()) return;
 
     if (typingEmitTimeoutRef.current) {
       clearTimeout(typingEmitTimeoutRef.current);
@@ -124,7 +131,7 @@ export default function Room() {
         clearTimeout(typingEmitTimeoutRef.current);
       }
     };
-  }, [messageText, room?.id, isMember]);
+  }, [messageText, room?.id, room?.isMember, room?.creatorId, profile?.id]);
 
   useEffect(() => {
     return () => {
