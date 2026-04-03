@@ -1,9 +1,34 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, SmilePlus, X } from "lucide-react";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+const DM_REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
+
+function buildReactionGroups(reactions, currentUserId) {
+  const grouped = new Map();
+
+  (Array.isArray(reactions) ? reactions : []).forEach((item) => {
+    if (!item?.emoji) return;
+
+    const existing = grouped.get(item.emoji) || {
+      emoji: item.emoji,
+      count: 0,
+      reactedByMe: false,
+    };
+
+    existing.count += 1;
+
+    if (item.user_id === currentUserId) {
+      existing.reactedByMe = true;
+    }
+
+    grouped.set(item.emoji, existing);
+  });
+
+  return Array.from(grouped.values());
+}
 
 export default function DirectMessageMessagesPane({
   containerRef,
@@ -22,7 +47,9 @@ export default function DirectMessageMessagesPane({
   messagesEndRef,
 }) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState(null);
   const longPressTimeoutRef = useRef(null);
+  const touchStartRef = useRef(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -51,18 +78,74 @@ export default function DirectMessageMessagesPane({
     if (!longPressTimeoutRef.current) return;
     clearTimeout(longPressTimeoutRef.current);
     longPressTimeoutRef.current = null;
+    touchStartRef.current = null;
   }
 
-  function handleLongPressStart({ messageId, isDeleted, isMenuOpen }) {
+  function openMenuForMessage(messageId) {
+    if (activeMessageMenuId !== messageId) {
+      onToggleMessageMenu(messageId);
+    }
+  }
+
+  function closeActiveMenu() {
+    if (!activeMessageMenuId) return;
+    onToggleMessageMenu(activeMessageMenuId);
+  }
+
+  function handleLongPressStart({ messageId, isDeleted, event }) {
     if (!isMobileViewport || isDeleted) return;
 
     clearLongPress();
+
+    const touchPoint = event?.touches?.[0];
+    if (touchPoint) {
+      touchStartRef.current = {
+        x: touchPoint.clientX,
+        y: touchPoint.clientY,
+      };
+    }
+
     longPressTimeoutRef.current = setTimeout(() => {
-      if (!isMenuOpen) {
-        onToggleMessageMenu(messageId);
-      }
+      openMenuForMessage(messageId);
     }, 550);
   }
+
+  function handleLongPressMove(event) {
+    if (!isMobileViewport || !touchStartRef.current) return;
+
+    const touchPoint = event?.touches?.[0];
+    if (!touchPoint) return;
+
+    const dx = Math.abs(touchPoint.clientX - touchStartRef.current.x);
+    const dy = Math.abs(touchPoint.clientY - touchStartRef.current.y);
+
+    if (dx > 12 || dy > 12) {
+      clearLongPress();
+    }
+  }
+
+  useEffect(() => {
+    if (!activeReactionPickerId) return;
+
+    const handleDocumentClick = () => {
+      setActiveReactionPickerId(null);
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [activeReactionPickerId]);
+
+  const activeMobileMessage =
+    isMobileViewport && activeMessageMenuId
+      ? visibleMessages.find((msg) => msg.id === activeMessageMenuId)
+      : null;
+
+  const activeMobileReactionGroups = buildReactionGroups(
+    activeMobileMessage?.reactions,
+    currentUserId,
+  );
 
   return (
     <div
@@ -94,6 +177,7 @@ export default function DirectMessageMessagesPane({
           visibleMessages.map((msg) => {
             const isMe = msg.sender_id === currentUserId;
             const isMenuOpen = activeMessageMenuId === msg.id;
+            const isReactionPickerOpen = activeReactionPickerId === msg.id;
             const isDeleted =
               (typeof msg.content === "string" &&
                 msg.content.startsWith(DELETED_MESSAGE_MARKER)) ||
@@ -103,28 +187,15 @@ export default function DirectMessageMessagesPane({
               msg.deletedByUsername || (isMe ? "You" : otherUser.username);
             const roomLink =
               !isDeleted && msg.content ? extractRoomLink(msg.content) : null;
-            const reactionGroups = Array.isArray(msg.reactions)
-              ? msg.reactions.reduce((acc, item) => {
-                  if (!item?.emoji) return acc;
+            const reactionGroupList = buildReactionGroups(
+              msg.reactions,
+              currentUserId,
+            );
 
-                  if (!acc[item.emoji]) {
-                    acc[item.emoji] = {
-                      emoji: item.emoji,
-                      count: 0,
-                      reactedByMe: false,
-                    };
-                  }
-
-                  acc[item.emoji].count += 1;
-                  if (item.user_id === currentUserId) {
-                    acc[item.emoji].reactedByMe = true;
-                  }
-
-                  return acc;
-                }, {})
-              : {};
-
-            const reactionGroupList = Object.values(reactionGroups);
+            const reactionMap = reactionGroupList.reduce((acc, group) => {
+              acc[group.emoji] = group;
+              return acc;
+            }, {});
             // msg.profiles?.username || otherUser.username || "User")
             return (
               <div
@@ -137,6 +208,21 @@ export default function DirectMessageMessagesPane({
                       ? "flex-row-reverse pl-7 sm:pl-8 -ml-7 sm:-ml-8"
                       : "flex-row pr-7 sm:pr-8 -mr-7 sm:-mr-8"
                   }`}
+                  onTouchStart={(event) =>
+                    handleLongPressStart({
+                      messageId: msg.id,
+                      isDeleted,
+                      event,
+                    })
+                  }
+                  onTouchMove={handleLongPressMove}
+                  onTouchEnd={clearLongPress}
+                  onTouchCancel={clearLongPress}
+                  onContextMenu={(event) => {
+                    if (isMobileViewport) {
+                      event.preventDefault();
+                    }
+                  }}
                 >
                   {!isMe && (
                     <div className="shrink-0">
@@ -156,47 +242,86 @@ export default function DirectMessageMessagesPane({
 
                   <div
                     className="relative min-w-0"
-                    onTouchStart={() =>
-                      handleLongPressStart({
-                        messageId: msg.id,
-                        isDeleted,
-                        isMenuOpen,
-                      })
-                    }
-                    onTouchEnd={clearLongPress}
-                    onTouchCancel={clearLongPress}
-                    onTouchMove={clearLongPress}
-                    onMouseDown={() =>
-                      handleLongPressStart({
-                        messageId: msg.id,
-                        isDeleted,
-                        isMenuOpen,
-                      })
-                    }
-                    onMouseUp={clearLongPress}
-                    onMouseLeave={clearLongPress}
-                    onContextMenu={(event) => {
-                      if (isMobileViewport) {
-                        event.preventDefault();
-                      }
-                    }}
+                    onClick={() => setActiveReactionPickerId(null)}
                   >
                     {!isDeleted && !isMobileViewport && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onToggleMessageMenu(msg.id);
-                        }}
-                        className={`absolute top-0 z-10 h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center ${
-                          isMe ? "-left-7 sm:-left-8" : "-right-7 sm:-right-8"
-                        } ${isMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"}`}
-                        aria-label="Message options"
-                        title="Message options"
+                      <div
+                        className={`absolute top-0 z-10 flex items-center gap-1 ${
+                          isMe
+                            ? "-left-14 sm:-left-16"
+                            : "-right-14 sm:-right-16"
+                        } ${
+                          isMenuOpen || isReactionPickerOpen
+                            ? "opacity-100 pointer-events-auto"
+                            : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+                        }`}
                       >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setActiveReactionPickerId((prev) =>
+                              prev === msg.id ? null : msg.id,
+                            );
+                          }}
+                          className="h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center"
+                          aria-label="Add reaction"
+                          title="Add reaction"
+                        >
+                          <SmilePlus className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setActiveReactionPickerId(null);
+                            onToggleMessageMenu(msg.id);
+                          }}
+                          className="h-7 w-7 rounded-full bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 shadow-sm transition-colors flex items-center justify-center"
+                          aria-label="Message options"
+                          title="Message options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
+
+                    {isReactionPickerOpen &&
+                      !isMobileViewport &&
+                      !isDeleted && (
+                        <div
+                          onClick={(event) => event.stopPropagation()}
+                          className={`absolute top-10 z-20 rounded-full border border-gray-200 bg-white shadow-lg px-2 py-1.5 flex items-center gap-1.5 ${
+                            isMe ? "right-0" : "left-0"
+                          }`}
+                        >
+                          {DM_REACTION_EMOJIS.map((emoji) => {
+                            const current = reactionMap[emoji];
+                            return (
+                              <button
+                                key={`${msg.id}-picker-${emoji}`}
+                                type="button"
+                                onClick={() => {
+                                  onReactToggle?.({
+                                    messageId: msg.id,
+                                    emoji,
+                                    reactedByMe: !!current?.reactedByMe,
+                                  });
+                                  setActiveReactionPickerId(null);
+                                }}
+                                className={`h-8 w-8 rounded-full border text-base transition-colors flex items-center justify-center ${
+                                  current?.reactedByMe
+                                    ? "bg-red-50 border-red-200"
+                                    : "bg-white border-gray-200 hover:border-gray-300"
+                                }`}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
 
                     {isMenuOpen && !isDeleted && (
                       <div
@@ -216,6 +341,7 @@ export default function DirectMessageMessagesPane({
                         <button
                           type="button"
                           onClick={() => {
+                            setActiveReactionPickerId(null);
                             onReply?.(msg);
                             onToggleMessageMenu(msg.id);
                           }}
@@ -339,47 +465,6 @@ export default function DirectMessageMessagesPane({
                       })}
                     </p>
 
-                    {!isDeleted && (
-                      <div
-                        className={`mt-1 flex items-center gap-2 flex-wrap ${
-                          isMe ? "justify-end" : "justify-start"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onReply?.(msg)}
-                          className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
-                        >
-                          Reply
-                        </button>
-
-                        {["👍", "❤️", "😂"].map((emoji) => {
-                          const current = reactionGroups[emoji];
-                          return (
-                            <button
-                              key={`${msg.id}-${emoji}`}
-                              type="button"
-                              onClick={() =>
-                                onReactToggle?.({
-                                  messageId: msg.id,
-                                  emoji,
-                                  reactedByMe: !!current?.reactedByMe,
-                                })
-                              }
-                              className={`text-[11px] rounded-full border px-2 py-0.5 transition-colors ${
-                                current?.reactedByMe
-                                  ? "bg-red-50 border-red-200 text-red-700"
-                                  : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-                              }`}
-                            >
-                              {emoji}
-                              {current?.count ? ` ${current.count}` : ""}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
                     {!isDeleted && reactionGroupList.length > 0 && (
                       <div
                         className={`mt-1 flex gap-1.5 flex-wrap ${
@@ -391,11 +476,13 @@ export default function DirectMessageMessagesPane({
                             key={`${msg.id}-group-${group.emoji}`}
                             type="button"
                             onClick={() =>
-                              onReactToggle?.({
-                                messageId: msg.id,
-                                emoji: group.emoji,
-                                reactedByMe: group.reactedByMe,
-                              })
+                              isMobileViewport
+                                ? openMenuForMessage(msg.id)
+                                : onReactToggle?.({
+                                    messageId: msg.id,
+                                    emoji: group.emoji,
+                                    reactedByMe: group.reactedByMe,
+                                  })
                             }
                             className={`text-[11px] rounded-full border px-2 py-0.5 ${
                               group.reactedByMe
@@ -416,6 +503,111 @@ export default function DirectMessageMessagesPane({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {isMobileViewport && activeMobileMessage && (
+        <div className="fixed inset-0 z-80 sm:hidden">
+          <button
+            type="button"
+            onClick={closeActiveMenu}
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close message actions"
+          />
+
+          <div className="absolute left-0 right-0 bottom-0 rounded-t-3xl bg-white border-t border-gray-200 p-4 shadow-2xl">
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-gray-200 mb-3" />
+
+            <div className="mb-3 rounded-full border border-gray-200 bg-gray-50 px-2 py-1.5 flex items-center justify-center gap-2 overflow-x-auto">
+              {DM_REACTION_EMOJIS.map((emoji) => {
+                const current = activeMobileReactionGroups.find(
+                  (group) => group.emoji === emoji,
+                );
+
+                return (
+                  <button
+                    key={`mobile-picker-${activeMobileMessage.id}-${emoji}`}
+                    type="button"
+                    onClick={() => {
+                      onReactToggle?.({
+                        messageId: activeMobileMessage.id,
+                        emoji,
+                        reactedByMe: !!current?.reactedByMe,
+                      });
+                      closeActiveMenu();
+                    }}
+                    className={`h-10 w-10 shrink-0 rounded-full border text-lg transition-colors flex items-center justify-center ${
+                      current?.reactedByMe
+                        ? "bg-red-50 border-red-200"
+                        : "bg-white border-gray-200"
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  onReply?.(activeMobileMessage);
+                  closeActiveMenu();
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-800 hover:bg-gray-50"
+              >
+                Reply
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onUnsendForYou(activeMobileMessage.id);
+                  closeActiveMenu();
+                }}
+                className="w-full border-t border-gray-100 px-4 py-3 text-left text-sm text-gray-800 hover:bg-gray-50"
+              >
+                Unsend for you
+              </button>
+
+              {activeMobileMessage.sender_id === currentUserId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUnsendForEveryone(activeMobileMessage.id);
+                    closeActiveMenu();
+                  }}
+                  disabled={deletingMessageId === activeMobileMessage.id}
+                  className="w-full border-t border-gray-100 px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {deletingMessageId === activeMobileMessage.id
+                    ? "Unsending..."
+                    : "Unsend for everyone"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onReportMessage?.(activeMobileMessage);
+                    closeActiveMenu();
+                  }}
+                  className="w-full border-t border-gray-100 px-4 py-3 text-left text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  Report message
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={closeActiveMenu}
+              className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
