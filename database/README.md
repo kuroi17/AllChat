@@ -31,6 +31,10 @@ Useful for debugging and understanding the current database state.
 
 **Sample data for testing.** Optional file to populate the database with test data.
 
+### `add_message_reactions_and_replies.sql`
+
+Adds global/room chat reply support (`messages.reply_to_message_id`) and per-message emoji reactions (`message_reactions` table + RLS policies).
+
 ## How to Setup
 
 1. Go to Supabase Dashboard → SQL Editor
