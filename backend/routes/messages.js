@@ -10,6 +10,7 @@ const {
   validateMediaImageUrl,
   enforceDailyMediaQuota,
 } = require("../utils/chatLimits");
+const { sanitizeProfanity } = require("../utils/profanityFilter");
 
 const router = express.Router();
 
@@ -144,6 +145,7 @@ router.post(
       const userId = req.userId;
       const db = req.supabase || supabase;
       const cleanedContent = typeof content === "string" ? content.trim() : "";
+      const sanitizedContent = sanitizeProfanity(cleanedContent);
       const targetRoom =
         typeof room === "string" && room.trim() ? room.trim() : "global";
       const mediaValidation = validateMediaImageUrl(imageUrl);
@@ -212,7 +214,7 @@ router.post(
         .insert([
           {
             user_id: userId,
-            content: cleanedContent || "",
+            content: sanitizedContent || "",
             room: targetRoom,
             image_url: cleanedImageUrl || null,
           },
