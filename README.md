@@ -52,6 +52,12 @@ Required backend environment variables:
 - `FRONTEND_URL` (required in production)
 - `PORT` (optional, defaults to `4000`)
 
+Optional backend media provider variables:
+
+- `CLOUDINARY_URL` (required only if using Cloudinary signed uploads)
+- `ENABLE_EXTERNAL_MEDIA_URLS` (default `true`, allows trusted external media hosts)
+- `ALLOWED_MEDIA_HOSTS` (comma-separated extra hosts)
+
 Recommended backend guardrails for launch:
 
 - `ENABLE_MEDIA_UPLOADS` (set `false` on free tier)
@@ -80,6 +86,11 @@ Recommended frontend guardrails for launch:
 - `VITE_ENABLE_MEDIA_UPLOADS` (`false` to disable uploads by default)
 - `VITE_MAX_MEDIA_UPLOAD_BYTES` (default `1048576`, 1MB)
 - `VITE_ONLINE_USERS_REFETCH_INTERVAL_MS` (default `60000`)
+
+Optional frontend media provider variables:
+
+- `VITE_MEDIA_STORAGE_PROVIDER` (`supabase` or `cloudinary`)
+- `VITE_CLOUDINARY_UPLOAD_FOLDER` (default `bsuallchat`)
 
 ## Launch Readiness
 

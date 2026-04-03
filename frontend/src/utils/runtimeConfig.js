@@ -25,6 +25,23 @@ export const ENABLE_MEDIA_UPLOADS = parseBoolean(
   false,
 );
 
+const rawMediaProvider =
+  typeof import.meta.env.VITE_MEDIA_STORAGE_PROVIDER === "string"
+    ? import.meta.env.VITE_MEDIA_STORAGE_PROVIDER.trim().toLowerCase()
+    : "";
+
+export const MEDIA_STORAGE_PROVIDER = ["supabase", "cloudinary"].includes(
+  rawMediaProvider,
+)
+  ? rawMediaProvider
+  : "supabase";
+
+export const CLOUDINARY_UPLOAD_FOLDER =
+  typeof import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER === "string" &&
+  import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER.trim()
+    ? import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER.trim()
+    : "bsuallchat";
+
 export const MAX_MEDIA_UPLOAD_BYTES = parsePositiveInt(
   import.meta.env.VITE_MAX_MEDIA_UPLOAD_BYTES,
   1024 * 1024,

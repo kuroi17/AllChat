@@ -259,6 +259,7 @@ const eventsRouter = require("./routes/events");
 const announcementsRouter = require("./routes/announcements");
 const roomsRouter = require("./routes/rooms");
 const reportsRouter = require("./routes/reports");
+const mediaRouter = require("./routes/media");
 
 // Mount routes
 app.use("/api/messages", messagesRouter);
@@ -268,6 +269,7 @@ app.use("/api/events", eventsRouter);
 app.use("/api/announcements", announcementsRouter);
 app.use("/api/rooms", roomsRouter);
 app.use("/api/reports", reportsRouter);
+app.use("/api/media", mediaRouter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
