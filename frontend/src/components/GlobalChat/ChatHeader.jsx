@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MobileNavMenuButton from "../navigation/MobileNavMenuButton";
 import { useUser } from "../../contexts/UserContext";
 import {
@@ -17,12 +18,30 @@ import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(0);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useUser();
+  const notificationsQueryKey = ["notifications", "header", user?.id];
+
+  const {
+    data: notifications = [],
+    isFetching: notificationsFetching,
+    refetch: refetchNotifications,
+  } = useQuery({
+    queryKey: notificationsQueryKey,
+    queryFn: () => fetchNotifications(user.id),
+    enabled: !!user?.id,
+    staleTime: 30 * 1000,
+    refetchInterval: showNotifications ? 20000 : 45000,
+  });
+
+  const { data: onlineUsers = [] } = useQuery({
+    queryKey: ["presence", "onlineUsers"],
+    queryFn: () => fetchOnlineUsers(500),
+    staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
+    refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -42,25 +61,9 @@ export default function ChatHeader() {
   // Load notifications when dropdown opens
   useEffect(() => {
     if (showNotifications && user?.id) {
-      loadNotifications();
+      refetchNotifications();
     }
-  }, [showNotifications, user?.id]);
-
-  // Keep notification badge up to date even when dropdown is closed
-  useEffect(() => {
-    if (!user?.id) return;
-
-    loadNotifications();
-
-    const interval = setInterval(loadNotifications, 20000);
-    const handleFocus = () => loadNotifications();
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [user?.id]);
+  }, [showNotifications, user?.id, refetchNotifications]);
 
   // Realtime updates for follows, DMs, and read-state changes
   useEffect(() => {
@@ -72,10 +75,10 @@ export default function ChatHeader() {
       try {
         subscription = await subscribeUserRealtime(user.id, {
           onDirectMessageNotification: () => {
-            loadNotifications();
+            queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
           },
           onFollowNotification: () => {
-            loadNotifications();
+            queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
           },
         });
       } catch (error) {
@@ -90,51 +93,28 @@ export default function ChatHeader() {
         unsubscribeUserRealtime(subscription);
       }
     };
-  }, [user?.id]);
-
-  // Fetch online users count
-  useEffect(() => {
-    const loadOnlineCount = async () => {
-      try {
-        const users = await fetchOnlineUsers(500);
-        setOnlineCount(users.length);
-      } catch (error) {
-        console.error("[ChatHeader] Error loading online count:", error);
-      }
-    };
-
-    loadOnlineCount();
-
-    const interval = setInterval(
-      loadOnlineCount,
-      ONLINE_USERS_REFETCH_INTERVAL_MS,
-    );
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadNotifications() {
-    if (!user?.id) return;
-    try {
-      setLoading(true);
-      const notifs = await fetchNotifications(user.id);
-      setNotifications(notifs);
-    } catch (error) {
-      console.error("[ChatHeader] Error loading notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [user?.id, queryClient]);
 
   async function handleNotificationClick(notif) {
     await markNotificationRead(notif.id, notif.type);
+    queryClient.setQueryData(notificationsQueryKey, (prev = []) =>
+      prev.map((item) =>
+        item.id === notif.id ? { ...item, read: true } : item,
+      ),
+    );
 
     if (notif.link) {
       navigate(notif.link);
       setShowNotifications(false);
     }
+
+    queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
   }
 
+  const onlineCount = onlineUsers.length;
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const showNotificationLoading =
+    notificationsFetching && notifications.length === 0;
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 sm:px-5 gap-2 sm:gap-3 shrink-0">
@@ -183,7 +163,7 @@ export default function ChatHeader() {
 
             {/* Notifications List */}
             <div className="max-h-96 overflow-y-auto">
-              {loading ? (
+              {showNotificationLoading ? (
                 <div className="px-4 py-8 text-center text-gray-500 text-sm">
                   Loading notifications...
                 </div>

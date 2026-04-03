@@ -31,6 +31,8 @@ export default function PublicRooms() {
   } = useQuery({
     queryKey: ["rooms", "public", "sidebar"],
     queryFn: () => fetchPublicRooms(5),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
   const normalizedRooms = useMemo(

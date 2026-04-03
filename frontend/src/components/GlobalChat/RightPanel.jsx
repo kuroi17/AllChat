@@ -1,11 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
-import { Calendar, Megaphone, Coffee } from "lucide-react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchOnlineUsers,
   isUserOnline,
-  fetchCampusEvents,
-  fetchAnnouncements,
   fetchFollowing,
 } from "../../utils/social";
 import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
@@ -13,13 +10,12 @@ import PublicRooms from "../PublicRooms";
 import { useUser } from "../../contexts/UserContext";
 
 export default function Sidebar() {
-  const [events, setEvents] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
   const { user } = useUser();
 
   const { data: onlineUsers = [] } = useQuery({
     queryKey: ["presence", "onlineUsers"],
     queryFn: () => fetchOnlineUsers(500),
+    staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
     refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
   });
 
@@ -27,6 +23,7 @@ export default function Sidebar() {
     queryKey: ["follows", "following", user?.id],
     queryFn: () => fetchFollowing(user.id),
     enabled: !!user?.id,
+    staleTime: 60 * 1000,
     refetchInterval: 60000,
   });
 
@@ -39,26 +36,6 @@ export default function Sidebar() {
     () => (onlineUsers || []).filter((profile) => followingIds.has(profile.id)),
     [onlineUsers, followingIds],
   );
-
-  // Fetch campus events
-  useEffect(() => {
-    const loadEvents = async () => {
-      const eventsList = await fetchCampusEvents(1); // Get next event
-      setEvents(eventsList);
-    };
-
-    loadEvents();
-  }, []);
-
-  // Fetch announcements
-  useEffect(() => {
-    const loadAnnouncements = async () => {
-      const announcementsList = await fetchAnnouncements(1); // Get latest announcement
-      setAnnouncements(announcementsList);
-    };
-
-    loadAnnouncements();
-  }, []);
 
   // Avatar colors for users
   const colors = [

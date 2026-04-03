@@ -47,6 +47,8 @@ export default function DirectMessages() {
     queryKey: ["directMessages", "conversations", user?.id],
     queryFn: () => fetchConversations(user.id),
     enabled: !!user?.id,
+    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
   const deleteConversationMutation = useMutation({

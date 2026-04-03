@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   GraduationCap,
   MessageCircle,
@@ -25,12 +26,21 @@ import {
 
 export default function Sidebar({ showExtras, onNavigate }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, profile } = useUser(); // get user and profile from context
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [unreadDmCount, setUnreadDmCount] = useState(0);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
   const userMenuRef = useRef(null);
   const settingsRef = useRef(defaultSettings);
+  const unreadCountQueryKey = ["directMessages", "unreadCount", user?.id];
+
+  const { data: unreadDmCount = 0, refetch: refetchUnreadCount } = useQuery({
+    queryKey: unreadCountQueryKey,
+    queryFn: () => fetchUnreadDirectMessageCount(user.id),
+    enabled: !!user?.id,
+    staleTime: 15000,
+    refetchInterval: 30000,
+  });
 
   useEffect(() => {
     settingsRef.current = chatSettings;
@@ -58,23 +68,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
   // Keep unread DM badge in sync for the sidebar nav
   useEffect(() => {
-    if (!user?.id) {
-      setUnreadDmCount(0);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadUnreadCount = async () => {
-      const count = await fetchUnreadDirectMessageCount(user.id);
-      if (isMounted) {
-        setUnreadDmCount(count);
-      }
-    };
-
-    loadUnreadCount();
-
-    const interval = setInterval(loadUnreadCount, 15000);
+    if (!user?.id) return;
 
     let subscription;
 
@@ -82,7 +76,10 @@ export default function Sidebar({ showExtras, onNavigate }) {
       try {
         subscription = await subscribeUserRealtime(user.id, {
           onDirectMessageNotification: (payload) => {
-            loadUnreadCount();
+            queryClient.invalidateQueries({ queryKey: unreadCountQueryKey });
+            queryClient.invalidateQueries({
+              queryKey: ["directMessages", "conversations", user.id],
+            });
 
             if (payload?.senderId === user.id) return;
 
@@ -113,20 +110,18 @@ export default function Sidebar({ showExtras, onNavigate }) {
     setupRealtime();
 
     const handleFocus = () => {
-      loadUnreadCount();
+      refetchUnreadCount();
     };
 
     window.addEventListener("focus", handleFocus);
 
     return () => {
-      isMounted = false;
-      clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
       if (subscription) {
         unsubscribeUserRealtime(subscription);
       }
     };
-  }, [user?.id]);
+  }, [user?.id, queryClient, refetchUnreadCount]);
 
   const handleLogout = async () => {
     // Ask for confirmation before logging out

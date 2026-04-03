@@ -50,6 +50,8 @@ export default function MessagesList({ scrollRef }) {
     queryKey: ["messages", "global"],
     queryFn: () => fetchMessages("global"),
     initialData: initialMessages.length ? initialMessages : undefined,
+    staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 
   // Helper to append message with dedup
