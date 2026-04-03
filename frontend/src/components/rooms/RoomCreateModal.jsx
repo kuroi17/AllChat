@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 
 const defaultForm = {
   title: "",
@@ -15,21 +15,74 @@ export default function RoomCreateModal({
   error,
 }) {
   const [form, setForm] = useState(defaultForm);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
+  const [logoError, setLogoError] = useState("");
 
   useEffect(() => {
     if (open) {
       setForm(defaultForm);
+      setLogoFile(null);
+      setLogoPreviewUrl("");
+      setLogoError("");
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!logoPreviewUrl) return;
+    return () => URL.revokeObjectURL(logoPreviewUrl);
+  }, [logoPreviewUrl]);
+
   if (!open) return null;
+
+  const handleLogoChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Please select a valid image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError("Room logo must be 5MB or less.");
+      return;
+    }
+
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
+
+    setLogoError("");
+    setLogoFile(file);
+    setLogoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const clearLogo = () => {
+    if (logoPreviewUrl) {
+      URL.revokeObjectURL(logoPreviewUrl);
+    }
+    setLogoFile(null);
+    setLogoPreviewUrl("");
+    setLogoError("");
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (!logoFile) {
+      const proceed = window.confirm(
+        "Add a room logo now for better recognition? You can still continue without one.",
+      );
+      if (!proceed) return;
+    }
+
     onCreate?.({
       title: form.title,
       description: form.description,
       isPublic: form.isPublic,
+      logoFile,
     });
   };
 
@@ -79,6 +132,66 @@ export default function RoomCreateModal({
             />
           </div>
 
+          <div>
+            <p className="text-xs text-gray-500">Room logo (recommended)</p>
+            <div className="mt-2 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3">
+              {logoPreviewUrl ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={logoPreviewUrl}
+                    alt="Room logo preview"
+                    className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-700 truncate">
+                      {logoFile?.name}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {(logoFile?.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearLogo}
+                    className="text-xs font-semibold text-red-700 hover:text-red-800"
+                    disabled={creating}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer flex items-center gap-2 text-sm text-gray-600">
+                  <ImagePlus className="w-4 h-4 text-red-700" />
+                  <span>Upload a logo image before creating</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                    disabled={creating}
+                  />
+                </label>
+              )}
+
+              {logoPreviewUrl && (
+                <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                  Change image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoChange}
+                    disabled={creating}
+                  />
+                </label>
+              )}
+            </div>
+
+            {logoError && (
+              <p className="mt-1 text-xs text-red-600">{logoError}</p>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -102,9 +215,9 @@ export default function RoomCreateModal({
             </label>
           </div>
 
-          {error && (
+          {(error || logoError) && (
             <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              {error}
+              {error || logoError}
             </div>
           )}
 

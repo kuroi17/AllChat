@@ -10,6 +10,8 @@ import {
   fetchPublicRooms,
   createPublicRoom,
   joinPublicRoom,
+  updateRoomAvatar,
+  uploadRoomAvatar,
 } from "../utils/social";
 import RoomsHeader from "../components/rooms/RoomsHeader";
 import RoomCard from "../components/rooms/RoomCard";
@@ -120,7 +122,26 @@ export default function RoomsList() {
   });
 
   const createMutation = useMutation({
-    mutationFn: createPublicRoom,
+    mutationFn: async (payload) => {
+      const { logoFile, ...roomPayload } = payload || {};
+      const created = await createPublicRoom(roomPayload);
+
+      if (created?.id && logoFile) {
+        try {
+          const avatarUrl = await uploadRoomAvatar({
+            roomId: created.id,
+            file: logoFile,
+          });
+          await updateRoomAvatar(created.id, avatarUrl);
+          created.avatar_url = avatarUrl;
+        } catch (logoError) {
+          created.logoUploadError =
+            logoError?.message || "Room logo upload failed";
+        }
+      }
+
+      return created;
+    },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       if (!created?.id) {
@@ -129,7 +150,12 @@ export default function RoomsList() {
       }
       setShowCreate(false);
       navigate(`/rooms/${created.id}`, {
-        state: { showToast: true, message: "Room created" },
+        state: {
+          showToast: true,
+          message: created.logoUploadError
+            ? "Room created (logo upload failed)"
+            : "Room created",
+        },
       });
     },
     onError: (err) => {
