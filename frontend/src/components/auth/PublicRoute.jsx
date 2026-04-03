@@ -5,13 +5,6 @@ import Skeleton from "../ui/Skeleton";
 export default function PublicRoute({ children }) {
   const { user, loading } = useUser();
 
-  console.log(
-    "[PublicRoute] loading:",
-    loading,
-    "user:",
-    user ? "exists" : "null",
-  );
-
   if (loading) {
     // Show loading spinner while checking auth
     return (

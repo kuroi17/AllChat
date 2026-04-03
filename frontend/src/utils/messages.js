@@ -31,13 +31,10 @@ export async function getChatSocket() {
     throw new Error("Not authenticated");
   }
 
-  if (!socketInstance || socketToken !== token) {
-    if (socketInstance) {
-      socketInstance.disconnect();
-    }
-
+  if (!socketInstance) {
     socketInstance = io(API_BASE_URL, {
       auth: { token },
+      autoConnect: false,
       // allow polling fallback when websocket upgrades fail (some proxies/load-balancers)
       transports: ["websocket", "polling"],
       withCredentials: true,
@@ -47,16 +44,19 @@ export async function getChatSocket() {
       reconnectionDelay: 1000,
     });
 
-    // Helpful debug logs for connection issues
-    socketInstance.on("connect_error", (err) => {
-      // eslint-disable-next-line no-console
-      console.warn("Socket connect_error:", err?.message || err);
-    });
-    socketInstance.on("connect", () => {
-      // eslint-disable-next-line no-console
-      console.info("Socket connected -> id:", socketInstance.id);
-    });
     socketToken = token;
+  } else if (socketToken !== token) {
+    // Keep one socket instance so existing listeners stay attached.
+    socketToken = token;
+    socketInstance.auth = { token };
+
+    if (socketInstance.connected || socketInstance.active) {
+      socketInstance.disconnect();
+    }
+  }
+
+  if (!socketInstance.connected) {
+    socketInstance.connect();
   }
 
   return socketInstance;
@@ -292,5 +292,8 @@ export async function fetchProfilesByIds(ids = []) {
     .select("id, username, avatar_url, bio")
     .in("id", ids);
   if (error) throw error;
-  return profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+  return (profiles || []).reduce((acc, p) => {
+    acc[p.id] = p;
+    return acc;
+  }, {});
 }

@@ -13,6 +13,13 @@ const REQUEST_CACHE_TTL_MS = 20000;
 const apiGetCache = new Map();
 const pendingGetRequests = new Map();
 let lastPresenceUpdateAt = 0;
+const SHOULD_LOG_DEBUG = import.meta.env.DEV;
+
+function logDebugError(...args) {
+  if (SHOULD_LOG_DEBUG) {
+    console.error(...args);
+  }
+}
 
 function buildRequestCacheKey({ method, path, authKey }) {
   return `${method}:${path}:${authKey || "public"}`;
@@ -144,7 +151,7 @@ export async function updatePresence(userId) {
       body: { lastSeen: new Date().toISOString() },
     });
   } catch (error) {
-    console.error("[Presence] Update failed:", error);
+    logDebugError("[Presence] Update failed:", error);
   }
 }
 
@@ -160,7 +167,7 @@ export async function fetchOnlineUsers(limit = 10) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Presence] Fetch online users failed:", error);
+    logDebugError("[Presence] Fetch online users failed:", error);
     return [];
   }
 }
@@ -220,7 +227,7 @@ export async function fetchFollowing(userId) {
       .map((item) => item?.profiles || { id: item?.following_id })
       .filter((profile) => profile?.id);
   } catch (error) {
-    console.error("[Follows] Fetch following failed:", error);
+    logDebugError("[Follows] Fetch following failed:", error);
     return [];
   }
 }
@@ -239,7 +246,7 @@ export async function fetchFollowers(userId) {
       .map((item) => item?.profiles || { id: item?.follower_id })
       .filter((profile) => profile?.id);
   } catch (error) {
-    console.error("[Follows] Fetch followers failed:", error);
+    logDebugError("[Follows] Fetch followers failed:", error);
     return [];
   }
 }
@@ -257,7 +264,7 @@ export async function isFollowing(userId, targetUserId) {
     );
     return !!data?.isFollowing;
   } catch (error) {
-    console.error("[Follows] Check following failed:", error);
+    logDebugError("[Follows] Check following failed:", error);
     return false;
   }
 }
@@ -300,7 +307,7 @@ export async function fetchConversations(userId) {
     });
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[DM] Fetch conversations failed:", error);
+    logDebugError("[DM] Fetch conversations failed:", error);
     return [];
   }
 }
@@ -332,7 +339,7 @@ export async function fetchUnreadDirectMessageCount(userId) {
     );
     return Number(data?.count) || 0;
   } catch (error) {
-    console.error("[DM] Fetch unread count failed:", error);
+    logDebugError("[DM] Fetch unread count failed:", error);
     return 0;
   }
 }
@@ -448,7 +455,7 @@ export async function fetchDirectMessages(conversationId, limit = 75) {
 
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[DM] Fetch messages failed:", error);
+    logDebugError("[DM] Fetch messages failed:", error);
     return [];
   }
 }
@@ -467,7 +474,7 @@ export async function fetchDirectMessageMedia(conversationId, limit = 12) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[DM] Fetch shared media failed:", error);
+    logDebugError("[DM] Fetch shared media failed:", error);
     return [];
   }
 }
@@ -487,7 +494,7 @@ export async function markConversationAsRead(conversationId, userId) {
       },
     );
   } catch (error) {
-    console.error("[DM] Mark as read failed:", error);
+    logDebugError("[DM] Mark as read failed:", error);
   }
 }
 
@@ -665,7 +672,7 @@ export async function fetchCampusEvents(limit = 5) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Events] Fetch failed:", error);
+    logDebugError("[Events] Fetch failed:", error);
     return [];
   }
 }
@@ -681,7 +688,7 @@ export async function fetchAnnouncements(limit = 3) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Announcements] Fetch failed:", error);
+    logDebugError("[Announcements] Fetch failed:", error);
     return [];
   }
 }
@@ -735,7 +742,7 @@ export async function fetchPublicRooms(limit = 20) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Rooms] Fetch failed:", error);
+    logDebugError("[Rooms] Fetch failed:", error);
     return [];
   }
 }
@@ -748,7 +755,7 @@ export async function fetchJoinedRooms() {
     const data = await requestApi("/api/rooms/joined", { auth: true });
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Rooms] Fetch joined failed:", error);
+    logDebugError("[Rooms] Fetch joined failed:", error);
     return [];
   }
 }
@@ -847,7 +854,7 @@ export async function fetchRoomMembers(roomId, limit = 6) {
     );
     return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("[Rooms] Fetch members failed:", error);
+    logDebugError("[Rooms] Fetch members failed:", error);
     return [];
   }
 }

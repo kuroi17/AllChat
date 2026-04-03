@@ -31,6 +31,7 @@ export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const [messages, setMessages] = useState([]);
   const containerRef = useRef(null);
+  const profileCacheRef = useRef(new Map());
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -113,6 +114,13 @@ export default function MessagesList({ scrollRef }) {
 
   useEffect(() => {
     if (!Array.isArray(fetchedMessages)) return;
+
+    fetchedMessages.forEach((msg) => {
+      if (msg?.profiles?.id) {
+        profileCacheRef.current.set(msg.profiles.id, msg.profiles);
+      }
+    });
+
     setMessages((prev) => {
       if (!prev.length) return dedupeMessagesById(fetchedMessages);
       return dedupeMessagesById([...fetchedMessages, ...prev]);
@@ -122,7 +130,10 @@ export default function MessagesList({ scrollRef }) {
   useEffect(() => {
     let mounted = true;
     let subscription;
-    const bc = new BroadcastChannel("bsu_messages");
+    const bc =
+      typeof BroadcastChannel !== "undefined"
+        ? new BroadcastChannel("bsu_messages")
+        : null;
 
     const setupRealtime = async () => {
       try {
@@ -130,21 +141,39 @@ export default function MessagesList({ scrollRef }) {
           onNew: async (msg) => {
             if (!mounted) return;
 
-            console.log("[MessagesList] Realtime message received:", msg.id);
+            if (msg?.profiles?.id) {
+              profileCacheRef.current.set(msg.profiles.id, msg.profiles);
+              appendMessage(msg);
+              bc?.postMessage(msg);
+              return;
+            }
+
+            const cachedProfile = msg?.user_id
+              ? profileCacheRef.current.get(msg.user_id)
+              : null;
+
+            if (cachedProfile) {
+              const mergedFromCache = { ...msg, profiles: cachedProfile };
+              appendMessage(mergedFromCache);
+              bc?.postMessage(mergedFromCache);
+              return;
+            }
 
             try {
               // fetch profile for incoming message's user if not present
               const profMap = await fetchProfilesByIds([msg.user_id]);
-              const merged = { ...msg, profiles: profMap[msg.user_id] || null };
+              const profile = profMap[msg.user_id] || null;
+
+              if (profile?.id) {
+                profileCacheRef.current.set(profile.id, profile);
+              }
+
+              const merged = { ...msg, profiles: profile };
               appendMessage(merged);
-              bc.postMessage(merged);
+              bc?.postMessage(merged);
             } catch (e) {
-              console.warn(
-                "[MessagesList] Failed to fetch profile, appending raw:",
-                e,
-              );
               appendMessage(msg);
-              bc.postMessage(msg);
+              bc?.postMessage(msg);
             }
           },
           onDeleted: (payload) => {
@@ -152,7 +181,6 @@ export default function MessagesList({ scrollRef }) {
             setMessages((prev) => prev.filter((msg) => msg.id !== payload.id));
           },
         });
-        console.log("[MessagesList] Subscribed to Socket.IO room");
       } catch (error) {
         console.error("[MessagesList] Realtime subscribe failed:", error);
       }
@@ -161,15 +189,15 @@ export default function MessagesList({ scrollRef }) {
     setupRealtime();
 
     // Listen for messages from other tabs (same browser)
-    bc.onmessage = (e) => {
-      console.log("[MessagesList] BroadcastChannel message received:", e.data);
-      appendMessage(e.data);
-    };
+    if (bc) {
+      bc.onmessage = (e) => {
+        appendMessage(e.data);
+      };
+    }
 
     // Listen for client-side optimistic events (sendMessage dispatch)
     const onLocal = (e) => {
       const msg = e.detail;
-      console.log("[MessagesList] Local newMessage event:", msg);
       // normalize to match fetchMessages shape
       appendMessage({
         ...msg,
@@ -181,7 +209,7 @@ export default function MessagesList({ scrollRef }) {
     return () => {
       mounted = false;
       if (subscription) unsubscribeMessages(subscription);
-      bc.close();
+      bc?.close();
       window.removeEventListener("newMessage", onLocal);
     };
   }, []);

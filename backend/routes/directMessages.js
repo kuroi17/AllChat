@@ -310,7 +310,7 @@ router.post(
   async (req, res) => {
     try {
       const userId = req.userId;
-      const db = req.supabase || supabase;
+      const adminDb = supabase;
       const targetUserId = req.body?.targetUserId;
 
       if (!targetUserId) {
@@ -323,25 +323,50 @@ router.post(
           .json({ error: "Cannot start conversation with yourself" });
       }
 
-      const { data: existing, error: existingError } = await db
-        .from("conversation_participants")
-        .select("conversation_id")
-        .in("user_id", [userId, targetUserId]);
+      const { data: targetProfile, error: targetProfileError } = await adminDb
+        .from("profiles")
+        .select("id")
+        .eq("id", targetUserId)
+        .maybeSingle();
 
-      if (existingError) throw existingError;
-
-      if (existing && existing.length >= 2) {
-        const conversationIds = existing.map((p) => p.conversation_id);
-        const duplicateId = conversationIds.find(
-          (id, index) => conversationIds.indexOf(id) !== index,
-        );
-
-        if (duplicateId) {
-          return res.json({ conversationId: duplicateId, created: false });
-        }
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile) {
+        return res.status(404).json({ error: "Target user not found" });
       }
 
-      const { data: conversation, error: conversationError } = await db
+      const [
+        { data: currentUserConversations, error: currentUserError },
+        { data: targetUserConversations, error: targetUserError },
+      ] = await Promise.all([
+        adminDb
+          .from("conversation_participants")
+          .select("conversation_id")
+          .eq("user_id", userId),
+        adminDb
+          .from("conversation_participants")
+          .select("conversation_id")
+          .eq("user_id", targetUserId),
+      ]);
+
+      if (currentUserError) throw currentUserError;
+      if (targetUserError) throw targetUserError;
+
+      const targetConversationIds = new Set(
+        (targetUserConversations || []).map((row) => row.conversation_id),
+      );
+
+      const existingConversation = (currentUserConversations || []).find(
+        (row) => targetConversationIds.has(row.conversation_id),
+      );
+
+      if (existingConversation?.conversation_id) {
+        return res.json({
+          conversationId: existingConversation.conversation_id,
+          created: false,
+        });
+      }
+
+      const { data: conversation, error: conversationError } = await adminDb
         .from("conversations")
         .insert({})
         .select("id")
@@ -349,14 +374,26 @@ router.post(
 
       if (conversationError) throw conversationError;
 
-      const { error: participantsError } = await db
+      const { error: participantsError } = await adminDb
         .from("conversation_participants")
         .insert([
           { conversation_id: conversation.id, user_id: userId },
           { conversation_id: conversation.id, user_id: targetUserId },
         ]);
 
-      if (participantsError) throw participantsError;
+      if (participantsError) {
+        // Best effort cleanup if participant insert fails.
+        await adminDb.from("conversations").delete().eq("id", conversation.id);
+
+        if (participantsError.code === "42501") {
+          return res.status(500).json({
+            error:
+              "Server is missing service-role permissions for direct messages.",
+          });
+        }
+
+        throw participantsError;
+      }
 
       res.status(201).json({ conversationId: conversation.id, created: true });
     } catch (err) {

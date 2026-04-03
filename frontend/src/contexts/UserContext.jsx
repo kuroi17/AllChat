@@ -19,28 +19,18 @@ export default function UserProvider({ children }) {
 
     // get initial session
     const getUser = async () => {
-      console.log("[UserContext] Fetching user...");
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        console.log(
-          "[UserContext] Session:",
-          session?.user ? "Found user" : "No user",
-        );
 
         if (isMounted) {
           setUser(session?.user ?? null);
           // Set loading false IMMEDIATELY - don't wait for profile
           setLoading(false);
-          console.log("[UserContext] Loading complete");
 
           // Fetch profile in background (non-blocking)
           if (session?.user) {
-            console.log(
-              "[UserContext] Fetching profile for user:",
-              session.user.id,
-            );
             fetchProfile(session.user.id).catch((err) => {
               console.error("[UserContext] Profile fetch failed:", err);
             });
@@ -61,7 +51,6 @@ export default function UserProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("[UserContext] Auth changed:", event);
       if (isMounted) {
         setUser(session?.user ?? null);
 
@@ -142,11 +131,6 @@ export default function UserProvider({ children }) {
       setProfile(data);
     } else if (error && error.code === "PGRST116") {
       // Profile doesn't exist - create one automatically (for OAuth users)
-      console.log(
-        "[UserContext] Profile not found, creating new profile for:",
-        userId,
-      );
-
       // Get user metadata from auth
       const {
         data: { user: authUser },
@@ -170,7 +154,6 @@ export default function UserProvider({ children }) {
         .single();
 
       if (newProfile) {
-        console.log("[UserContext] Profile created successfully:", newProfile);
         setProfile(newProfile);
       } else if (insertError) {
         console.error("[UserContext] Error creating profile:", insertError);
