@@ -2,7 +2,9 @@ import { supabase } from "./supabase";
 import { io } from "socket.io-client";
 import {
   API_BASE_URL,
+  CLOUDINARY_UPLOAD_FOLDER,
   ENABLE_MEDIA_UPLOADS,
+  MEDIA_STORAGE_PROVIDER,
   MAX_GLOBAL_MESSAGE_CHARS,
   MAX_MEDIA_UPLOAD_BYTES,
   MAX_MEDIA_UPLOAD_MB,
@@ -353,6 +355,67 @@ export async function uploadRoomMessageImage({ roomId, file }) {
 
   if (!userId) {
     throw new Error("Not authenticated");
+  }
+
+  if (MEDIA_STORAGE_PROVIDER === "cloudinary") {
+    const token = await getAccessToken();
+
+    const signedResponse = await fetch(
+      `${API_BASE_URL}/api/media/cloudinary/signature`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          resourceType: "image",
+          folder: `${CLOUDINARY_UPLOAD_FOLDER}/rooms/${roomId}`,
+        }),
+      },
+    );
+
+    if (!signedResponse.ok) {
+      const errorMessage = await readErrorResponse(
+        signedResponse,
+        "Failed to initialize Cloudinary upload",
+      );
+      throw new Error(errorMessage);
+    }
+
+    const signedUpload = await signedResponse.json();
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("api_key", String(signedUpload.apiKey));
+    formData.append("timestamp", String(signedUpload.timestamp));
+    formData.append("signature", signedUpload.signature);
+
+    if (signedUpload.folder) {
+      formData.append("folder", signedUpload.folder);
+    }
+
+    const uploadResponse = await fetch(signedUpload.uploadUrl, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      const errorMessage = await readErrorResponse(
+        uploadResponse,
+        "Cloudinary upload failed",
+      );
+      throw new Error(errorMessage);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const uploadedUrl = uploadData?.secure_url || uploadData?.url;
+
+    if (!uploadedUrl) {
+      throw new Error("Cloudinary upload did not return a media URL");
+    }
+
+    return uploadedUrl;
   }
 
   const extension = file.name.split(".").pop() || "jpg";
