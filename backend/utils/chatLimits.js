@@ -32,7 +32,18 @@ const configuredAllowedHosts = String(process.env.ALLOWED_MEDIA_HOSTS || "")
   .map((host) => host.trim().toLowerCase())
   .filter(Boolean);
 
-const allowedMediaHosts = new Set(configuredAllowedHosts);
+const defaultExternalMediaHosts = [
+  "res.cloudinary.com",
+  "media.giphy.com",
+  "i.giphy.com",
+  "media.tenor.com",
+  "c.tenor.com",
+];
+
+const allowedMediaHosts = new Set([
+  ...configuredAllowedHosts,
+  ...defaultExternalMediaHosts,
+]);
 if (supabaseHost) {
   allowedMediaHosts.add(supabaseHost.toLowerCase());
 }
@@ -65,6 +76,7 @@ const chatLimits = {
   // Force media uploads off by default to protect free-tier usage.
   // Set ENABLE_MEDIA_UPLOADS=true in the environment to re-enable.
   mediaUploadsEnabled: parseBoolean("ENABLE_MEDIA_UPLOADS", false),
+  allowExternalMediaUrls: parseBoolean("ENABLE_EXTERNAL_MEDIA_URLS", true),
   maxMediaMessagesPerDay: parsePositiveInt("MAX_MEDIA_MESSAGES_PER_DAY", 5),
   allowedMediaHosts,
 };
@@ -80,7 +92,7 @@ function validateMediaImageUrl(rawValue) {
     return { ok: true, value: "" };
   }
 
-  if (!chatLimits.mediaUploadsEnabled) {
+  if (!chatLimits.mediaUploadsEnabled && !chatLimits.allowExternalMediaUrls) {
     return {
       ok: false,
       status: 403,

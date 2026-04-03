@@ -15,6 +15,10 @@ import {
   subscribeChatSettings,
   triggerNotificationHaptic,
 } from "../../utils/settings";
+import {
+  extractRenderableMediaUrl,
+  stripMediaUrlFromText,
+} from "../../utils/mediaLinks";
 
 const DELETED_MARKER = "__BSUALLCHAT_ROOM_DELETED__";
 
@@ -479,6 +483,13 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
           const isDeleted =
             typeof msg.content === "string" &&
             msg.content.startsWith(DELETED_MARKER);
+          const derivedMediaUrl = !msg.image_url
+            ? extractRenderableMediaUrl(msg.content || "")
+            : "";
+          const displayMediaUrl = msg.image_url || derivedMediaUrl;
+          const displayText = displayMediaUrl
+            ? stripMediaUrlFromText(msg.content || "", displayMediaUrl)
+            : msg.content;
           const avatarUrl = msg.profiles?.avatar_url;
           const username = msg.profiles?.username || "User";
           const createdAtLabel = msg.created_at
@@ -533,16 +544,23 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
                       <p className="italic text-gray-300">Message deleted</p>
                     ) : (
                       <>
-                        {msg.image_url && (
-                          <img
-                            src={msg.image_url}
-                            alt="Room media"
-                            className="mb-2 w-full max-w-60 rounded-xl object-cover"
-                          />
+                        {displayMediaUrl && (
+                          <a
+                            href={displayMediaUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block max-w-full"
+                          >
+                            <img
+                              src={displayMediaUrl}
+                              alt="Room media"
+                              className="mb-2 w-full max-w-60 rounded-xl object-cover"
+                            />
+                          </a>
                         )}
-                        {msg.content && (
+                        {displayText && (
                           <p className="whitespace-pre-wrap wrap-anywhere">
-                            {msg.content}
+                            {displayText}
                           </p>
                         )}
                       </>

@@ -2,6 +2,10 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, MessageCircle, MoreVertical, SmilePlus, X } from "lucide-react";
 import { useUser } from "../../contexts/UserContext";
+import {
+  extractRenderableMediaUrl,
+  stripMediaUrlFromText,
+} from "../../utils/mediaLinks";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
@@ -34,6 +38,14 @@ export default function Message({
   const touchStartRef = useRef(null);
   const navigate = useNavigate();
   const messageText = typeof text === "string" ? text : "";
+  const messageMediaUrl = useMemo(
+    () => extractRenderableMediaUrl(messageText),
+    [messageText],
+  );
+  const messageDisplayText = useMemo(
+    () => stripMediaUrlFromText(messageText, messageMediaUrl),
+    [messageText, messageMediaUrl],
+  );
 
   const reactionGroups = useMemo(() => {
     const grouped = new Map();
@@ -202,7 +214,7 @@ export default function Message({
     </div>
   );
 
-  const roomLink = extractRoomLink(messageText);
+  const roomLink = extractRoomLink(messageDisplayText);
 
   if (me) {
     return (
@@ -223,7 +235,21 @@ export default function Message({
               }
             }}
           >
-            <p>{messageText}</p>
+            {messageMediaUrl && (
+              <a
+                href={messageMediaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block max-w-full"
+              >
+                <img
+                  src={messageMediaUrl}
+                  alt="Shared media"
+                  className="w-full max-w-60 rounded-xl object-cover"
+                />
+              </a>
+            )}
+            {messageDisplayText && <p>{messageDisplayText}</p>}
           </div>
 
           {!isMobileViewport && (
@@ -453,7 +479,21 @@ export default function Message({
             }
           }}
         >
-          <p>{messageText}</p>
+          {messageMediaUrl && (
+            <a
+              href={messageMediaUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block max-w-full"
+            >
+              <img
+                src={messageMediaUrl}
+                alt="Shared media"
+                className="w-full max-w-60 rounded-xl object-cover"
+              />
+            </a>
+          )}
+          {messageDisplayText && <p>{messageDisplayText}</p>}
         </div>
 
         {reactionGroups.length > 0 && (

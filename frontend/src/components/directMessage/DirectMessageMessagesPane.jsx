@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreVertical, SmilePlus, X } from "lucide-react";
+import {
+  extractRenderableMediaUrl,
+  stripMediaUrlFromText,
+} from "../../utils/mediaLinks";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
 
@@ -185,8 +189,15 @@ export default function DirectMessageMessagesPane({
             const replyMessage = msg.reply_message || null;
             const deletedLabel =
               msg.deletedByUsername || (isMe ? "You" : otherUser.username);
+            const derivedMediaUrl = !msg.image_url
+              ? extractRenderableMediaUrl(msg.content || "")
+              : "";
+            const displayMediaUrl = msg.image_url || derivedMediaUrl;
+            const displayText = displayMediaUrl
+              ? stripMediaUrlFromText(msg.content || "", displayMediaUrl)
+              : msg.content;
             const roomLink =
-              !isDeleted && msg.content ? extractRoomLink(msg.content) : null;
+              !isDeleted && displayText ? extractRoomLink(displayText) : null;
             const reactionGroupList = buildReactionGroups(
               msg.reactions,
               currentUserId,
@@ -421,24 +432,24 @@ export default function DirectMessageMessagesPane({
                           </div>
                         )}
 
-                        {msg.image_url && (
+                        {displayMediaUrl && (
                           <a
-                            href={msg.image_url}
+                            href={displayMediaUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="block max-w-full"
                           >
                             <img
-                              src={msg.image_url}
+                              src={displayMediaUrl}
                               alt="Shared media"
                               className="mb-2 w-full max-w-52.5 sm:max-w-70 max-h-90 rounded-xl object-cover"
                             />
                           </a>
                         )}
 
-                        {msg.content && (
+                        {displayText && (
                           <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">
-                            {msg.content}
+                            {displayText}
                           </p>
                         )}
                         {roomLink && (
