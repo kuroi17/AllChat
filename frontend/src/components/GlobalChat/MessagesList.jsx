@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
@@ -40,8 +40,10 @@ export default function MessagesList({ scrollRef }) {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
+  const [typingUserIds, setTypingUserIds] = useState([]);
   const containerRef = useRef(null);
   const profileCacheRef = useRef(new Map());
+  const typingTimeoutsRef = useRef(new Map());
   const settingsRef = useRef(defaultSettings);
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
@@ -155,6 +157,28 @@ export default function MessagesList({ scrollRef }) {
     setReportTarget(target);
   };
 
+  const markUserTyping = (typingUserId) => {
+    if (!typingUserId || typingUserId === user?.id) return;
+
+    setTypingUserIds((prev) => {
+      if (prev.includes(typingUserId)) return prev;
+      return [...prev, typingUserId];
+    });
+
+    const timeoutMap = typingTimeoutsRef.current;
+    const existingTimeout = timeoutMap.get(typingUserId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      setTypingUserIds((prev) => prev.filter((id) => id !== typingUserId));
+      timeoutMap.delete(typingUserId);
+    }, 2600);
+
+    timeoutMap.set(typingUserId, timeout);
+  };
+
   const notifyIncomingMessage = (incomingMessage) => {
     if (!incomingMessage?.user_id || incomingMessage.user_id === user?.id) {
       return;
@@ -202,6 +226,13 @@ export default function MessagesList({ scrollRef }) {
     const timer = setTimeout(() => setToast(null), 3500);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    return () => {
+      typingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      typingTimeoutsRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     settingsRef.current = chatSettings;
@@ -288,6 +319,10 @@ export default function MessagesList({ scrollRef }) {
             if (!mounted) return;
             applyMessageReactions(payload?.messageId, payload?.reactions || []);
           },
+          onTyping: (payload) => {
+            if (!mounted) return;
+            markUserTyping(payload?.userId);
+          },
         });
       } catch (error) {
         console.error("[MessagesList] Realtime subscribe failed:", error);
@@ -321,6 +356,24 @@ export default function MessagesList({ scrollRef }) {
       window.removeEventListener("newMessage", onLocal);
     };
   }, [user?.id]);
+
+  const typingLabel = useMemo(() => {
+    if (!typingUserIds.length) return "";
+
+    const names = typingUserIds
+      .map((id) => profileCacheRef.current.get(id)?.username)
+      .filter(Boolean);
+
+    if (names.length === 1) {
+      return `${names[0]} is typing...`;
+    }
+
+    if (names.length > 1) {
+      return `${names[0]} and ${names.length - 1} other${names.length - 1 > 1 ? "s" : ""} are typing...`;
+    }
+
+    return "Someone is typing...";
+  }, [typingUserIds]);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -401,6 +454,14 @@ export default function MessagesList({ scrollRef }) {
           }
         />
       ))}
+
+      {typingLabel && (
+        <div className="pt-1">
+          <p className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500 italic shadow-sm">
+            {typingLabel}
+          </p>
+        </div>
+      )}
 
       <ReportMessageModal
         open={!!reportTarget}

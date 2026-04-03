@@ -183,7 +183,7 @@ export async function sendMessage({
 // Subscribe to new or deleted messages in a room
 export async function subscribeMessages(
   room = "global",
-  { onNew, onDeleted, onReaction } = {},
+  { onNew, onDeleted, onReaction, onTyping } = {},
 ) {
   const targetRoom = room || "global";
   const socket = await getChatSocket();
@@ -208,9 +208,16 @@ export async function subscribeMessages(
     }
   };
 
+  const handleTyping = (payload) => {
+    if (payload?.room === targetRoom && typeof onTyping === "function") {
+      onTyping(payload);
+    }
+  };
+
   socket.on("message:new", handleNew);
   socket.on("message:deleted", handleDeleted);
   socket.on("message:reaction", handleReaction);
+  socket.on("room:user-typing", handleTyping);
 
   return {
     socket,
@@ -218,6 +225,7 @@ export async function subscribeMessages(
     handleNew,
     handleDeleted,
     handleReaction,
+    handleTyping,
   };
 }
 
@@ -228,7 +236,14 @@ export function unsubscribeMessages(subscription) {
   subscription.socket.off("message:new", subscription.handleNew);
   subscription.socket.off("message:deleted", subscription.handleDeleted);
   subscription.socket.off("message:reaction", subscription.handleReaction);
+  subscription.socket.off("room:user-typing", subscription.handleTyping);
   subscription.socket.emit("room:leave", { room: subscription.room });
+}
+
+export async function emitRoomTyping(room = "global") {
+  const socket = await getChatSocket();
+  const targetRoom = typeof room === "string" && room.trim() ? room : "global";
+  socket.emit("room:typing", { room: targetRoom });
 }
 
 export async function addMessageReaction(messageId, emoji) {

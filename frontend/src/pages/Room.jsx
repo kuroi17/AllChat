@@ -25,7 +25,11 @@ import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
 import RoomMessagesList from "../components/rooms/RoomMessagesList";
 import RoomMembersPanel from "../components/rooms/RoomMembersPanel";
 import DirectMessageComposer from "../components/directMessage/DirectMessageComposer";
-import { sendMessage, uploadRoomMessageImage } from "../utils/messages";
+import {
+  emitRoomTyping,
+  sendMessage,
+  uploadRoomMessageImage,
+} from "../utils/messages";
 import { useUser } from "../contexts/UserContext";
 import {
   ENABLE_MEDIA_UPLOADS,
@@ -62,6 +66,7 @@ export default function Room() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const imageInputRef = useRef(null);
   const avatarInputRef = useRef(null);
+  const typingEmitTimeoutRef = useRef(null);
 
   const normalizeRoom = (data) => {
     const creatorId = data?.creatorId ?? data?.creator_id ?? null;
@@ -102,6 +107,32 @@ export default function Room() {
     if (!imagePreviewUrl) return;
     return () => URL.revokeObjectURL(imagePreviewUrl);
   }, [imagePreviewUrl]);
+
+  useEffect(() => {
+    if (!room?.id || !isMember || !messageText.trim()) return;
+
+    if (typingEmitTimeoutRef.current) {
+      clearTimeout(typingEmitTimeoutRef.current);
+    }
+
+    typingEmitTimeoutRef.current = setTimeout(() => {
+      emitRoomTyping(`room:${room.id}`).catch(() => {});
+    }, 260);
+
+    return () => {
+      if (typingEmitTimeoutRef.current) {
+        clearTimeout(typingEmitTimeoutRef.current);
+      }
+    };
+  }, [messageText, room?.id, isMember]);
+
+  useEffect(() => {
+    return () => {
+      if (typingEmitTimeoutRef.current) {
+        clearTimeout(typingEmitTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const openPreview = (targetRoom) => {
     setJoinError("");

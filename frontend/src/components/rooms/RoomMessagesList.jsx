@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
@@ -107,11 +107,13 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const { user, profile } = useUser();
   const [messages, setMessages] = useState([]);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
+  const [typingUserIds, setTypingUserIds] = useState([]);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const containerRef = useRef(null);
+  const typingTimeoutsRef = useRef(new Map());
   const settingsRef = useRef(defaultSettings);
 
   const hiddenMessageStorageKey =
@@ -147,6 +149,28 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
     }
 
     triggerNotificationHaptic();
+  };
+
+  const markUserTyping = (typingUserId) => {
+    if (!typingUserId || typingUserId === user?.id) return;
+
+    setTypingUserIds((prev) => {
+      if (prev.includes(typingUserId)) return prev;
+      return [...prev, typingUserId];
+    });
+
+    const timeoutMap = typingTimeoutsRef.current;
+    const existingTimeout = timeoutMap.get(typingUserId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      setTypingUserIds((prev) => prev.filter((id) => id !== typingUserId));
+      timeoutMap.delete(typingUserId);
+    }, 2600);
+
+    timeoutMap.set(typingUserId, timeout);
   };
 
   useEffect(() => {
@@ -213,6 +237,10 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
                   : msg,
               ),
             );
+          },
+          onTyping: (payload) => {
+            if (!mounted) return;
+            markUserTyping(payload?.userId);
           },
         });
       } catch (error) {
@@ -295,6 +323,13 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
       window.removeEventListener("roomMessage:remove", handleRemove);
     };
   }, [roomId, user?.id, profile?.username, profile?.avatar_url]);
+
+  useEffect(() => {
+    return () => {
+      typingTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      typingTimeoutsRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!hiddenMessageStorageKey) {
@@ -400,6 +435,29 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const visibleMessages = messages.filter(
     (msg) => !hiddenMessageIds.includes(msg.id),
   );
+
+  const typingLabel = useMemo(() => {
+    if (!typingUserIds.length) return "";
+
+    const userNames = typingUserIds
+      .map(
+        (typingUserId) =>
+          messages.find((item) => item.user_id === typingUserId)?.profiles
+            ?.username,
+      )
+      .filter(Boolean);
+
+    if (userNames.length === 1) {
+      return `${userNames[0]} is typing...`;
+    }
+
+    if (userNames.length > 1) {
+      return `${userNames[0]} and ${userNames.length - 1} other${userNames.length - 1 > 1 ? "s" : ""} are typing...`;
+    }
+
+    return "Someone is typing...";
+  }, [typingUserIds, messages]);
+
   const deleteTargetIsMe = deleteTarget?.user_id === user?.id;
   const deleteTargetIsDeleted =
     typeof deleteTarget?.content === "string" &&
@@ -535,6 +593,14 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
             </div>
           );
         })}
+
+        {typingLabel && (
+          <div className="pt-1">
+            <p className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500 italic shadow-sm">
+              {typingLabel}
+            </p>
+          </div>
+        )}
       </div>
 
       {deleteTarget && (

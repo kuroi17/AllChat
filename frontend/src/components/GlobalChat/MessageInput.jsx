@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
-import { sendMessage } from "../../utils/messages";
+import { emitRoomTyping, sendMessage } from "../../utils/messages";
 import EmojiPickerButton from "../common/EmojiPickerButton";
 
 const GLOBAL_CHAT_COOLDOWN_SECONDS = 15;
+const STARTER_PROMPTS = [
+  "What are you working on today?",
+  "Anyone up for a quick study session?",
+  "Share one win from your day.",
+];
 
 export default function MessageInput() {
   const { user } = useUser();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const typingTimeoutRef = useRef(null);
 
   const isCoolingDown = cooldownRemaining > 0;
 
@@ -48,11 +54,53 @@ export default function MessageInput() {
     return () => window.clearTimeout(timer);
   }, [isCoolingDown, cooldownRemaining]);
 
+  useEffect(() => {
+    if (!text.trim()) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      emitRoomTyping("global").catch(() => {});
+    }, 260);
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [text]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <form
       onSubmit={handleSend}
       className="bg-white border-t border-gray-200 px-2 sm:px-5 py-2 sm:py-3 shrink-0"
     >
+      {!text.trim() && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {STARTER_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => setText(prompt)}
+              disabled={sending || isCoolingDown}
+              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 sm:gap-3">
         <EmojiPickerButton
           onSelect={handleInsertEmoji}

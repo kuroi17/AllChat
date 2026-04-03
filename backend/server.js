@@ -73,6 +73,13 @@ const socketDmTypingRateLimiter = createSocketRateLimiter({
   errorMessage: "Typing events are too frequent. Please slow down.",
 });
 
+const socketRoomTypingRateLimiter = createSocketRateLimiter({
+  scope: "socket-room-typing",
+  windowMs: 10000,
+  maxRequests: 60,
+  errorMessage: "Typing events are too frequent. Please slow down.",
+});
+
 // Socket.IO middleware to verify JWT tokens
 io.use(async (socket, next) => {
   try {
@@ -197,6 +204,50 @@ io.on("connection", (socket) => {
       conversationId,
       timestamp: Date.now(),
     });
+  });
+
+  socket.on("room:typing", async (payload, ack) => {
+    if (!socketRoomTypingRateLimiter(socket, ack)) return;
+
+    const room = payload?.room || "global";
+
+    if (room !== "global") {
+      if (typeof room !== "string" || !room.startsWith("room:")) {
+        if (typeof ack === "function") {
+          ack({ ok: false, error: "Invalid room" });
+        }
+        return;
+      }
+
+      const roomId = room.replace("room:", "");
+      const db = socket.accessToken
+        ? createUserScopedClient(socket.accessToken)
+        : supabase;
+
+      const { data, error } = await db
+        .from("room_members")
+        .select("room_id")
+        .eq("room_id", roomId)
+        .eq("user_id", socket.userId)
+        .maybeSingle();
+
+      if (error || !data) {
+        if (typeof ack === "function") {
+          ack({ ok: false, error: "Not authorized" });
+        }
+        return;
+      }
+    }
+
+    io.to(`room:${room}`).emit("room:user-typing", {
+      userId: socket.userId,
+      room,
+      timestamp: Date.now(),
+    });
+
+    if (typeof ack === "function") {
+      ack({ ok: true, room });
+    }
   });
 });
 
