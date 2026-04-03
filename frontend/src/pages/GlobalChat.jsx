@@ -8,6 +8,7 @@ import MessageInput from "../components/GlobalChat/MessageInput";
 export default function GlobalChat() {
   const messagesScrollRef = useRef(null);
   const [showRightOverlay, setShowRightOverlay] = useState(false);
+  const [replyTarget, setReplyTarget] = useState(null);
 
   useEffect(() => {
     const handler = () => setShowRightOverlay(true);
@@ -28,12 +29,18 @@ export default function GlobalChat() {
         {/* Messages area - grows and scrolls */}
         <div ref={messagesScrollRef} className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto w-full px-2 sm:px-4 md:px-0">
-            <MessagesList scrollRef={messagesScrollRef} />
+            <MessagesList
+              scrollRef={messagesScrollRef}
+              onReplySelect={setReplyTarget}
+            />
           </div>
         </div>
 
         {/* Input stays visible at bottom */}
-        <MessageInput />
+        <MessageInput
+          replyTarget={replyTarget}
+          onClearReply={() => setReplyTarget(null)}
+        />
       </main>
 
       <div className="hidden xl:block">

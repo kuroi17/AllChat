@@ -105,6 +105,7 @@ export async function sendMessage({
   content,
   room = "global",
   imageUrl,
+  replyToMessageId = null,
 }) {
   const trimmed = typeof content === "string" ? content.trim() : "";
   const trimmedImageUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
@@ -144,6 +145,7 @@ export async function sendMessage({
       content: trimmed,
       room,
       imageUrl: trimmedImageUrl || null,
+      replyToMessageId: replyToMessageId || null,
     }),
   });
 
@@ -174,7 +176,7 @@ export async function sendMessage({
 // Subscribe to new or deleted messages in a room
 export async function subscribeMessages(
   room = "global",
-  { onNew, onDeleted } = {},
+  { onNew, onDeleted, onReaction } = {},
 ) {
   const targetRoom = room || "global";
   const socket = await getChatSocket();
@@ -193,14 +195,22 @@ export async function subscribeMessages(
     }
   };
 
+  const handleReaction = (payload) => {
+    if (payload?.room === targetRoom && typeof onReaction === "function") {
+      onReaction(payload);
+    }
+  };
+
   socket.on("message:new", handleNew);
   socket.on("message:deleted", handleDeleted);
+  socket.on("message:reaction", handleReaction);
 
   return {
     socket,
     room: targetRoom,
     handleNew,
     handleDeleted,
+    handleReaction,
   };
 }
 
@@ -210,7 +220,66 @@ export function unsubscribeMessages(subscription) {
 
   subscription.socket.off("message:new", subscription.handleNew);
   subscription.socket.off("message:deleted", subscription.handleDeleted);
+  subscription.socket.off("message:reaction", subscription.handleReaction);
   subscription.socket.emit("room:leave", { room: subscription.room });
+}
+
+export async function addMessageReaction(messageId, emoji) {
+  if (!messageId) throw new Error("Missing message ID");
+  if (!emoji) throw new Error("Missing emoji");
+
+  const token = await getAccessToken();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ emoji }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      "Failed to add reaction",
+    );
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
+export async function removeMessageReaction(messageId, emoji) {
+  if (!messageId) throw new Error("Missing message ID");
+  if (!emoji) throw new Error("Missing emoji");
+
+  const token = await getAccessToken();
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ emoji }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      "Failed to remove reaction",
+    );
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
 }
 
 export async function deleteMessage(messageId) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, MessageCircle, MoreVertical } from "lucide-react";
 import { useUser } from "../../contexts/UserContext";
@@ -14,6 +14,12 @@ export default function Message({
   userId,
   avatarUrl,
   onReport,
+  onReply,
+  onReactToggle,
+  reactions = [],
+  currentUserId,
+  replyMessage,
+  messageId,
 }) {
   const { profile } = useUser();
   const [showMenu, setShowMenu] = useState(false);
@@ -21,6 +27,25 @@ export default function Message({
   const menuRef = useRef(null);
   const actionsRef = useRef(null);
   const navigate = useNavigate();
+  const messageText = typeof text === "string" ? text : "";
+
+  const reactionGroups = useMemo(() => {
+    const grouped = new Map();
+    (Array.isArray(reactions) ? reactions : []).forEach((item) => {
+      if (!item?.emoji) return;
+      const existing = grouped.get(item.emoji) || {
+        emoji: item.emoji,
+        count: 0,
+        reactedByMe: false,
+      };
+      existing.count += 1;
+      if (item.user_id === currentUserId) {
+        existing.reactedByMe = true;
+      }
+      grouped.set(item.emoji, existing);
+    });
+    return Array.from(grouped.values());
+  }, [reactions, currentUserId]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -63,7 +88,30 @@ export default function Message({
     onReport?.({ userId, username: user });
   };
 
-  const roomLink = extractRoomLink(text);
+  const handleReply = () => {
+    onReply?.({
+      id: messageId,
+      userId,
+      user,
+      content: messageText,
+      profiles: {
+        username: user,
+        avatar_url: avatarUrl || null,
+      },
+    });
+    setShowActions(false);
+    setShowMenu(false);
+  };
+
+  const handleToggleReaction = (emoji, reactedByMe) => {
+    onReactToggle?.({
+      messageId,
+      emoji,
+      reactedByMe,
+    });
+  };
+
+  const roomLink = extractRoomLink(messageText);
 
   if (me) {
     return (
@@ -72,9 +120,71 @@ export default function Message({
           {time} · Me
         </div>
         <div className="max-w-xs sm:max-w-md">
-          <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white">
-            {text}
+          <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white space-y-2">
+            {replyMessage && (
+              <div className="rounded-xl bg-red-700/70 px-2.5 py-1.5 border border-red-300/40">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-red-100">
+                  Replying to {replyMessage?.profiles?.username || "User"}
+                </p>
+                <p className="text-xs text-red-100 truncate">
+                  {replyMessage?.content || "(no text)"}
+                </p>
+              </div>
+            )}
+            <p>{messageText}</p>
           </div>
+          <div className="mt-1 flex items-center justify-end gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleReply}
+              className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
+            >
+              Reply
+            </button>
+
+            {["👍", "❤️", "😂"].map((emoji) => {
+              const current = reactionGroups.find(
+                (item) => item.emoji === emoji,
+              );
+              return (
+                <button
+                  key={`${messageId}-${emoji}`}
+                  type="button"
+                  onClick={() =>
+                    handleToggleReaction(emoji, !!current?.reactedByMe)
+                  }
+                  className={`text-[11px] rounded-full border px-2 py-0.5 transition-colors ${
+                    current?.reactedByMe
+                      ? "bg-red-50 border-red-200 text-red-700"
+                      : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  {emoji}
+                  {current?.count ? ` ${current.count}` : ""}
+                </button>
+              );
+            })}
+          </div>
+          {reactionGroups.length > 0 && (
+            <div className="mt-1 flex justify-end gap-1.5 flex-wrap">
+              {reactionGroups.map((group) => (
+                <button
+                  key={`${messageId}-group-${group.emoji}`}
+                  type="button"
+                  onClick={() =>
+                    handleToggleReaction(group.emoji, group.reactedByMe)
+                  }
+                  className={`text-[11px] rounded-full border px-2 py-0.5 ${
+                    group.reactedByMe
+                      ? "bg-red-50 border-red-200 text-red-700"
+                      : "bg-white border-gray-200 text-gray-600"
+                  }`}
+                >
+                  {group.emoji} {group.count}
+                </button>
+              ))}
+            </div>
+          )}
           {roomLink && (
             <RoomLinkPreviewCard
               roomId={roomLink.type === "room" ? roomLink.value : null}
@@ -170,9 +280,72 @@ export default function Message({
             </div>
           )}
         </div>
-        <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md">
-          {text}
+        <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md space-y-2">
+          {replyMessage && (
+            <div className="rounded-xl bg-gray-50 px-2.5 py-1.5 border border-gray-200">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                Replying to {replyMessage?.profiles?.username || "User"}
+              </p>
+              <p className="text-xs text-gray-600 truncate">
+                {replyMessage?.content || "(no text)"}
+              </p>
+            </div>
+          )}
+          <p>{messageText}</p>
         </div>
+
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleReply}
+            className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
+          >
+            Reply
+          </button>
+
+          {["👍", "❤️", "😂"].map((emoji) => {
+            const current = reactionGroups.find((item) => item.emoji === emoji);
+            return (
+              <button
+                key={`${messageId}-${emoji}`}
+                type="button"
+                onClick={() =>
+                  handleToggleReaction(emoji, !!current?.reactedByMe)
+                }
+                className={`text-[11px] rounded-full border px-2 py-0.5 transition-colors ${
+                  current?.reactedByMe
+                    ? "bg-red-50 border-red-200 text-red-700"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                {emoji}
+                {current?.count ? ` ${current.count}` : ""}
+              </button>
+            );
+          })}
+        </div>
+
+        {reactionGroups.length > 0 && (
+          <div className="mt-1 flex gap-1.5 flex-wrap">
+            {reactionGroups.map((group) => (
+              <button
+                key={`${messageId}-group-${group.emoji}`}
+                type="button"
+                onClick={() =>
+                  handleToggleReaction(group.emoji, group.reactedByMe)
+                }
+                className={`text-[11px] rounded-full border px-2 py-0.5 ${
+                  group.reactedByMe
+                    ? "bg-red-50 border-red-200 text-red-700"
+                    : "bg-white border-gray-200 text-gray-600"
+                }`}
+              >
+                {group.emoji} {group.count}
+              </button>
+            ))}
+          </div>
+        )}
+
         {roomLink && (
           <RoomLinkPreviewCard
             roomId={roomLink.type === "room" ? roomLink.value : null}

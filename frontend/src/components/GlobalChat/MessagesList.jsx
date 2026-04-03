@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "../../contexts/UserContext";
 import Message from "./Message";
 import ReportMessageModal from "../modals/ReportMessageModal";
 import AppToast from "../common/AppToast";
 import {
+  addMessageReaction,
   fetchMessages,
   fetchProfilesByIds,
+  removeMessageReaction,
   subscribeMessages,
   unsubscribeMessages,
 } from "../../utils/messages";
@@ -27,8 +29,9 @@ function dedupeMessagesById(items = []) {
   return uniq;
 }
 
-export default function MessagesList({ scrollRef }) {
+export default function MessagesList({ scrollRef, onReplySelect }) {
   const { user } = useUser();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
   const containerRef = useRef(null);
   const profileCacheRef = useRef(new Map());
@@ -57,23 +60,87 @@ export default function MessagesList({ scrollRef }) {
   // Helper to append message with dedup
   const appendMessage = (incoming) => {
     if (!incoming) return;
+    const normalizedIncoming = {
+      ...incoming,
+      reactions: Array.isArray(incoming.reactions) ? incoming.reactions : [],
+      reply_message: incoming.reply_message || null,
+    };
+
     setMessages((prev) => {
       // dedupe by id (primary) or by content+timestamp fallback
-      if (incoming.id) {
-        if (prev.some((p) => p.id === incoming.id)) return prev;
-        return [...prev, incoming];
+      if (normalizedIncoming.id) {
+        if (prev.some((p) => p.id === normalizedIncoming.id)) return prev;
+        return [...prev, normalizedIncoming];
       }
       // fallback for messages without id yet
       if (
         prev.some(
           (p) =>
-            p.content === incoming.content &&
-            p.created_at === incoming.created_at,
+            p.content === normalizedIncoming.content &&
+            p.created_at === normalizedIncoming.created_at,
         )
       )
         return prev;
-      return [...prev, incoming];
+      return [...prev, normalizedIncoming];
     });
+  };
+
+  const applyMessageReactions = (messageId, reactions) => {
+    if (!messageId) return;
+    const normalizedReactions = Array.isArray(reactions) ? reactions : [];
+
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === messageId
+          ? { ...message, reactions: normalizedReactions }
+          : message,
+      ),
+    );
+  };
+
+  const handleToggleReaction = async ({ messageId, emoji, reactedByMe }) => {
+    if (!messageId || !emoji || !user?.id) return;
+
+    const previousMessage = messages.find((item) => item.id === messageId);
+    const previousReactions = Array.isArray(previousMessage?.reactions)
+      ? previousMessage.reactions
+      : [];
+
+    if (reactedByMe) {
+      let removed = false;
+      const nextReactions = previousReactions.filter((item) => {
+        if (!removed && item.user_id === user.id && item.emoji === emoji) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+      applyMessageReactions(messageId, nextReactions);
+    } else {
+      applyMessageReactions(messageId, [
+        ...previousReactions,
+        {
+          user_id: user.id,
+          emoji,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    try {
+      if (reactedByMe) {
+        await removeMessageReaction(messageId, emoji);
+      } else {
+        await addMessageReaction(messageId, emoji);
+      }
+    } catch (error) {
+      applyMessageReactions(messageId, previousReactions);
+      setToast({
+        type: "error",
+        message: error.message || "Failed to update reaction.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["messages", "global"] });
+    }
   };
 
   const handleReportMessage = (target) => {
@@ -182,6 +249,10 @@ export default function MessagesList({ scrollRef }) {
             if (!mounted) return;
             setMessages((prev) => prev.filter((msg) => msg.id !== payload.id));
           },
+          onReaction: (payload) => {
+            if (!mounted) return;
+            applyMessageReactions(payload?.messageId, payload?.reactions || []);
+          },
         });
       } catch (error) {
         console.error("[MessagesList] Realtime subscribe failed:", error);
@@ -273,6 +344,7 @@ export default function MessagesList({ scrollRef }) {
       {messages.map((msg) => (
         <Message
           key={msg.id}
+          messageId={msg.id}
           user={msg.profiles?.username || "User"}
           userId={msg.user_id}
           avatarUrl={msg.profiles?.avatar_url}
@@ -282,7 +354,12 @@ export default function MessagesList({ scrollRef }) {
             minute: "2-digit",
           })}
           text={msg.content}
+          replyMessage={msg.reply_message}
+          reactions={msg.reactions}
+          currentUserId={user?.id}
           me={msg.user_id === user.id}
+          onReply={onReplySelect}
+          onReactToggle={handleToggleReaction}
           onReport={(payload) =>
             handleReportMessage({
               ...payload,

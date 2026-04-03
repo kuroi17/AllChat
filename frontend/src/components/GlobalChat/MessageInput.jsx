@@ -5,7 +5,7 @@ import EmojiPickerButton from "../common/EmojiPickerButton";
 
 const GLOBAL_CHAT_COOLDOWN_SECONDS = 15;
 
-export default function MessageInput() {
+export default function MessageInput({ replyTarget = null, onClearReply }) {
   const { user } = useUser();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -24,10 +24,15 @@ export default function MessageInput() {
     setSending(true);
 
     try {
-      await sendMessage({ userId: user.id, content: text });
+      await sendMessage({
+        userId: user.id,
+        content: text,
+        replyToMessageId: replyTarget?.id || null,
+      });
       // We already dispatch a client event from sendMessage; still clear input
       setText("");
       setCooldownRemaining(GLOBAL_CHAT_COOLDOWN_SECONDS);
+      onClearReply?.();
     } catch (err) {
       alert(err.message);
     } finally {
@@ -50,6 +55,27 @@ export default function MessageInput() {
       onSubmit={handleSend}
       className="bg-white border-t border-gray-200 px-2 sm:px-5 py-2 sm:py-3 shrink-0"
     >
+      {replyTarget && (
+        <div className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-semibold truncate">
+              Replying to{" "}
+              {replyTarget?.profiles?.username || replyTarget?.user || "User"}
+            </p>
+            <p className="text-red-700 truncate">
+              {replyTarget?.content || "(no text)"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onClearReply?.()}
+            className="text-red-700 hover:text-red-900 font-semibold"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 sm:gap-3">
         <EmojiPickerButton
           onSelect={handleInsertEmoji}
