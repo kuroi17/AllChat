@@ -13,6 +13,12 @@ import {
   unsubscribeMessages,
 } from "../../utils/messages";
 import { submitMessageReport } from "../../utils/social";
+import {
+  defaultSettings,
+  playNotificationSoundEffect,
+  subscribeChatSettings,
+  triggerNotificationHaptic,
+} from "../../utils/settings";
 
 const GLOBAL_MESSAGES_CACHE_KEY = "global_messages_cache_v1";
 
@@ -33,8 +39,10 @@ export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
+  const [chatSettings, setChatSettings] = useState(defaultSettings);
   const containerRef = useRef(null);
   const profileCacheRef = useRef(new Map());
+  const settingsRef = useRef(defaultSettings);
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -147,6 +155,21 @@ export default function MessagesList({ scrollRef }) {
     setReportTarget(target);
   };
 
+  const notifyIncomingMessage = (incomingMessage) => {
+    if (!incomingMessage?.user_id || incomingMessage.user_id === user?.id) {
+      return;
+    }
+
+    const currentSettings = settingsRef.current;
+    if (currentSettings?.doNotDisturb) return;
+
+    if (currentSettings?.soundEffects) {
+      playNotificationSoundEffect();
+    }
+
+    triggerNotificationHaptic();
+  };
+
   const handleSubmitReport = async ({ reason, description }) => {
     if (!reportTarget?.userId) return;
     try {
@@ -181,6 +204,15 @@ export default function MessagesList({ scrollRef }) {
   }, [toast]);
 
   useEffect(() => {
+    settingsRef.current = chatSettings;
+  }, [chatSettings]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeChatSettings(setChatSettings);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     if (!Array.isArray(fetchedMessages)) return;
 
     fetchedMessages.forEach((msg) => {
@@ -213,6 +245,7 @@ export default function MessagesList({ scrollRef }) {
               profileCacheRef.current.set(msg.profiles.id, msg.profiles);
               appendMessage(msg);
               bc?.postMessage(msg);
+              notifyIncomingMessage(msg);
               return;
             }
 
@@ -224,6 +257,7 @@ export default function MessagesList({ scrollRef }) {
               const mergedFromCache = { ...msg, profiles: cachedProfile };
               appendMessage(mergedFromCache);
               bc?.postMessage(mergedFromCache);
+              notifyIncomingMessage(mergedFromCache);
               return;
             }
 
@@ -239,9 +273,11 @@ export default function MessagesList({ scrollRef }) {
               const merged = { ...msg, profiles: profile };
               appendMessage(merged);
               bc?.postMessage(merged);
+              notifyIncomingMessage(merged);
             } catch (e) {
               appendMessage(msg);
               bc?.postMessage(msg);
+              notifyIncomingMessage(msg);
             }
           },
           onDeleted: (payload) => {
@@ -284,7 +320,7 @@ export default function MessagesList({ scrollRef }) {
       bc?.close();
       window.removeEventListener("newMessage", onLocal);
     };
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!messages.length) return;

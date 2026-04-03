@@ -339,7 +339,7 @@ export default function Settings() {
                 <ToggleRow
                   icon={Volume2}
                   title="Message Sound Effects"
-                  description="Play an alert sound when new direct messages arrive."
+                  description="Play an alert sound when new direct, global, or room messages arrive."
                   checked={settings.soundEffects}
                   onChange={handleSoundEffectsToggle}
                   actionLabel="Play"

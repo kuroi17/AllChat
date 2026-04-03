@@ -9,6 +9,12 @@ import {
   subscribeMessages,
   unsubscribeMessages,
 } from "../../utils/messages";
+import {
+  defaultSettings,
+  playNotificationSoundEffect,
+  subscribeChatSettings,
+  triggerNotificationHaptic,
+} from "../../utils/settings";
 
 const DELETED_MARKER = "__BSUALLCHAT_ROOM_DELETED__";
 
@@ -24,11 +30,13 @@ function dedupeMessages(items = []) {
 export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const { user, profile } = useUser();
   const [messages, setMessages] = useState([]);
+  const [chatSettings, setChatSettings] = useState(defaultSettings);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [hiddenMessageIds, setHiddenMessageIds] = useState([]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const containerRef = useRef(null);
+  const settingsRef = useRef(defaultSettings);
 
   const hiddenMessageStorageKey =
     user?.id && roomId ? `room_hidden_messages:${user.id}:${roomId}` : null;
@@ -40,6 +48,30 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
     queryFn: () => fetchMessages(roomKey),
     enabled: !!roomId,
   });
+
+  useEffect(() => {
+    settingsRef.current = chatSettings;
+  }, [chatSettings]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeChatSettings(setChatSettings);
+    return unsubscribe;
+  }, []);
+
+  const notifyIncomingMessage = (incomingMessage) => {
+    if (!incomingMessage?.user_id || incomingMessage.user_id === user?.id) {
+      return;
+    }
+
+    const currentSettings = settingsRef.current;
+    if (currentSettings?.doNotDisturb) return;
+
+    if (currentSettings?.soundEffects) {
+      playNotificationSoundEffect();
+    }
+
+    triggerNotificationHaptic();
+  };
 
   useEffect(() => {
     if (!Array.isArray(fetchedMessages)) return;
@@ -84,8 +116,10 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
                 profiles: profMap[msg.user_id] || msg.profiles || null,
               };
               setMessages((prev) => dedupeMessages([...prev, merged]));
+              notifyIncomingMessage(merged);
             } catch (e) {
               setMessages((prev) => dedupeMessages([...prev, msg]));
+              notifyIncomingMessage(msg);
             }
           },
           onDeleted: (payload) => {
