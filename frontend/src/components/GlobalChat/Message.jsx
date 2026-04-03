@@ -14,11 +14,9 @@ export default function Message({
   userId,
   avatarUrl,
   onReport,
-  onReply,
   onReactToggle,
   reactions = [],
   currentUserId,
-  replyMessage,
   messageId,
 }) {
   const { profile } = useUser();
@@ -88,21 +86,6 @@ export default function Message({
     onReport?.({ userId, username: user });
   };
 
-  const handleReply = () => {
-    onReply?.({
-      id: messageId,
-      userId,
-      user,
-      content: messageText,
-      profiles: {
-        username: user,
-        avatar_url: avatarUrl || null,
-      },
-    });
-    setShowActions(false);
-    setShowMenu(false);
-  };
-
   const handleToggleReaction = (emoji, reactedByMe) => {
     onReactToggle?.({
       messageId,
@@ -121,27 +104,9 @@ export default function Message({
         </div>
         <div className="max-w-xs sm:max-w-md">
           <div className="bg-red-800 rounded-2xl rounded-br-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-white space-y-2">
-            {replyMessage && (
-              <div className="rounded-xl bg-red-700/70 px-2.5 py-1.5 border border-red-300/40">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-red-100">
-                  Replying to {replyMessage?.profiles?.username || "User"}
-                </p>
-                <p className="text-xs text-red-100 truncate">
-                  {replyMessage?.content || "(no text)"}
-                </p>
-              </div>
-            )}
             <p>{messageText}</p>
           </div>
           <div className="mt-1 flex items-center justify-end gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleReply}
-              className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
-            >
-              Reply
-            </button>
-
             {["👍", "❤️", "😂"].map((emoji) => {
               const current = reactionGroups.find(
                 (item) => item.emoji === emoji,
@@ -281,28 +246,10 @@ export default function Message({
           )}
         </div>
         <div className="bg-white rounded-2xl rounded-tl-none px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm text-xs sm:text-sm text-gray-700 max-w-xs sm:max-w-md space-y-2">
-          {replyMessage && (
-            <div className="rounded-xl bg-gray-50 px-2.5 py-1.5 border border-gray-200">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                Replying to {replyMessage?.profiles?.username || "User"}
-              </p>
-              <p className="text-xs text-gray-600 truncate">
-                {replyMessage?.content || "(no text)"}
-              </p>
-            </div>
-          )}
           <p>{messageText}</p>
         </div>
 
         <div className="mt-1 flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleReply}
-            className="text-[11px] text-gray-500 hover:text-red-700 font-semibold"
-          >
-            Reply
-          </button>
-
           {["👍", "❤️", "😂"].map((emoji) => {
             const current = reactionGroups.find((item) => item.emoji === emoji);
             return (

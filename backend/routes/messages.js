@@ -14,7 +14,7 @@ const {
 const router = express.Router();
 
 const MESSAGE_WITH_RELATIONS_SELECT =
-  "*, profiles:user_id(username, avatar_url), reply_message:reply_to_message_id(id, user_id, content, created_at, profiles:user_id(username, avatar_url)), reactions:message_reactions(user_id, emoji, created_at)";
+  "*, profiles:user_id(username, avatar_url), reactions:message_reactions(user_id, emoji, created_at)";
 
 const createMessageRateLimiter = createRateLimiter({
   scope: "global-message-send",
@@ -62,7 +62,7 @@ async function assertRoomAccess({ db, userId, room }) {
 async function getMessageRecord(messageId) {
   const { data: message, error } = await supabase
     .from("messages")
-    .select("id, room, user_id, reply_to_message_id")
+    .select("id, room, user_id")
     .eq("id", messageId)
     .maybeSingle();
 
@@ -140,7 +140,7 @@ router.post(
   createMessageAntiSpamGuard,
   async (req, res) => {
     try {
-      const { content, room, imageUrl, replyToMessageId } = req.body;
+      const { content, room, imageUrl } = req.body;
       const userId = req.userId;
       const db = req.supabase || supabase;
       const cleanedContent = typeof content === "string" ? content.trim() : "";
@@ -166,6 +166,12 @@ router.post(
 
       await assertRoomAccess({ db, userId, room: targetRoom });
 
+      if (req.body?.replyToMessageId) {
+        return res.status(400).json({
+          error: "Replies are available only in direct messages.",
+        });
+      }
+
       if (cleanedImageUrl) {
         const mediaQuota = await enforceDailyMediaQuota({
           db,
@@ -179,24 +185,6 @@ router.post(
             .status(mediaQuota.status || 429)
             .json({ error: mediaQuota.error });
         }
-      }
-
-      let validatedReplyToId = null;
-      if (replyToMessageId) {
-        const parentMessage = await getMessageRecord(replyToMessageId);
-
-        if (!parentMessage) {
-          return res.status(404).json({ error: "Reply target not found" });
-        }
-
-        const parentRoom = parentMessage.room || "global";
-        if (parentRoom !== targetRoom) {
-          return res
-            .status(400)
-            .json({ error: "Reply target must be in the same room" });
-        }
-
-        validatedReplyToId = parentMessage.id;
       }
 
       // Ensure a profile row exists to satisfy FK constraints.
@@ -227,7 +215,6 @@ router.post(
             content: cleanedContent || "",
             room: targetRoom,
             image_url: cleanedImageUrl || null,
-            reply_to_message_id: validatedReplyToId,
           },
         ])
         .select("id")

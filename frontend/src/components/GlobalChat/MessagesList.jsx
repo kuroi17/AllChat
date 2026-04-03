@@ -29,7 +29,7 @@ function dedupeMessagesById(items = []) {
   return uniq;
 }
 
-export default function MessagesList({ scrollRef, onReplySelect }) {
+export default function MessagesList({ scrollRef }) {
   const { user } = useUser();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
@@ -63,7 +63,6 @@ export default function MessagesList({ scrollRef, onReplySelect }) {
     const normalizedIncoming = {
       ...incoming,
       reactions: Array.isArray(incoming.reactions) ? incoming.reactions : [],
-      reply_message: incoming.reply_message || null,
     };
 
     setMessages((prev) => {
@@ -354,11 +353,9 @@ export default function MessagesList({ scrollRef, onReplySelect }) {
             minute: "2-digit",
           })}
           text={msg.content}
-          replyMessage={msg.reply_message}
           reactions={msg.reactions}
           currentUserId={user?.id}
           me={msg.user_id === user.id}
-          onReply={onReplySelect}
           onReactToggle={handleToggleReaction}
           onReport={(payload) =>
             handleReportMessage({
