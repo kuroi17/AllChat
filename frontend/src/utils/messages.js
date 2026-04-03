@@ -109,6 +109,7 @@ export async function sendMessage({
   room = "global",
   imageUrl,
   replyToMessageId = null,
+  emitLocalEvent = true,
 }) {
   const trimmed = typeof content === "string" ? content.trim() : "";
   const trimmedImageUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
@@ -162,15 +163,18 @@ export async function sendMessage({
 
   const data = await response.json();
 
-  // Emit a client-side event so local UI can update immediately
-  try {
-    window.dispatchEvent(new CustomEvent("newMessage", { detail: data }));
-    // Also broadcast to other tabs via BroadcastChannel
-    const bc = new BroadcastChannel("bsu_messages");
-    bc.postMessage(data);
-    bc.close();
-  } catch (e) {
-    // ignore - BroadcastChannel may not be available in all browsers
+  // Emit a client-side event so local UI can update immediately.
+  // Room chat can opt out because it already has explicit optimistic + replace events.
+  if (emitLocalEvent) {
+    try {
+      window.dispatchEvent(new CustomEvent("newMessage", { detail: data }));
+      // Also broadcast to other tabs via BroadcastChannel
+      const bc = new BroadcastChannel("bsu_messages");
+      bc.postMessage(data);
+      bc.close();
+    } catch (e) {
+      // ignore - BroadcastChannel may not be available in all browsers
+    }
   }
 
   return data;

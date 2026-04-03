@@ -27,6 +27,82 @@ function dedupeMessages(items = []) {
   });
 }
 
+function normalizeMessageText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isLikelyOptimisticMatch(optimisticMessage, incomingMessage) {
+  if (!optimisticMessage?.optimistic || !incomingMessage) return false;
+  if (!optimisticMessage.id?.startsWith("temp-room-")) return false;
+
+  const optimisticText = normalizeMessageText(optimisticMessage.content);
+  const incomingText = normalizeMessageText(incomingMessage.content);
+
+  if (optimisticText !== incomingText) {
+    return false;
+  }
+
+  if (optimisticMessage.user_id !== incomingMessage.user_id) {
+    return false;
+  }
+
+  const optimisticTime = Date.parse(optimisticMessage.created_at || "");
+  const incomingTime = Date.parse(incomingMessage.created_at || "");
+
+  if (Number.isFinite(optimisticTime) && Number.isFinite(incomingTime)) {
+    return Math.abs(incomingTime - optimisticTime) <= 45_000;
+  }
+
+  return true;
+}
+
+function mergeIncomingMessage(prevMessages, incomingMessage) {
+  if (!incomingMessage?.id) {
+    return prevMessages;
+  }
+
+  const existingIndex = prevMessages.findIndex(
+    (item) => item.id === incomingMessage.id,
+  );
+
+  if (existingIndex !== -1) {
+    const existingMessage = prevMessages[existingIndex];
+
+    if (
+      existingMessage?.profiles ||
+      !incomingMessage?.profiles ||
+      existingMessage.content === incomingMessage.content
+    ) {
+      return prevMessages;
+    }
+
+    const next = [...prevMessages];
+    next[existingIndex] = {
+      ...existingMessage,
+      ...incomingMessage,
+      optimistic: false,
+    };
+    return dedupeMessages(next);
+  }
+
+  const optimisticIndex = prevMessages.findIndex((item) =>
+    isLikelyOptimisticMatch(item, incomingMessage),
+  );
+
+  if (optimisticIndex !== -1) {
+    const next = [...prevMessages];
+    const optimisticMessage = next[optimisticIndex] || {};
+    next[optimisticIndex] = {
+      ...incomingMessage,
+      profiles: incomingMessage.profiles || optimisticMessage.profiles || null,
+      optimistic: false,
+    };
+    return dedupeMessages(next);
+  }
+
+  return dedupeMessages([...prevMessages, incomingMessage]);
+}
+
 export default function RoomMessagesList({ roomId, onMediaUpdate }) {
   const { user, profile } = useUser();
   const [messages, setMessages] = useState([]);
@@ -115,10 +191,10 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
                 ...msg,
                 profiles: profMap[msg.user_id] || msg.profiles || null,
               };
-              setMessages((prev) => dedupeMessages([...prev, merged]));
+              setMessages((prev) => mergeIncomingMessage(prev, merged));
               notifyIncomingMessage(merged);
             } catch (e) {
-              setMessages((prev) => dedupeMessages([...prev, msg]));
+              setMessages((prev) => mergeIncomingMessage(prev, msg));
               notifyIncomingMessage(msg);
             }
           },
@@ -188,6 +264,7 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
         next[index] = {
           ...message,
           profiles: message.profiles || previous.profiles || null,
+          optimistic: false,
         };
         return dedupeMessages(next);
       });

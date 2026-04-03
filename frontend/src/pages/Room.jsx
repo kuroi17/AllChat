@@ -279,6 +279,7 @@ export default function Room() {
         content: trimmedText,
         room: roomKey,
         imageUrl,
+        emitLocalEvent: false,
       });
 
       window.dispatchEvent(
