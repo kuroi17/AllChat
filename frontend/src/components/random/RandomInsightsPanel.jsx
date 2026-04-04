@@ -35,7 +35,7 @@ export default function RandomInsightsPanel({
     <div className={wrapperClass}>
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-          Partner
+          Matched
         </p>
         {isBootstrapping ? (
           <div className="mt-2 animate-pulse flex items-center gap-3">
@@ -181,7 +181,7 @@ export default function RandomInsightsPanel({
           <div className="mt-3 text-xs text-amber-900 space-y-1">
             <p>You: {myDecision ? myDecision.toUpperCase() : "PENDING"}</p>
             <p>
-              Partner:{" "}
+              Matched:{" "}
               {partnerDecision ? partnerDecision.toUpperCase() : "PENDING"}
             </p>
           </div>

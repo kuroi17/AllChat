@@ -110,7 +110,11 @@ export default function RandomSessionPanel({
             className="w-full rounded-xl border border-gray-200 bg-gray-50 text-gray-700 px-3 py-2 text-xs font-semibold flex items-center justify-between"
           >
             <span>Session details & analytics</span>
-            {isDetailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {isDetailsOpen ? (
+              <ChevronUp size={14} />
+            ) : (
+              <ChevronDown size={14} />
+            )}
           </button>
 
           {isDetailsOpen ? <div className="mt-2">{detailsContent}</div> : null}
