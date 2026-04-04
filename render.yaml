@@ -1,12 +1,25 @@
 services:
   - type: web
     name: allchat-frontend
-    env: static
+    runtime: static
     branch: main
     buildCommand: "cd frontend && npm ci && npm run build"
-    staticPublishPath: "frontend/dist"
+    publishPath: "frontend/dist"
     plan: free
     routes:
       - type: rewrite
         source: "/*"
         destination: "/index.html"
+  - type: web
+    name: allchat-backend
+    runtime: node
+    branch: main
+    buildCommand: "cd backend && npm ci"
+    startCommand: "cd backend && npm run start"
+    plan: free
+    # Example env vars: use a single key in Render. Values may be CSV or JSON arrays (quoted).
+    envVars:
+      - key: RANDOM_ANALYTICS_ADMIN_IDS
+        value: '["ea715da7-82a2-4fbc-bb63-e6ed6fd956b","8a5c2ef8-3f87-49fd-9b48-d59abe2a194e"]'
+      - key: RANDOM_ANALYTICS_ADMIN_EMAILS
+        value: '["painkira518@gmail.com","24-04667@g.batstate-u.edu.ph"]'

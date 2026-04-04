@@ -1,9 +1,31 @@
-function parseCsvSet(rawValue) {
+function parseEnvListToSet(rawValue) {
   if (!rawValue) return new Set();
 
+  const raw = String(rawValue).trim();
+
+  // Support JSON arrays (e.g. Render value: ["id1","id2"]) or objects
+  try {
+    if (raw.startsWith("[") || raw.startsWith("{")) {
+      const parsed = JSON.parse(raw);
+      let items = [];
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        items = Object.values(parsed);
+      }
+
+      return new Set(
+        items.map((v) => String(v).trim().toLowerCase()).filter(Boolean),
+      );
+    }
+  } catch (err) {
+    // If JSON.parse fails, fall back to CSV parsing below
+  }
+
+  // Fallback: CSV / semicolon / whitespace separated lists
   return new Set(
-    String(rawValue)
-      .split(",")
+    raw
+      .split(/[,;\s]+/)
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
   );
@@ -43,8 +65,10 @@ function hasAdminRoleMetadata(user) {
 function canUserAccessRandomAnalytics(user) {
   if (!user?.id) return false;
 
-  const allowedIds = parseCsvSet(process.env.RANDOM_ANALYTICS_ADMIN_IDS);
-  const allowedEmails = parseCsvSet(process.env.RANDOM_ANALYTICS_ADMIN_EMAILS);
+  const allowedIds = parseEnvListToSet(process.env.RANDOM_ANALYTICS_ADMIN_IDS);
+  const allowedEmails = parseEnvListToSet(
+    process.env.RANDOM_ANALYTICS_ADMIN_EMAILS,
+  );
 
   const userId = String(user.id || "")
     .trim()
