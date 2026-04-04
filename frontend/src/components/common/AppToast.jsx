@@ -7,12 +7,12 @@ export default function AppToast({ toast, onClose, className = "" }) {
 
   return (
     <div
-      className={`fixed bottom-5 right-4 xl:right-72 z-[80] pointer-events-none ${className}`}
+      className={`fixed bottom-5 right-4 xl:right-72 z-80 pointer-events-none ${className}`}
       role="status"
       aria-live="polite"
     >
       <div
-        className={`pointer-events-auto min-w-[240px] max-w-sm rounded-xl border shadow-lg backdrop-blur px-4 py-3 flex items-start gap-3 animate-in slide-in-from-bottom-3 fade-in duration-200 ${
+        className={`pointer-events-auto min-w-60 max-w-sm rounded-xl border shadow-lg backdrop-blur px-4 py-3 flex items-start gap-3 animate-in slide-in-from-bottom-3 fade-in duration-200 ${
           isError
             ? "bg-red-50/95 border-red-200 text-red-800"
             : "bg-white/95 border-emerald-200 text-emerald-800"
