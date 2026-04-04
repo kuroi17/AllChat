@@ -95,28 +95,32 @@ export default function UserProvider({ children }) {
       return;
     }
 
-    // Update presence immediately
-    updatePresence(user.id);
+    // Update presence immediately on mount.
+    updatePresence(user.id, { force: true });
 
     // Update presence on a fixed interval.
     const interval = setInterval(() => {
       updatePresence(user.id);
     }, PRESENCE_UPDATE_INTERVAL_MS);
 
-    // Trigger updates on meaningful user activity.
-    const handleActivity = () => {
-      updatePresence(user.id);
+    // Trigger updates only when tab becomes active to reduce write load.
+    const handleFocus = () => {
+      updatePresence(user.id, { force: true });
     };
 
-    window.addEventListener("keydown", handleActivity);
-    window.addEventListener("click", handleActivity);
-    window.addEventListener("focus", handleActivity);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        updatePresence(user.id, { force: true });
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("keydown", handleActivity);
-      window.removeEventListener("click", handleActivity);
-      window.removeEventListener("focus", handleActivity);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [user?.id, showOnlineStatus]);
 

@@ -136,11 +136,19 @@ async function requestApi(path, { method = "GET", body, auth = false } = {}) {
 /**
  * Update user's last_seen timestamp to track online presence
  */
-export async function updatePresence(userId) {
+export async function updatePresence(userId, { force = false } = {}) {
   if (!userId) return;
 
+  if (
+    !force &&
+    typeof document !== "undefined" &&
+    document.visibilityState === "hidden"
+  ) {
+    return;
+  }
+
   const now = Date.now();
-  if (now - lastPresenceUpdateAt < PRESENCE_ACTIVITY_THROTTLE_MS) {
+  if (!force && now - lastPresenceUpdateAt < PRESENCE_ACTIVITY_THROTTLE_MS) {
     return;
   }
 
@@ -163,7 +171,9 @@ export async function updatePresence(userId) {
  */
 export async function fetchOnlineUsers(limit = 10) {
   try {
-    const safeLimit = Number.isFinite(limit) ? limit : 10;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.min(100, limit))
+      : 10;
     const data = await requestApi(
       `/api/users/online?limit=${encodeURIComponent(safeLimit)}`,
     );

@@ -14,7 +14,7 @@ export default function Sidebar() {
 
   const { data: onlineUsers = [] } = useQuery({
     queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(500),
+    queryFn: () => fetchOnlineUsers(100),
     staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
     refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
   });
@@ -23,8 +23,8 @@ export default function Sidebar() {
     queryKey: ["follows", "following", user?.id],
     queryFn: () => fetchFollowing(user.id),
     enabled: !!user?.id,
-    staleTime: 60 * 1000,
-    refetchInterval: 60000,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const followingIds = useMemo(

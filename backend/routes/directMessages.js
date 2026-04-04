@@ -57,6 +57,8 @@ const deleteConversationRateLimiter = createRateLimiter({
 });
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
+const UNREAD_COUNT_CACHE_TTL_MS = 20 * 1000;
+const unreadCountCacheByUserId = new Map();
 
 function buildDeletedMessageContent(username = "User") {
   const safeUsername =
@@ -270,6 +272,15 @@ router.get("/conversations/unread-count", verifyToken, async (req, res) => {
     const userId = req.userId;
     const db = req.supabase || supabase;
 
+    const cached = unreadCountCacheByUserId.get(userId);
+    if (
+      cached &&
+      typeof cached.count === "number" &&
+      Date.now() - cached.timestamp <= UNREAD_COUNT_CACHE_TTL_MS
+    ) {
+      return res.json({ count: cached.count, cached: true });
+    }
+
     const { data: conversations, error: conversationsError } = await db
       .from("conversation_participants")
       .select("conversation_id, last_read_at")
@@ -291,6 +302,12 @@ router.get("/conversations/unread-count", verifyToken, async (req, res) => {
     );
 
     const total = counts.reduce((sum, count) => sum + count, 0);
+
+    unreadCountCacheByUserId.set(userId, {
+      count: total,
+      timestamp: Date.now(),
+    });
+
     res.json({ count: total });
   } catch (err) {
     res.status(500).json({ error: err.message });

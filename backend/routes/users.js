@@ -4,6 +4,27 @@ const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 
+const ONLINE_USERS_CACHE_TTL_MS = 45 * 1000;
+const PRESENCE_MIN_WRITE_INTERVAL_MS = 2 * 60 * 1000;
+
+let onlineUsersCache = {
+  timestamp: 0,
+  data: [],
+};
+
+const lastPresenceWriteAtByUserId = new Map();
+
+function prunePresenceWriteMap(now) {
+  if (lastPresenceWriteAtByUserId.size < 4000) return;
+
+  const maxAgeMs = 24 * 60 * 60 * 1000;
+  for (const [userId, timestamp] of lastPresenceWriteAtByUserId.entries()) {
+    if (now - Number(timestamp || 0) > maxAgeMs) {
+      lastPresenceWriteAtByUserId.delete(userId);
+    }
+  }
+}
+
 // Helper function to parse and validate "limit" query parameter for pagination
 function parseLimit(value, fallback = 20, max = 100) {
   const parsed = Number.parseInt(value, 10);
@@ -31,17 +52,33 @@ router.get("/", async (req, res) => {
 // GET online users (last_seen within 5 minutes)
 router.get("/online", async (req, res) => {
   try {
-    const limit = parseLimit(req.query.limit, 10, 300);
+    const limit = parseLimit(req.query.limit, 10, 100);
+    const now = Date.now();
+
+    if (
+      now - onlineUsersCache.timestamp <= ONLINE_USERS_CACHE_TTL_MS &&
+      Array.isArray(onlineUsersCache.data)
+    ) {
+      return res.json(onlineUsersCache.data.slice(0, limit));
+    }
+
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const queryLimit = Math.max(limit, 50);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, avatar_url, bio, last_seen")
+      .select("id, username, avatar_url, last_seen")
       .gte("last_seen", fiveMinutesAgo)
       .order("last_seen", { ascending: false })
-      .limit(limit);
+      .limit(queryLimit);
 
     if (error) throw error;
-    res.json(data);
+
+    onlineUsersCache = {
+      timestamp: now,
+      data: Array.isArray(data) ? data : [],
+    };
+
+    res.json(onlineUsersCache.data.slice(0, limit));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -70,7 +107,20 @@ router.patch("/me/presence", verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const db = req.supabase || supabase;
-    const lastSeen = req.body?.lastSeen || new Date().toISOString();
+    const now = Date.now();
+    const lastWriteAt = Number(lastPresenceWriteAtByUserId.get(userId) || 0);
+
+    prunePresenceWriteMap(now);
+
+    if (now - lastWriteAt < PRESENCE_MIN_WRITE_INTERVAL_MS) {
+      return res.json({
+        ok: true,
+        skipped: true,
+        reason: "presence_write_throttled",
+      });
+    }
+
+    const lastSeen = req.body?.lastSeen || new Date(now).toISOString();
 
     const { error } = await db
       .from("profiles")
@@ -78,6 +128,10 @@ router.patch("/me/presence", verifyToken, async (req, res) => {
       .eq("id", userId);
 
     if (error) throw error;
+
+    lastPresenceWriteAtByUserId.set(userId, now);
+    onlineUsersCache.timestamp = 0;
+
     res.json({ ok: true, lastSeen });
   } catch (err) {
     res.status(500).json({ error: err.message });

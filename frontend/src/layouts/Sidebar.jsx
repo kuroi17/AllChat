@@ -45,8 +45,8 @@ export default function Sidebar({ showExtras, onNavigate }) {
     queryKey: unreadCountQueryKey,
     queryFn: () => fetchUnreadDirectMessageCount(user.id),
     enabled: !!user?.id,
-    staleTime: 15000,
-    refetchInterval: 30000,
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: false,
   });
 
   useEffect(() => {

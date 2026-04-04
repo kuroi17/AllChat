@@ -32,13 +32,13 @@ export default function ChatHeader() {
     queryKey: notificationsQueryKey,
     queryFn: () => fetchNotifications(user.id),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    refetchInterval: showNotifications ? 20000 : 45000,
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: false,
   });
 
   const { data: onlineUsers = [] } = useQuery({
     queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(500),
+    queryFn: () => fetchOnlineUsers(100),
     staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
     refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
   });

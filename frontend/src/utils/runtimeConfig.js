@@ -64,17 +64,17 @@ export const MAX_DIRECT_MESSAGE_CHARS = parsePositiveInt(
 
 export const PRESENCE_UPDATE_INTERVAL_MS = parsePositiveInt(
   import.meta.env.VITE_PRESENCE_UPDATE_INTERVAL_MS,
-  3 * 60 * 1000,
+  5 * 60 * 1000,
 );
 
 export const PRESENCE_ACTIVITY_THROTTLE_MS = parsePositiveInt(
   import.meta.env.VITE_PRESENCE_ACTIVITY_THROTTLE_MS,
-  60 * 1000,
+  3 * 60 * 1000,
 );
 
 export const ONLINE_USERS_REFETCH_INTERVAL_MS = parsePositiveInt(
   import.meta.env.VITE_ONLINE_USERS_REFETCH_INTERVAL_MS,
-  60 * 1000,
+  3 * 60 * 1000,
 );
 
 if (!API_BASE_URL) {
