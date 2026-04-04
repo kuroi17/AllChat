@@ -8,6 +8,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const { supabase, createUserScopedClient } = require("./utils/supabase");
 const { createSocketRateLimiter } = require("./middleware/chatGuards");
+const { createRandomChatGateway } = require("./realtime/randomChat");
 
 const app = express();
 
@@ -50,6 +51,8 @@ const io = new Server(server, {
 });
 
 app.set("io", io);
+
+const randomChatGateway = createRandomChatGateway(io);
 
 const socketRoomActionRateLimiter = createSocketRateLimiter({
   scope: "socket-room-action",
@@ -100,6 +103,7 @@ io.use(async (socket, next) => {
 // Handle Socket.IO connections and room management
 io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
+  randomChatGateway.bindSocket(socket);
 
   socket.on("room:join", async (payload, ack) => {
     if (!socketRoomActionRateLimiter(socket, ack)) return;
