@@ -10,6 +10,7 @@ import {
   Settings,
   ChevronUp,
   Users,
+  Shuffle,
 } from "lucide-react";
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
@@ -24,6 +25,10 @@ import {
   subscribeChatSettings,
   triggerNotificationHaptic,
 } from "../utils/settings";
+import {
+  getRandomSessionLock,
+  subscribeRandomSessionLock,
+} from "../utils/randomSessionLock";
 
 export default function Sidebar({ showExtras, onNavigate }) {
   const navigate = useNavigate();
@@ -31,6 +36,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
   const { user, profile } = useUser(); // get user and profile from context
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
+  const [randomLockState, setRandomLockState] = useState(getRandomSessionLock);
   const userMenuRef = useRef(null);
   const settingsRef = useRef(defaultSettings);
   const unreadCountQueryKey = ["directMessages", "unreadCount", user?.id];
@@ -51,6 +57,17 @@ export default function Sidebar({ showExtras, onNavigate }) {
     const unsubscribe = subscribeChatSettings(setChatSettings);
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeRandomSessionLock(setRandomLockState);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (randomLockState?.locked) {
+      setShowUserMenu(false);
+    }
+  }, [randomLockState?.locked]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -172,6 +189,30 @@ export default function Sidebar({ showExtras, onNavigate }) {
       alert("Error logging out. Please try again.");
     }
   };
+
+  const isNavigationLocked = randomLockState?.locked;
+
+  const navClassName = ({ isActive, isDisabled }) => {
+    if (isDisabled) {
+      return "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 bg-gray-100/80 text-sm transition-colors cursor-not-allowed";
+    }
+
+    return isActive
+      ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
+      : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors";
+  };
+
+  const guardedNavigate = (event, { disabled = false } = {}) => {
+    if (disabled) {
+      event.preventDefault();
+      return;
+    }
+
+    onNavigate?.();
+  };
+
+  const randomRouteActive = isNavigationLocked;
+
   return (
     <aside className="h-full w-56 bg-white flex flex-col border-r border-gray-200 shrink-0">
       <div className="p-4 border-b border-gray-200">
@@ -193,23 +234,45 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
       <nav className="p-3 space-y-1">
         <NavLink
-          to="/"
-          onClick={onNavigate}
+          to="/random"
+          onClick={(event) => guardedNavigate(event)}
           className={({ isActive }) =>
-            isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
+            navClassName({
+              isActive: randomRouteActive || isActive,
+              isDisabled: false,
+            })
+          }
+        >
+          <Shuffle size={18} />
+          <span className="flex-1">Random</span>
+        </NavLink>
+
+        <NavLink
+          to="/"
+          onClick={(event) =>
+            guardedNavigate(event, { disabled: isNavigationLocked })
+          }
+          aria-disabled={isNavigationLocked}
+          className={({ isActive }) =>
+            navClassName({
+              isActive,
+              isDisabled: isNavigationLocked,
+            })
           }
         >
           <MessageCircle size={18} /> Global Chat
         </NavLink>
         <NavLink
           to="/dms"
-          onClick={onNavigate}
+          onClick={(event) =>
+            guardedNavigate(event, { disabled: isNavigationLocked })
+          }
+          aria-disabled={isNavigationLocked}
           className={({ isActive }) =>
-            isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
+            navClassName({
+              isActive,
+              isDisabled: isNavigationLocked,
+            })
           }
         >
           <Mail size={18} />
@@ -222,16 +285,26 @@ export default function Sidebar({ showExtras, onNavigate }) {
         </NavLink>
         <NavLink
           to="/rooms"
-          onClick={onNavigate}
+          onClick={(event) =>
+            guardedNavigate(event, { disabled: isNavigationLocked })
+          }
+          aria-disabled={isNavigationLocked}
           className={({ isActive }) =>
-            isActive
-              ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white bg-red-800 font-semibold text-sm transition-colors"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-800 text-sm transition-colors"
+            navClassName({
+              isActive,
+              isDisabled: isNavigationLocked,
+            })
           }
         >
           <Users size={18} />
           <span className="flex-1">Rooms</span>
         </NavLink>
+
+        {isNavigationLocked && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-800">
+            Random session active. Other navigation is temporarily locked.
+          </div>
+        )}
       </nav>
 
       {/* Bottom User Profile Section with Dropdown */}
@@ -280,7 +353,11 @@ export default function Sidebar({ showExtras, onNavigate }) {
 
         {/* User Profile Button */}
         <button
-          onClick={() => setShowUserMenu(!showUserMenu)}
+          onClick={() => {
+            if (isNavigationLocked) return;
+            setShowUserMenu(!showUserMenu);
+          }}
+          disabled={isNavigationLocked}
           className="w-full p-3 border-t border-gray-200 flex items-center gap-2 hover:bg-gray-50 transition-colors"
         >
           <div className="w-9 h-9 rounded-full bg-red-800 flex items-center justify-center text-white text-sm font-bold shrink-0 overflow-hidden">

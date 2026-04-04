@@ -1,9 +1,11 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
 import Skeleton from "../ui/Skeleton";
+import { isRandomSessionLocked } from "../../utils/randomSessionLock";
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useUser();
+  const location = useLocation();
 
   if (loading) {
     // Show loading skeleton while checking auth
@@ -20,6 +22,10 @@ export default function ProtectedRoute({ children }) {
   // If not authenticated, redirect to auth page
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (isRandomSessionLocked() && location.pathname !== "/random") {
+    return <Navigate to="/random" replace />;
   }
 
   // If authenticated, render the protected content
