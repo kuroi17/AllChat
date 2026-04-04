@@ -83,7 +83,6 @@ export default function RandomChat() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [recentReports, setRecentReports] = useState([]);
   const [canViewAdminAnalytics, setCanViewAdminAnalytics] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState("chat");
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS[0]);
@@ -166,7 +165,6 @@ export default function RandomChat() {
 
     setStatus("matched");
     setNotice("Matched! Say hi and start chatting.");
-    setMobilePanel("chat");
     setError("");
     setWarningActive(false);
     setPartnerTyping(false);
@@ -859,79 +857,55 @@ export default function RandomChat() {
               onOpenReport={openReportModal}
             />
 
-            <section className="md:hidden rounded-xl border border-gray-200 bg-white p-1 shadow-sm flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setMobilePanel("chat")}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                  mobilePanel === "chat"
-                    ? "bg-red-700 text-white"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Chat
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobilePanel("insights")}
-                className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
-                  mobilePanel === "insights"
-                    ? "bg-red-700 text-white"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Insights
-              </button>
-            </section>
-
-            <section className="md:hidden flex-1 min-h-0">
-              {mobilePanel === "chat" ? (
-                <RandomSessionPanel
-                  isBootstrapping={isBootstrapping}
-                  messages={messages}
-                  currentUserId={currentUserId}
-                  session={session}
-                  warningActive={warningActive}
-                  sessionTimeRemainingSeconds={sessionTimeRemainingSeconds}
-                  voteTimeRemainingSeconds={voteTimeRemainingSeconds}
-                  partnerTyping={partnerTyping}
-                  status={status}
-                  messagesEndRef={messagesEndRef}
-                  formatClock={formatClock}
-                  replyTarget={replyTarget}
-                  onClearReply={handleClearReply}
-                  onSubmitMessage={handleSendMessage}
-                  fileInputRef={fileInputRef}
-                  onImagePicked={handleImagePicked}
-                  canSendMessage={canSendMessage}
-                  isUploading={isUploading}
-                  draft={draft}
-                  onDraftChange={handleMessageInputChange}
-                  onInsertEmoji={handleInsertEmoji}
-                  onSelectReply={handleSelectReply}
-                  onToggleReaction={handleToggleReaction}
-                  activeReactionPickerId={activeReactionPickerId}
-                  setActiveReactionPickerId={setActiveReactionPickerId}
-                />
-              ) : (
-                <RandomInsightsPanel
-                  isBootstrapping={isBootstrapping}
-                  session={session}
-                  canViewAdminAnalytics={canViewAdminAnalytics}
-                  isAnalyticsLoading={isAnalyticsLoading}
-                  onRefreshAnalytics={loadAdminAnalytics}
-                  analyticsData={analyticsData}
-                  recentReports={recentReports}
-                  status={status}
-                  onVote={handleVote}
-                  myDecision={myDecision}
-                  partnerDecision={partnerDecision}
-                  error={error}
-                  analyticsError={analyticsError}
-                  reportFeedback={reportFeedback}
-                  reportFeedbackTone={reportFeedbackTone}
-                />
-              )}
+            <section className="md:hidden flex-1 min-h-[62vh]">
+              <RandomSessionPanel
+                isBootstrapping={isBootstrapping}
+                messages={messages}
+                currentUserId={currentUserId}
+                session={session}
+                warningActive={warningActive}
+                sessionTimeRemainingSeconds={sessionTimeRemainingSeconds}
+                voteTimeRemainingSeconds={voteTimeRemainingSeconds}
+                partnerTyping={partnerTyping}
+                status={status}
+                messagesEndRef={messagesEndRef}
+                formatClock={formatClock}
+                replyTarget={replyTarget}
+                onClearReply={handleClearReply}
+                onSubmitMessage={handleSendMessage}
+                fileInputRef={fileInputRef}
+                onImagePicked={handleImagePicked}
+                canSendMessage={canSendMessage}
+                isUploading={isUploading}
+                draft={draft}
+                onDraftChange={handleMessageInputChange}
+                onInsertEmoji={handleInsertEmoji}
+                onSelectReply={handleSelectReply}
+                onToggleReaction={handleToggleReaction}
+                activeReactionPickerId={activeReactionPickerId}
+                setActiveReactionPickerId={setActiveReactionPickerId}
+                className="h-full"
+                detailsContent={
+                  <RandomInsightsPanel
+                    embedded={true}
+                    isBootstrapping={isBootstrapping}
+                    session={session}
+                    canViewAdminAnalytics={canViewAdminAnalytics}
+                    isAnalyticsLoading={isAnalyticsLoading}
+                    onRefreshAnalytics={loadAdminAnalytics}
+                    analyticsData={analyticsData}
+                    recentReports={recentReports}
+                    status={status}
+                    onVote={handleVote}
+                    myDecision={myDecision}
+                    partnerDecision={partnerDecision}
+                    error={error}
+                    analyticsError={analyticsError}
+                    reportFeedback={reportFeedback}
+                    reportFeedbackTone={reportFeedbackTone}
+                  />
+                }
+              />
             </section>
 
             <section className="hidden md:grid flex-1 min-h-0 grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">

@@ -24,16 +24,16 @@ export default function RandomHeroSection({
 }) {
   return (
     <>
-      <section className="rounded-2xl bg-linear-to-r from-red-800 to-red-700 text-white p-4 md:p-5 shadow-lg">
+      <section className="rounded-2xl bg-linear-to-r from-red-800 to-red-700 text-white p-3 sm:p-4 md:p-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-widest text-red-100 font-semibold">
               New Mode
             </p>
-            <h1 className="text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
               <Shuffle size={20} /> Random
             </h1>
-            <p className="text-sm text-red-100 mt-2 max-w-2xl">
+            <p className="text-xs sm:text-sm text-red-100 mt-2 max-w-2xl">
               1-on-1 pairing with timed rounds and instant rematch voting.
             </p>
           </div>
@@ -57,7 +57,7 @@ export default function RandomHeroSection({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-800">{notice}</p>

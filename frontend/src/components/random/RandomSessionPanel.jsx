@@ -1,4 +1,7 @@
+import { useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   Clock3,
   CornerUpLeft,
   ImagePlus,
@@ -61,9 +64,16 @@ export default function RandomSessionPanel({
   onToggleReaction,
   activeReactionPickerId,
   setActiveReactionPickerId,
+  detailsContent,
+  defaultDetailsOpen = false,
+  className = "",
 }) {
+  const [isDetailsOpen, setIsDetailsOpen] = useState(defaultDetailsOpen);
+
   return (
-    <div className="lg:col-span-8 rounded-2xl border border-gray-200 bg-white flex flex-col min-h-0 shadow-sm">
+    <div
+      className={`lg:col-span-8 rounded-2xl border border-gray-200 bg-white flex flex-col min-h-0 shadow-sm ${className}`}
+    >
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
@@ -91,6 +101,21 @@ export default function RandomSessionPanel({
           )}
         </div>
       </div>
+
+      {detailsContent ? (
+        <div className="px-3 sm:px-4 pt-3">
+          <button
+            type="button"
+            onClick={() => setIsDetailsOpen((previous) => !previous)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 text-gray-700 px-3 py-2 text-xs font-semibold flex items-center justify-between"
+          >
+            <span>Session details & analytics</span>
+            {isDetailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {isDetailsOpen ? <div className="mt-2">{detailsContent}</div> : null}
+        </div>
+      ) : null}
 
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gray-50">
         {isBootstrapping ? (

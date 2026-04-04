@@ -25,9 +25,14 @@ export default function RandomInsightsPanel({
   analyticsError,
   reportFeedback,
   reportFeedbackTone,
+  embedded = false,
 }) {
+  const wrapperClass = embedded
+    ? "rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm flex flex-col gap-3 sm:gap-4"
+    : "lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm flex flex-col gap-3 sm:gap-4 min-h-0 overflow-y-auto";
+
   return (
-    <div className="lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm flex flex-col gap-3 sm:gap-4 min-h-0 overflow-y-auto">
+    <div className={wrapperClass}>
       <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
           Partner
