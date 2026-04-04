@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { supabase } = require("../utils/supabase");
 const { createSocketRateLimiter } = require("../middleware/chatGuards");
 const { sanitizeProfanity } = require("../utils/profanityFilter");
@@ -23,6 +25,11 @@ const MAX_RANDOM_SESSION_MESSAGES = 120;
 const MAX_REPORT_REASON_CHARS = 120;
 const MAX_REPORT_DESCRIPTION_CHARS = 1000;
 const MAX_RANDOM_REACTION_EMOJI_CHARS = 16;
+const RANDOM_ANALYTICS_PERSIST_FLUSH_MS = 600;
+
+const RANDOM_ANALYTICS_STATE_FILE =
+  process.env.RANDOM_ANALYTICS_STATE_FILE ||
+  path.resolve(__dirname, "..", "data", "random-analytics-state.json");
 
 const RANDOM_SESSION_SECONDS = parsePositiveInt(
   "RANDOM_CHAT_SESSION_SECONDS",
@@ -65,8 +72,111 @@ function createRandomChatGateway(io) {
     "RANDOM_PROFILE_CACHE_TTL_MS",
     10 * 60 * 1000,
   );
+  const maxPersistedReports = parsePositiveInt(
+    "RANDOM_PERSISTED_REPORTS_LIMIT",
+    Math.max(maxReportLogs, 1000),
+  );
+
+  let analyticsPersistTimer = null;
 
   let isMatchingInProgress = false;
+
+  function ensureAnalyticsPersistenceDir() {
+    try {
+      fs.mkdirSync(path.dirname(RANDOM_ANALYTICS_STATE_FILE), {
+        recursive: true,
+      });
+    } catch {
+      // Ignore directory creation failures.
+    }
+  }
+
+  function serializeAnalyticsByDay() {
+    const payload = {};
+
+    for (const [dayKey, stats] of analyticsByDay.entries()) {
+      payload[dayKey] = {
+        dayKey,
+        matches: Number(stats?.matches || 0),
+        completedSessions: Number(stats?.completedSessions || 0),
+        totalRounds: Number(stats?.totalRounds || 0),
+        extendedSessions: Number(stats?.extendedSessions || 0),
+        totalExtensions: Number(stats?.totalExtensions || 0),
+        reports: Number(stats?.reports || 0),
+      };
+    }
+
+    return payload;
+  }
+
+  function persistAnalyticsState() {
+    try {
+      ensureAnalyticsPersistenceDir();
+
+      const payload = {
+        savedAt: new Date().toISOString(),
+        analyticsByDay: serializeAnalyticsByDay(),
+        reportLogs: reportLogs.slice(0, maxPersistedReports),
+      };
+
+      fs.writeFileSync(
+        RANDOM_ANALYTICS_STATE_FILE,
+        JSON.stringify(payload, null, 2),
+        "utf8",
+      );
+    } catch {
+      // Ignore persistence failures to keep chat realtime path stable.
+    }
+  }
+
+  function queueAnalyticsPersistence() {
+    if (analyticsPersistTimer) {
+      clearTimeout(analyticsPersistTimer);
+    }
+
+    analyticsPersistTimer = setTimeout(() => {
+      analyticsPersistTimer = null;
+      persistAnalyticsState();
+    }, RANDOM_ANALYTICS_PERSIST_FLUSH_MS);
+  }
+
+  function hydratePersistedAnalyticsState() {
+    try {
+      if (!fs.existsSync(RANDOM_ANALYTICS_STATE_FILE)) return;
+
+      const raw = fs.readFileSync(RANDOM_ANALYTICS_STATE_FILE, "utf8");
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      const analyticsPayload = parsed?.analyticsByDay;
+
+      if (analyticsPayload && typeof analyticsPayload === "object") {
+        for (const [dayKey, stats] of Object.entries(analyticsPayload)) {
+          analyticsByDay.set(dayKey, {
+            dayKey,
+            matches: Number(stats?.matches || 0),
+            completedSessions: Number(stats?.completedSessions || 0),
+            totalRounds: Number(stats?.totalRounds || 0),
+            extendedSessions: Number(stats?.extendedSessions || 0),
+            totalExtensions: Number(stats?.totalExtensions || 0),
+            reports: Number(stats?.reports || 0),
+          });
+        }
+      }
+
+      const persistedReports = Array.isArray(parsed?.reportLogs)
+        ? parsed.reportLogs
+        : [];
+
+      for (const report of persistedReports.slice(0, maxPersistedReports)) {
+        reportLogs.push(report);
+      }
+    } catch {
+      // Ignore hydrate failures and continue with in-memory defaults.
+    }
+  }
+
+  hydratePersistedAnalyticsState();
 
   const queueRateLimiter = createSocketRateLimiter({
     scope: "random-queue-action",
@@ -193,6 +303,7 @@ function createRandomChatGateway(io) {
     });
 
     pruneAuditSessions();
+    queueAnalyticsPersistence();
   }
 
   function recordSessionExtended(sessionId) {
@@ -222,6 +333,8 @@ function createRandomChatGateway(io) {
       dayStats.extendedSessions += 1;
       dayStats.totalExtensions += Math.max(audit.rounds - 1, 1);
     }
+
+    queueAnalyticsPersistence();
   }
 
   function pushReportLog(reportEntry) {
@@ -230,6 +343,8 @@ function createRandomChatGateway(io) {
     while (reportLogs.length > maxReportLogs) {
       reportLogs.pop();
     }
+
+    queueAnalyticsPersistence();
   }
 
   function getAnalyticsSnapshot({ days = 7 } = {}) {

@@ -1,26 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  BarChart3,
-  Check,
-  Clock3,
-  Flag,
-  ImagePlus,
-  Loader2,
-  MessageCircleHeart,
-  RefreshCw,
-  ShieldAlert,
-  Shuffle,
-  Timer,
-  Users,
-  X,
-  XCircle,
-  SmilePlus,
-  CornerUpLeft,
-} from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
-import EmojiPickerButton from "../components/common/EmojiPickerButton";
-import MessageLinkPreview from "../components/common/MessageLinkPreview";
+import RandomMobileHeader from "../components/random/RandomMobileHeader";
+import RandomHeroSection from "../components/random/RandomHeroSection";
+import RandomSessionPanel from "../components/random/RandomSessionPanel";
+import RandomInsightsPanel from "../components/random/RandomInsightsPanel";
+import RandomReportModal from "../components/random/RandomReportModal";
 import {
   fetchRandomAccess,
   getRandomChatSocket,
@@ -69,32 +54,6 @@ function normalizeMessage(rawMessage) {
     createdAt: rawMessage.created_at,
     profile: rawMessage.profiles || null,
   };
-}
-
-const RANDOM_REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
-
-function buildReactionGroups(reactions, currentUserId) {
-  const grouped = new Map();
-
-  (Array.isArray(reactions) ? reactions : []).forEach((item) => {
-    if (!item?.emoji) return;
-
-    const existing = grouped.get(item.emoji) || {
-      emoji: item.emoji,
-      count: 0,
-      reactedByMe: false,
-    };
-
-    existing.count += 1;
-
-    if (item.user_id === currentUserId) {
-      existing.reactedByMe = true;
-    }
-
-    grouped.set(item.emoji, existing);
-  });
-
-  return Array.from(grouped.values());
 }
 
 const REPORT_REASON_OPTIONS = [
@@ -365,7 +324,7 @@ export default function RandomChat() {
           onQueueJoined: (payload) => {
             setStatus("queueing");
             setQueueSize(payload?.queueSize ?? null);
-            setNotice("Finding a partner...");
+            setNotice("Finding a match!");
           },
           onQueueLeft: () => {
             setStatus("idle");
@@ -596,7 +555,7 @@ export default function RandomChat() {
             } else if (existingState?.state === "queued") {
               setStatus("queueing");
               setQueueSize(existingState.queueSize ?? null);
-              setNotice("Finding a partner...");
+              setNotice("Finding a match!");
               clearRandomSessionLock();
             } else {
               setStatus("idle");
@@ -681,7 +640,6 @@ export default function RandomChat() {
   }, [session?.partnerProfile?.id, voteMap]);
 
   const canSendMessage = status === "matched" && session?.phase === "chat";
-  const canReactToMessages = status === "matched" && !!session?.sessionId;
 
   const handleJoinQueue = async () => {
     if (!socket) return;
@@ -692,7 +650,7 @@ export default function RandomChat() {
     try {
       await joinRandomQueue(socket);
       setStatus("queueing");
-      setNotice("Finding a partner...");
+      setNotice("Finding a match!");
     } catch (queueError) {
       setError(queueError.message || "Unable to join queue");
     } finally {
@@ -946,693 +904,91 @@ export default function RandomChat() {
         <Sidebar showExtras={true} />
       </div>
 
-      <main className="flex-1 min-w-0 p-3 md:p-6 overflow-hidden">
-        <div className="max-w-6xl mx-auto h-full flex flex-col gap-4">
-          <section className="rounded-2xl bg-linear-to-r from-red-800 to-red-700 text-white p-4 md:p-5 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-red-100 font-semibold">
-                  New Mode
-                </p>
-                <h1 className="text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
-                  <Shuffle size={20} /> Random
-                </h1>
-                <p className="text-sm text-red-100 mt-2 max-w-2xl">
-                  1-on-1 pairing with timed rounds and instant rematch voting.
-                </p>
-              </div>
+      <main className="flex-1 min-w-0 overflow-hidden flex flex-col">
+        <RandomMobileHeader statusChipLabel={statusChipLabel} />
 
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-                  {statusChipLabel}
-                </span>
-                {status === "matched" && (
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold border ${
-                      warningActive
-                        ? "bg-amber-300 text-amber-900 border-amber-200"
-                        : "bg-white/15 text-white border-white/25"
-                    }`}
-                  >
-                    Round {session?.round || 1}
-                  </span>
-                )}
-              </div>
-            </div>
-          </section>
+        <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 md:p-6">
+          <div className="max-w-6xl mx-auto h-full flex flex-col gap-3 sm:gap-4">
+            <RandomHeroSection
+              statusChipLabel={statusChipLabel}
+              warningActive={warningActive}
+              round={session?.round || 1}
+              notice={notice}
+              queueSize={queueSize}
+              status={status}
+              isActionLoading={isActionLoading}
+              isBootstrapping={isBootstrapping}
+              socket={socket}
+              canReportSession={canReportSession}
+              onJoinQueue={handleJoinQueue}
+              onLeaveQueue={handleLeaveQueue}
+              onOpenReport={openReportModal}
+            />
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap gap-3 items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800">{notice}</p>
-                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
-                  <Users size={12} />
-                  Waiting now: {queueSize ?? "..."}
-                </p>
-              </div>
+            <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4">
+              <RandomSessionPanel
+                isBootstrapping={isBootstrapping}
+                messages={messages}
+                currentUserId={currentUserId}
+                session={session}
+                warningActive={warningActive}
+                sessionTimeRemainingSeconds={sessionTimeRemainingSeconds}
+                voteTimeRemainingSeconds={voteTimeRemainingSeconds}
+                partnerTyping={partnerTyping}
+                status={status}
+                messagesEndRef={messagesEndRef}
+                formatClock={formatClock}
+                replyTarget={replyTarget}
+                onClearReply={handleClearReply}
+                onSubmitMessage={handleSendMessage}
+                fileInputRef={fileInputRef}
+                onImagePicked={handleImagePicked}
+                canSendMessage={canSendMessage}
+                isUploading={isUploading}
+                draft={draft}
+                onDraftChange={handleMessageInputChange}
+                onInsertEmoji={handleInsertEmoji}
+                onSelectReply={handleSelectReply}
+                onToggleReaction={handleToggleReaction}
+                activeReactionPickerId={activeReactionPickerId}
+                setActiveReactionPickerId={setActiveReactionPickerId}
+              />
 
-              <div className="flex items-center gap-2">
-                {status === "idle" || status === "ended" ? (
-                  <button
-                    type="button"
-                    onClick={handleJoinQueue}
-                    disabled={isActionLoading || isBootstrapping || !socket}
-                    className="inline-flex items-center gap-2 rounded-xl bg-red-700 text-white px-4 py-2 text-sm font-semibold hover:bg-red-800 disabled:opacity-60"
-                  >
-                    {isActionLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <MessageCircleHeart size={16} />
-                    )}
-                    Start
-                  </button>
-                ) : null}
-
-                {status === "queueing" ? (
-                  <button
-                    type="button"
-                    onClick={handleLeaveQueue}
-                    disabled={isActionLoading || isBootstrapping}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white text-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
-                  >
-                    {isActionLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <X size={16} />
-                    )}
-                    Cancel Queue
-                  </button>
-                ) : null}
-
-                {canReportSession ? (
-                  <button
-                    type="button"
-                    onClick={openReportModal}
-                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-2 text-sm font-semibold hover:bg-amber-100"
-                  >
-                    <Flag size={16} />
-                    Report User
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
-            <div className="lg:col-span-8 rounded-2xl border border-gray-200 bg-white flex flex-col min-h-0 shadow-sm">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                    Session
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800 truncate">
-                    {session?.partnerProfile?.username ||
-                      "Waiting for match..."}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Clock3 size={16} className="text-red-700" />
-                  {session?.phase === "chat" ? (
-                    <span
-                      className={
-                        warningActive ? "text-amber-600" : "text-gray-700"
-                      }
-                    >
-                      {formatClock(sessionTimeRemainingSeconds)}
-                    </span>
-                  ) : session?.phase === "vote" ? (
-                    <span className="text-amber-700">
-                      Vote: {formatClock(voteTimeRemainingSeconds)}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">--:--</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-                {isBootstrapping ? (
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-14 w-2/3 rounded-2xl bg-gray-200" />
-                    <div className="h-14 w-1/2 rounded-2xl bg-gray-200 ml-auto" />
-                    <div className="h-14 w-3/5 rounded-2xl bg-gray-200" />
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="h-full min-h-56 flex flex-col items-center justify-center text-center text-gray-400">
-                    <Timer size={26} className="mb-2" />
-                    <p className="text-sm">No messages yet.</p>
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isMine = message.userId === currentUserId;
-                    const reactionGroups = buildReactionGroups(
-                      message.reactions,
-                      currentUserId,
-                    );
-                    const reactionMap = reactionGroups.reduce((acc, group) => {
-                      acc[group.emoji] = group;
-                      return acc;
-                    }, {});
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                      >
-                        <div className="max-w-[82%]">
-                          <div
-                            className={`rounded-2xl px-3 py-2 shadow-sm ${
-                              isMine
-                                ? "bg-red-700 text-white"
-                                : "bg-white border border-gray-200 text-gray-800"
-                            }`}
-                          >
-                            <p
-                              className={`text-[11px] font-semibold mb-1 ${
-                                isMine ? "text-red-100" : "text-gray-500"
-                              }`}
-                            >
-                              {message.profile?.username || "User"}
-                            </p>
-
-                            {message.replyMessage && (
-                              <div
-                                className={`mb-2 rounded-xl px-2.5 py-1.5 border ${
-                                  isMine
-                                    ? "bg-red-600/70 border-red-300/40"
-                                    : "bg-gray-50 border-gray-200"
-                                }`}
-                              >
-                                <p
-                                  className={`text-[10px] font-semibold uppercase tracking-wide ${
-                                    isMine ? "text-red-100" : "text-gray-500"
-                                  }`}
-                                >
-                                  Replying to{" "}
-                                  {message.replyMessage?.profiles?.username ||
-                                    "User"}
-                                </p>
-                                <p
-                                  className={`text-xs truncate ${
-                                    isMine ? "text-red-100" : "text-gray-600"
-                                  }`}
-                                >
-                                  {message.replyMessage?.content ||
-                                    (message.replyMessage?.image_url
-                                      ? "(image)"
-                                      : "(no text)")}
-                                </p>
-                              </div>
-                            )}
-
-                            {message.content ? (
-                              <p className="text-sm whitespace-pre-wrap wrap-break-word">
-                                {message.content}
-                              </p>
-                            ) : null}
-
-                            {message.imageUrl ? (
-                              <img
-                                src={message.imageUrl}
-                                alt="Shared"
-                                className="mt-2 rounded-xl max-h-64 w-auto object-cover border border-black/10"
-                              />
-                            ) : null}
-
-                            <MessageLinkPreview
-                              text={message.content}
-                              excludeUrls={
-                                message.imageUrl ? [message.imageUrl] : []
-                              }
-                              className={
-                                isMine ? "bg-red-50 border-red-100" : ""
-                              }
-                            />
-                          </div>
-
-                          {canReactToMessages && (
-                            <div
-                              className={`mt-1 flex items-center gap-1.5 ${
-                                isMine ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleSelectReply(message)}
-                                className="h-7 px-2 rounded-full border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-[11px] inline-flex items-center gap-1"
-                                title="Reply"
-                              >
-                                <CornerUpLeft size={12} /> Reply
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setActiveReactionPickerId((previous) =>
-                                    previous === message.id ? null : message.id,
-                                  )
-                                }
-                                className="h-7 w-7 rounded-full border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 inline-flex items-center justify-center"
-                                title="React"
-                              >
-                                <SmilePlus size={14} />
-                              </button>
-                            </div>
-                          )}
-
-                          {activeReactionPickerId === message.id && (
-                            <div
-                              className={`mt-1 flex flex-wrap gap-1.5 ${
-                                isMine ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              {RANDOM_REACTION_EMOJIS.map((emoji) => {
-                                const current = reactionMap[emoji];
-                                return (
-                                  <button
-                                    key={`${message.id}-${emoji}`}
-                                    type="button"
-                                    onClick={() => {
-                                      handleToggleReaction({
-                                        messageId: message.id,
-                                        emoji,
-                                        reactedByMe: !!current?.reactedByMe,
-                                      });
-                                      setActiveReactionPickerId(null);
-                                    }}
-                                    className={`h-8 w-8 rounded-full border text-base flex items-center justify-center ${
-                                      current?.reactedByMe
-                                        ? "bg-red-50 border-red-200"
-                                        : "bg-white border-gray-200"
-                                    }`}
-                                  >
-                                    {emoji}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {reactionGroups.length > 0 && (
-                            <div
-                              className={`mt-1 flex gap-1.5 flex-wrap ${
-                                isMine ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              {reactionGroups.map((group) => (
-                                <button
-                                  key={`${message.id}-reaction-${group.emoji}`}
-                                  type="button"
-                                  onClick={() =>
-                                    handleToggleReaction({
-                                      messageId: message.id,
-                                      emoji: group.emoji,
-                                      reactedByMe: group.reactedByMe,
-                                    })
-                                  }
-                                  className={`text-[11px] rounded-full border px-2 py-0.5 ${
-                                    group.reactedByMe
-                                      ? "bg-red-50 border-red-200 text-red-700"
-                                      : "bg-white border-gray-200 text-gray-600"
-                                  }`}
-                                >
-                                  {group.emoji} {group.count}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-
-                {partnerTyping &&
-                  status === "matched" &&
-                  session?.phase === "chat" && (
-                    <p className="text-xs text-gray-500">
-                      Partner is typing...
-                    </p>
-                  )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              <form
-                onSubmit={handleSendMessage}
-                className="p-3 border-t border-gray-100 min-w-0"
-              >
-                {replyTarget && (
-                  <div className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">
-                        Replying to {replyTarget?.profile?.username || "User"}
-                      </p>
-                      <p className="text-red-700 truncate">
-                        {replyTarget?.content ||
-                          (replyTarget?.imageUrl ? "(image)" : "(no text)")}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleClearReply}
-                      className="text-red-700 hover:text-red-900 font-semibold"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex items-end gap-2 min-w-0">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImagePicked}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={!canSendMessage || isUploading}
-                    className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                    title="Send image"
-                  >
-                    {isUploading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <ImagePlus size={16} />
-                    )}
-                  </button>
-
-                  <EmojiPickerButton
-                    onSelect={handleInsertEmoji}
-                    disabled={!canSendMessage || isUploading}
-                    align="left"
-                  />
-
-                  <textarea
-                    value={draft}
-                    onChange={handleMessageInputChange}
-                    placeholder={
-                      canSendMessage
-                        ? "Type your message..."
-                        : "You can send messages while chat is active"
-                    }
-                    rows={1}
-                    disabled={!canSendMessage || isUploading}
-                    className="flex-1 min-w-0 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:text-gray-400"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        handleSendMessage(event);
-                      }
-                    }}
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={!canSendMessage || !draft.trim() || isUploading}
-                    className="h-10 shrink-0 rounded-xl bg-red-700 text-white px-4 text-sm font-semibold hover:bg-red-800 disabled:opacity-50"
-                  >
-                    Send
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex flex-col gap-3 min-h-0 overflow-y-auto">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                  Partner
-                </p>
-                {isBootstrapping ? (
-                  <div className="mt-2 animate-pulse flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200" />
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="h-3 w-1/2 bg-gray-200 rounded" />
-                      <div className="h-2 w-2/3 bg-gray-200 rounded" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex items-center gap-3">
-                    {session?.partnerProfile?.avatar_url ? (
-                      <img
-                        src={session.partnerProfile.avatar_url}
-                        alt={session.partnerProfile.username || "Partner"}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gray-300 text-gray-700 font-semibold flex items-center justify-center">
-                        {session?.partnerProfile?.username?.[0]?.toUpperCase() ||
-                          "U"}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">
-                        {session?.partnerProfile?.username || "Pending match"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-red-100 bg-red-50 p-3">
-                <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
-                  Match Flow
-                </p>
-                <p className="text-xs text-red-700 mt-2 leading-relaxed">
-                  1. 3-minute round
-                  <br />
-                  2. Vote at timeout
-                  <br />
-                  3. Both must vote Continue
-                </p>
-              </div>
-
-              {canViewAdminAnalytics ? (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider inline-flex items-center gap-1">
-                      <BarChart3 size={13} /> Admin Analytics
-                    </p>
-                    <button
-                      type="button"
-                      onClick={loadAdminAnalytics}
-                      disabled={isAnalyticsLoading}
-                      className="text-blue-700 hover:text-blue-900 disabled:opacity-50"
-                      title="Refresh admin analytics"
-                    >
-                      <RefreshCw
-                        size={14}
-                        className={isAnalyticsLoading ? "animate-spin" : ""}
-                      />
-                    </button>
-                  </div>
-
-                  {analyticsData ? (
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-blue-900">
-                      <div className="rounded-lg bg-white/70 px-2 py-1">
-                        <p className="font-semibold">Matches Today</p>
-                        <p>{analyticsData.summary?.matchesToday ?? 0}</p>
-                      </div>
-                      <div className="rounded-lg bg-white/70 px-2 py-1">
-                        <p className="font-semibold">Avg Rounds</p>
-                        <p>{analyticsData.summary?.averageRounds ?? 0}</p>
-                      </div>
-                      <div className="rounded-lg bg-white/70 px-2 py-1">
-                        <p className="font-semibold">Extend Rate</p>
-                        <p>{analyticsData.summary?.extendRate ?? 0}%</p>
-                      </div>
-                      <div className="rounded-lg bg-white/70 px-2 py-1">
-                        <p className="font-semibold">Reports Today</p>
-                        <p>{analyticsData.summary?.reportsToday ?? 0}</p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-3">
-                    <p className="text-[11px] font-semibold text-blue-800 inline-flex items-center gap-1">
-                      <ShieldAlert size={13} /> Recent Random Reports
-                    </p>
-
-                    {recentReports.length === 0 ? (
-                      <p className="text-[11px] text-blue-700 mt-1">
-                        No reports in recent logs.
-                      </p>
-                    ) : (
-                      <div className="mt-1 space-y-1 max-h-24 overflow-y-auto pr-1">
-                        {recentReports.slice(0, 5).map((report) => (
-                          <div
-                            key={report.id}
-                            className="rounded-lg bg-white/70 px-2 py-1 text-[11px] text-blue-900"
-                          >
-                            <p className="font-semibold truncate">
-                              {report.reason || "Report"}
-                            </p>
-                            <p className="truncate">
-                              Session{" "}
-                              {String(report.sessionId || "").slice(0, 8)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {session?.phase === "vote" && status === "matched" ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-sm font-semibold text-amber-900">
-                    Time is up. Vote now.
-                  </p>
-
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleVote("extend")}
-                      disabled={myDecision === "extend"}
-                      className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-55 inline-flex items-center justify-center gap-1"
-                    >
-                      <Check size={14} />
-                      Continue
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleVote("end")}
-                      disabled={myDecision === "end"}
-                      className="rounded-lg bg-gray-800 text-white px-3 py-2 text-sm font-semibold hover:bg-black disabled:opacity-55 inline-flex items-center justify-center gap-1"
-                    >
-                      <XCircle size={14} />
-                      End
-                    </button>
-                  </div>
-
-                  <div className="mt-3 text-xs text-amber-900 space-y-1">
-                    <p>
-                      You: {myDecision ? myDecision.toUpperCase() : "PENDING"}
-                    </p>
-                    <p>
-                      Partner:{" "}
-                      {partnerDecision
-                        ? partnerDecision.toUpperCase()
-                        : "PENDING"}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              {canViewAdminAnalytics && analyticsError ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                  {analyticsError}
-                </div>
-              ) : null}
-
-              {reportFeedback ? (
-                <div
-                  className={`rounded-xl p-3 text-xs ${
-                    reportFeedbackTone === "error"
-                      ? "border border-red-200 bg-red-50 text-red-700"
-                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                  }`}
-                >
-                  {reportFeedback}
-                </div>
-              ) : null}
-            </div>
-          </section>
+              <RandomInsightsPanel
+                isBootstrapping={isBootstrapping}
+                session={session}
+                canViewAdminAnalytics={canViewAdminAnalytics}
+                isAnalyticsLoading={isAnalyticsLoading}
+                onRefreshAnalytics={loadAdminAnalytics}
+                analyticsData={analyticsData}
+                recentReports={recentReports}
+                status={status}
+                onVote={handleVote}
+                myDecision={myDecision}
+                partnerDecision={partnerDecision}
+                error={error}
+                analyticsError={analyticsError}
+                reportFeedback={reportFeedback}
+                reportFeedbackTone={reportFeedbackTone}
+              />
+            </section>
+          </div>
         </div>
       </main>
 
-      {showReportModal && canReportSession ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl border border-gray-200">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
-                <ShieldAlert size={16} className="text-amber-700" />
-                Report Random Session
-              </h2>
-              <button
-                type="button"
-                onClick={closeReportModal}
-                disabled={isSubmittingReport}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-2">
-              Report target:{" "}
-              {reportSessionTarget?.partnerProfile?.username || "User"}
-            </p>
-
-            <form className="mt-3 space-y-3" onSubmit={handleSubmitReport}>
-              <div>
-                <label className="text-xs font-semibold text-gray-700">
-                  Reason
-                </label>
-                <select
-                  value={reportReason}
-                  onChange={(event) => setReportReason(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-                >
-                  {REPORT_REASON_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-700">
-                  Details (optional)
-                </label>
-                <textarea
-                  value={reportDescription}
-                  onChange={(event) => setReportDescription(event.target.value)}
-                  maxLength={1000}
-                  rows={4}
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder="Share short context for moderation logs"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closeReportModal}
-                  disabled={isSubmittingReport}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingReport}
-                  className="inline-flex items-center gap-2 rounded-lg bg-red-700 text-white px-4 py-2 text-sm font-semibold hover:bg-red-800 disabled:opacity-60"
-                >
-                  {isSubmittingReport ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Flag size={14} />
-                  )}
-                  Submit Report
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      <RandomReportModal
+        open={showReportModal}
+        canReportSession={canReportSession}
+        onClose={closeReportModal}
+        isSubmittingReport={isSubmittingReport}
+        reportSessionTarget={reportSessionTarget}
+        reportReason={reportReason}
+        onChangeReason={setReportReason}
+        reportDescription={reportDescription}
+        onChangeDescription={setReportDescription}
+        onSubmit={handleSubmitReport}
+        reasonOptions={REPORT_REASON_OPTIONS}
+      />
     </div>
   );
 }
