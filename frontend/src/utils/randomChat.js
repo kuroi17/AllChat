@@ -2,7 +2,7 @@ import { getChatSocket, uploadRoomMessageImage } from "./messages";
 import { supabase } from "./supabase";
 import { API_BASE_URL } from "./runtimeConfig";
 
-const SOCKET_ACK_TIMEOUT_MS = 12000;
+const SOCKET_ACK_TIMEOUT_MS = 18000;
 
 async function getAccessToken() {
   const {
@@ -56,12 +56,57 @@ async function requestRandomApi(path, { method = "GET", body } = {}) {
   return response.json();
 }
 
-function emitWithAck(
+function ensureSocketConnected(socket, timeoutMs = 20000) {
+  if (socket?.connected) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    let isDone = false;
+
+    const timer = setTimeout(() => {
+      if (isDone) return;
+      isDone = true;
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleError);
+      reject(new Error("Connection timed out. Please try again."));
+    }, timeoutMs);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleError);
+    };
+
+    const handleConnect = () => {
+      if (isDone) return;
+      isDone = true;
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      if (isDone) return;
+      isDone = true;
+      cleanup();
+      reject(new Error("Unable to connect to random chat server."));
+    };
+
+    socket.once("connect", handleConnect);
+    socket.once("connect_error", handleError);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+  });
+}
+
+async function emitWithAck(
   socket,
   eventName,
   payload = {},
   timeoutMs = SOCKET_ACK_TIMEOUT_MS,
 ) {
+  await ensureSocketConnected(socket, Math.max(timeoutMs, 18000));
+
   return new Promise((resolve, reject) => {
     let isSettled = false;
 
@@ -148,6 +193,7 @@ export async function leaveRandomSession(
 
 export function subscribeRandomChatEvents(socket, handlers = {}) {
   const entries = [
+    ["random:queue:stats", handlers.onQueueStats],
     ["random:queue:joined", handlers.onQueueJoined],
     ["random:queue:left", handlers.onQueueLeft],
     ["random:matched", handlers.onMatched],
@@ -189,6 +235,12 @@ export async function uploadRandomChatImage({ sessionId, file }) {
 export async function fetchRandomAnalytics(days = 7) {
   const safeDays = Number.isFinite(days) ? Math.max(1, Math.min(30, days)) : 7;
   return requestRandomApi(`/api/random/analytics?days=${safeDays}`, {
+    method: "GET",
+  });
+}
+
+export async function fetchRandomAccess() {
+  return requestRandomApi("/api/random/access", {
     method: "GET",
   });
 }

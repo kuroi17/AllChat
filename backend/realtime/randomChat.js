@@ -15,6 +15,7 @@ function parsePositiveInt(name, fallbackValue) {
 }
 
 const DEFAULT_SESSION_SECONDS = 180;
+// 180s round with warning at 160s means warning triggers at 20s left.
 const DEFAULT_WARNING_SECONDS = 160;
 const DEFAULT_VOTE_WINDOW_SECONDS = 20;
 const MAX_RANDOM_MESSAGE_CHARS = 500;
@@ -90,6 +91,13 @@ function createRandomChatGateway(io) {
 
   function getSocketById(socketId) {
     return io.sockets.sockets.get(socketId) || null;
+  }
+
+  function emitQueueStats() {
+    io.emit("random:queue:stats", {
+      queueSize: waitingQueue.length,
+      updatedAt: Date.now(),
+    });
   }
 
   function getDayKey() {
@@ -446,15 +454,18 @@ function createRandomChatGateway(io) {
   }
 
   function removeUserFromQueue(userId) {
-    if (!userId) return;
+    if (!userId) return false;
 
-    queuedUsers.delete(userId);
+    let removed = queuedUsers.delete(userId);
 
     for (let index = waitingQueue.length - 1; index >= 0; index -= 1) {
       if (waitingQueue[index] === userId) {
         waitingQueue.splice(index, 1);
+        removed = true;
       }
     }
+
+    return removed;
   }
 
   function clearSessionTimers(session) {
@@ -646,11 +657,13 @@ function createRandomChatGateway(io) {
     if (waitingQueue.length < 2) return;
 
     isMatchingInProgress = true;
+    let queueChanged = false;
 
     try {
       while (waitingQueue.length >= 2) {
         const firstUserId = waitingQueue.shift();
         const secondUserId = waitingQueue.shift();
+        queueChanged = true;
 
         if (!firstUserId || !secondUserId || firstUserId === secondUserId) {
           if (firstUserId) removeUserFromQueue(firstUserId);
@@ -742,6 +755,9 @@ function createRandomChatGateway(io) {
       }
     } finally {
       isMatchingInProgress = false;
+      if (queueChanged) {
+        emitQueueStats();
+      }
     }
   }
 
@@ -774,6 +790,7 @@ function createRandomChatGateway(io) {
     });
 
     waitingQueue.push(userId);
+    emitQueueStats();
 
     if (typeof ack === "function") {
       ack({
@@ -794,13 +811,17 @@ function createRandomChatGateway(io) {
   function handleQueueLeave(socket, ack) {
     if (!queueRateLimiter(socket, ack)) return;
 
-    removeUserFromQueue(socket.userId);
+    const removed = removeUserFromQueue(socket.userId);
 
     if (typeof ack === "function") {
       ack({ ok: true, state: "idle" });
     }
 
     socket.emit("random:queue:left", { state: "idle" });
+
+    if (removed) {
+      emitQueueStats();
+    }
   }
 
   function handleSessionState(socket, ack) {
@@ -1013,7 +1034,11 @@ function createRandomChatGateway(io) {
   }
 
   function handleDisconnect(socket) {
-    removeUserFromQueue(socket.userId);
+    const removed = removeUserFromQueue(socket.userId);
+
+    if (removed) {
+      emitQueueStats();
+    }
 
     const session = findSessionByUserId(socket.userId);
     if (session) {
@@ -1025,6 +1050,11 @@ function createRandomChatGateway(io) {
   }
 
   function bindSocket(socket) {
+    socket.emit("random:queue:stats", {
+      queueSize: waitingQueue.length,
+      updatedAt: Date.now(),
+    });
+
     socket.on("random:queue:join", async (_payload, ack) => {
       try {
         await handleQueueJoin(socket, ack);

@@ -1,7 +1,10 @@
 const express = require("express");
 const { verifyToken } = require("../middleware/auth");
 const { createRateLimiter } = require("../middleware/chatGuards");
-const { requireRandomAnalyticsAdmin } = require("../utils/adminAccess");
+const {
+  canUserAccessRandomAnalytics,
+  requireRandomAnalyticsAdmin,
+} = require("../utils/adminAccess");
 
 const router = express.Router();
 
@@ -27,6 +30,11 @@ function parseDays(value, fallback = 7, max = 30) {
 function getGateway(req) {
   return req.app.get("randomChatGateway");
 }
+
+router.get("/access", verifyToken, (req, res) => {
+  const canViewAnalytics = canUserAccessRandomAnalytics(req.user);
+  res.json({ canViewAnalytics: !!canViewAnalytics });
+});
 
 router.get(
   "/analytics",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
   BarChart3,
+  Check,
   Clock3,
   Flag,
   ImagePlus,
@@ -11,18 +11,20 @@ import {
   ShieldAlert,
   Shuffle,
   Timer,
+  Users,
   X,
+  XCircle,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import {
+  fetchRandomAccess,
   getRandomChatSocket,
   fetchRandomAnalytics,
   fetchRandomReports,
   getRandomSessionState,
   joinRandomQueue,
   leaveRandomQueue,
-  leaveRandomSession,
   sendRandomSessionMessage,
   sendRandomSessionTyping,
   submitRandomSessionReport,
@@ -79,6 +81,7 @@ export default function RandomChat() {
   const activeSessionIdRef = useRef(null);
 
   const [socket, setSocket] = useState(null);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [status, setStatus] = useState("idle");
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -86,9 +89,7 @@ export default function RandomChat() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState(
-    "Click Start to enter the random queue.",
-  );
+  const [notice, setNotice] = useState("Tap Start to enter the queue.");
   const [warningActive, setWarningActive] = useState(false);
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [voteDecision, setVoteDecision] = useState("");
@@ -138,7 +139,7 @@ export default function RandomChat() {
     });
 
     setStatus("matched");
-    setNotice("You are matched. Talk fast before time runs out.");
+    setNotice("You are matched. Keep the chat flowing.");
     setError("");
     setWarningActive(false);
     setPartnerTyping(false);
@@ -166,6 +167,16 @@ export default function RandomChat() {
     setAnalyticsError("");
 
     try {
+      const access = await fetchRandomAccess();
+      const canView = !!access?.canViewAnalytics;
+      setCanViewAdminAnalytics(canView);
+
+      if (!canView) {
+        setAnalyticsData(null);
+        setRecentReports([]);
+        return;
+      }
+
       const [analytics, reports] = await Promise.all([
         fetchRandomAnalytics(7),
         fetchRandomReports(8),
@@ -173,12 +184,12 @@ export default function RandomChat() {
 
       setAnalyticsData(analytics || null);
       setRecentReports(Array.isArray(reports) ? reports : []);
-      setCanViewAdminAnalytics(true);
     } catch (requestError) {
       if (requestError?.status === 403) {
         setCanViewAdminAnalytics(false);
         setAnalyticsData(null);
         setRecentReports([]);
+        setAnalyticsError("");
       } else {
         setCanViewAdminAnalytics(false);
         setAnalyticsError(
@@ -206,10 +217,13 @@ export default function RandomChat() {
         setSocket(liveSocket);
 
         unsubscribe = subscribeRandomChatEvents(liveSocket, {
+          onQueueStats: (payload) => {
+            setQueueSize(payload?.queueSize ?? null);
+          },
           onQueueJoined: (payload) => {
             setStatus("queueing");
             setQueueSize(payload?.queueSize ?? null);
-            setNotice("Finding a random partner...");
+            setNotice("Finding a partner...");
           },
           onQueueLeft: () => {
             setStatus("idle");
@@ -256,9 +270,7 @@ export default function RandomChat() {
             });
 
             setVoteDecision("");
-            setNotice(
-              "Time is up. Continue only if both users choose Continue.",
-            );
+            setNotice("Time is up. Vote now.");
           },
           onVoteUpdate: (payload) => {
             if (
@@ -307,7 +319,7 @@ export default function RandomChat() {
             setVoteDecision("");
             setVoteMap({});
             setWarningActive(false);
-            setNotice("Round extended. Keep the conversation going.");
+            setNotice("Round extended.");
           },
           onSessionEnded: (payload) => {
             if (
@@ -340,11 +352,11 @@ export default function RandomChat() {
             setQueueSize(null);
 
             if (payload.reason === "partner_left") {
-              setNotice("Your partner left. Start again when you are ready.");
+              setNotice("Partner left. Start again when ready.");
             } else if (payload.reason === "ended_by_vote") {
               setNotice("Session ended by vote.");
             } else if (payload.reason === "vote_timeout") {
-              setNotice("No full continue vote. Session ended.");
+              setNotice("Vote timed out. Session ended.");
             } else {
               setNotice("Session ended.");
             }
@@ -397,15 +409,18 @@ export default function RandomChat() {
         } else if (existingState?.state === "queued") {
           setStatus("queueing");
           setQueueSize(existingState.queueSize ?? null);
-          setNotice("Finding a random partner...");
+          setNotice("Finding a partner...");
           clearRandomSessionLock();
         } else {
           setStatus("idle");
           activeSessionIdRef.current = null;
           clearRandomSessionLock();
         }
+
+        setIsBootstrapping(false);
       } catch (setupError) {
         setError(setupError.message || "Failed to initialize random chat");
+        setIsBootstrapping(false);
       }
     })();
 
@@ -464,7 +479,7 @@ export default function RandomChat() {
     try {
       await joinRandomQueue(socket);
       setStatus("queueing");
-      setNotice("Finding a random partner...");
+      setNotice("Finding a partner...");
     } catch (queueError) {
       setError(queueError.message || "Unable to join queue");
     } finally {
@@ -485,29 +500,6 @@ export default function RandomChat() {
       setNotice("Queue canceled.");
     } catch (queueError) {
       setError(queueError.message || "Unable to leave queue");
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleLeaveSession = async () => {
-    if (!socket || !session?.sessionId) return;
-
-    setError("");
-    setIsActionLoading(true);
-
-    try {
-      await leaveRandomSession(socket, {
-        sessionId: session.sessionId,
-        reason: "left_random_chat",
-      });
-      setStatus("idle");
-      activeSessionIdRef.current = null;
-      setSession(null);
-      setNotice("You left the random session.");
-      clearRandomSessionLock();
-    } catch (leaveError) {
-      setError(leaveError.message || "Unable to leave random session");
     } finally {
       setIsActionLoading(false);
     }
@@ -649,8 +641,9 @@ export default function RandomChat() {
     }
   };
 
-  const statusChipLabel =
-    status === "queueing"
+  const statusChipLabel = isBootstrapping
+    ? "Loading"
+    : status === "queueing"
       ? "Queueing"
       : status === "matched"
         ? "In Session"
@@ -666,7 +659,7 @@ export default function RandomChat() {
 
       <main className="flex-1 min-w-0 p-3 md:p-5 overflow-hidden">
         <div className="max-w-5xl mx-auto h-full flex flex-col gap-3">
-          <section className="rounded-2xl bg-gradient-to-r from-red-800 to-red-700 text-white p-4 md:p-5 shadow-lg">
+          <section className="rounded-2xl bg-linear-to-r from-red-800 to-red-700 text-white p-4 md:p-5 shadow-lg">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-widest text-red-100 font-semibold">
@@ -676,8 +669,7 @@ export default function RandomChat() {
                   <Shuffle size={20} /> Random
                 </h1>
                 <p className="text-sm text-red-100 mt-2 max-w-2xl">
-                  1-on-1 random pairing with 3-minute rounds. Continue only when
-                  both users vote Continue.
+                  1-on-1 pairing with timed rounds and instant rematch voting.
                 </p>
               </div>
 
@@ -704,11 +696,10 @@ export default function RandomChat() {
             <div className="flex flex-wrap gap-3 items-center justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800">{notice}</p>
-                {status === "queueing" && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Queue size: {queueSize ?? "..."}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                  <Users size={12} />
+                  Waiting now: {queueSize ?? "..."}
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -716,7 +707,7 @@ export default function RandomChat() {
                   <button
                     type="button"
                     onClick={handleJoinQueue}
-                    disabled={isActionLoading || !socket}
+                    disabled={isActionLoading || isBootstrapping || !socket}
                     className="inline-flex items-center gap-2 rounded-xl bg-red-700 text-white px-4 py-2 text-sm font-semibold hover:bg-red-800 disabled:opacity-60"
                   >
                     {isActionLoading ? (
@@ -732,7 +723,7 @@ export default function RandomChat() {
                   <button
                     type="button"
                     onClick={handleLeaveQueue}
-                    disabled={isActionLoading}
+                    disabled={isActionLoading || isBootstrapping}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white text-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
                   >
                     {isActionLoading ? (
@@ -741,22 +732,6 @@ export default function RandomChat() {
                       <X size={16} />
                     )}
                     Cancel Queue
-                  </button>
-                ) : null}
-
-                {status === "matched" ? (
-                  <button
-                    type="button"
-                    onClick={handleLeaveSession}
-                    disabled={isActionLoading}
-                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white text-red-700 px-4 py-2 text-sm font-semibold hover:bg-red-50 disabled:opacity-60"
-                  >
-                    {isActionLoading ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <AlertCircle size={16} />
-                    )}
-                    Leave Session
                   </button>
                 ) : null}
 
@@ -808,11 +783,16 @@ export default function RandomChat() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-                {messages.length === 0 ? (
+                {isBootstrapping ? (
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-14 w-2/3 rounded-2xl bg-gray-200" />
+                    <div className="h-14 w-1/2 rounded-2xl bg-gray-200 ml-auto" />
+                    <div className="h-14 w-3/5 rounded-2xl bg-gray-200" />
+                  </div>
+                ) : messages.length === 0 ? (
                   <div className="h-full min-h-56 flex flex-col items-center justify-center text-center text-gray-400">
                     <Timer size={26} className="mb-2" />
                     <p className="text-sm">No messages yet.</p>
-                    <p className="text-xs">Say hi and keep it flowing.</p>
                   </div>
                 ) : (
                   messages.map((message) => {
@@ -838,7 +818,7 @@ export default function RandomChat() {
                           </p>
 
                           {message.content ? (
-                            <p className="text-sm whitespace-pre-wrap break-words">
+                            <p className="text-sm whitespace-pre-wrap wrap-break-word">
                               {message.content}
                             </p>
                           ) : null}
@@ -869,7 +849,7 @@ export default function RandomChat() {
 
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 border-t border-gray-100 flex items-end gap-2"
+                className="p-3 border-t border-gray-100 flex items-end gap-2 min-w-0"
               >
                 <input
                   ref={fileInputRef}
@@ -883,7 +863,7 @@ export default function RandomChat() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={!canSendMessage || isUploading}
-                  className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                   title="Send image"
                 >
                   {isUploading ? (
@@ -903,7 +883,7 @@ export default function RandomChat() {
                   }
                   rows={1}
                   disabled={!canSendMessage || isUploading}
-                  className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:text-gray-400"
+                  className="flex-1 min-w-0 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:text-gray-400"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -915,7 +895,7 @@ export default function RandomChat() {
                 <button
                   type="submit"
                   disabled={!canSendMessage || !draft.trim() || isUploading}
-                  className="h-10 rounded-xl bg-red-700 text-white px-4 text-sm font-semibold hover:bg-red-800 disabled:opacity-50"
+                  className="h-10 shrink-0 rounded-xl bg-red-700 text-white px-4 text-sm font-semibold hover:bg-red-800 disabled:opacity-50"
                 >
                   Send
                 </button>
@@ -927,40 +907,50 @@ export default function RandomChat() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                   Partner
                 </p>
-                <div className="mt-2 flex items-center gap-3">
-                  {session?.partnerProfile?.avatar_url ? (
-                    <img
-                      src={session.partnerProfile.avatar_url}
-                      alt={session.partnerProfile.username || "Partner"}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-300 text-gray-700 font-semibold flex items-center justify-center">
-                      {session?.partnerProfile?.username?.[0]?.toUpperCase() ||
-                        "U"}
+                {isBootstrapping ? (
+                  <div className="mt-2 animate-pulse flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-200" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-3 w-1/2 bg-gray-200 rounded" />
+                      <div className="h-2 w-2/3 bg-gray-200 rounded" />
                     </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">
-                      {session?.partnerProfile?.username || "Pending match"}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {profile?.username || "You"} vs random partner
-                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-3">
+                    {session?.partnerProfile?.avatar_url ? (
+                      <img
+                        src={session.partnerProfile.avatar_url}
+                        alt={session.partnerProfile.username || "Partner"}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-300 text-gray-700 font-semibold flex items-center justify-center">
+                        {session?.partnerProfile?.username?.[0]?.toUpperCase() ||
+                          "U"}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {session?.partnerProfile?.username || "Pending match"}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {profile?.username || "You"} vs random partner
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-xl border border-red-100 bg-red-50 p-3">
                 <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
-                  Flow
+                  Match Flow
                 </p>
                 <p className="text-xs text-red-700 mt-2 leading-relaxed">
-                  1. 3-minute talk round
+                  1. 3-minute round
                   <br />
-                  2. At timer end, vote appears
+                  2. Vote at timeout
                   <br />
-                  3. Continue only if both choose Continue
+                  3. Both must vote Continue
                 </p>
               </div>
 
@@ -1039,10 +1029,7 @@ export default function RandomChat() {
               {session?.phase === "vote" && status === "matched" ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-sm font-semibold text-amber-900">
-                    Time is up. Choose now.
-                  </p>
-                  <p className="text-xs text-amber-800 mt-1">
-                    One End vote is enough to end the session.
+                    Time is up. Vote now.
                   </p>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1050,30 +1037,31 @@ export default function RandomChat() {
                       type="button"
                       onClick={() => handleVote("extend")}
                       disabled={myDecision === "extend"}
-                      className="rounded-lg bg-green-600 text-white px-3 py-2 text-sm font-semibold hover:bg-green-700 disabled:opacity-55"
+                      className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-55 inline-flex items-center justify-center gap-1"
                     >
+                      <Check size={14} />
                       Continue
                     </button>
                     <button
                       type="button"
                       onClick={() => handleVote("end")}
                       disabled={myDecision === "end"}
-                      className="rounded-lg bg-gray-800 text-white px-3 py-2 text-sm font-semibold hover:bg-black disabled:opacity-55"
+                      className="rounded-lg bg-gray-800 text-white px-3 py-2 text-sm font-semibold hover:bg-black disabled:opacity-55 inline-flex items-center justify-center gap-1"
                     >
+                      <XCircle size={14} />
                       End
                     </button>
                   </div>
 
                   <div className="mt-3 text-xs text-amber-900 space-y-1">
                     <p>
-                      Your vote:{" "}
-                      {myDecision ? myDecision.toUpperCase() : "Pending"}
+                      You: {myDecision ? myDecision.toUpperCase() : "PENDING"}
                     </p>
                     <p>
-                      Partner vote:{" "}
+                      Partner:{" "}
                       {partnerDecision
                         ? partnerDecision.toUpperCase()
-                        : "Pending"}
+                        : "PENDING"}
                     </p>
                   </div>
                 </div>
@@ -1085,7 +1073,7 @@ export default function RandomChat() {
                 </div>
               ) : null}
 
-              {analyticsError ? (
+              {canViewAdminAnalytics && analyticsError ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                   {analyticsError}
                 </div>
@@ -1104,8 +1092,7 @@ export default function RandomChat() {
               ) : null}
 
               <div className="mt-auto rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
-                Side navigation is locked while session is active so users stay
-                focused in the current random match.
+                Navigation locks only while an active random session is running.
               </div>
             </div>
           </section>
