@@ -9,6 +9,7 @@ import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
 import DirectMessages from "./pages/DirectMessages";
 import Settings from "./pages/Settings";
+import RandomChat from "./pages/RandomChat";
 import RoomArchive from "./pages/RoomArchive";
 import Room from "./pages/Room";
 import RoomsList from "./pages/RoomsList";
@@ -45,6 +46,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <GlobalChat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/random"
+            element={
+              <ProtectedRoute>
+                <RandomChat />
               </ProtectedRoute>
             }
           />
