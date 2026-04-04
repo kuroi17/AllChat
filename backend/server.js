@@ -53,6 +53,7 @@ const io = new Server(server, {
 app.set("io", io);
 
 const randomChatGateway = createRandomChatGateway(io);
+app.set("randomChatGateway", randomChatGateway);
 
 const socketRoomActionRateLimiter = createSocketRateLimiter({
   scope: "socket-room-action",
@@ -264,6 +265,7 @@ const announcementsRouter = require("./routes/announcements");
 const roomsRouter = require("./routes/rooms");
 const reportsRouter = require("./routes/reports");
 const mediaRouter = require("./routes/media");
+const randomRouter = require("./routes/random");
 
 // Mount routes
 app.use("/api/messages", messagesRouter);
@@ -274,6 +276,7 @@ app.use("/api/announcements", announcementsRouter);
 app.use("/api/rooms", roomsRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/media", mediaRouter);
+app.use("/api/random", randomRouter);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
