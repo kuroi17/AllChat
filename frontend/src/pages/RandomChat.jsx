@@ -139,7 +139,7 @@ export default function RandomChat() {
     });
 
     setStatus("matched");
-    setNotice("You are matched. Keep the chat flowing.");
+    setNotice("Matched! Say hi and start chatting.");
     setError("");
     setWarningActive(false);
     setPartnerTyping(false);
@@ -742,7 +742,7 @@ export default function RandomChat() {
                     className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-2 text-sm font-semibold hover:bg-amber-100"
                   >
                     <Flag size={16} />
-                    Report Partner
+                    Report User
                   </button>
                 ) : null}
               </div>
@@ -933,9 +933,6 @@ export default function RandomChat() {
                       <p className="text-sm font-semibold text-gray-800 truncate">
                         {session?.partnerProfile?.username || "Pending match"}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {profile?.username || "You"} vs random partner
-                      </p>
                     </div>
                   </div>
                 )}
@@ -1090,10 +1087,6 @@ export default function RandomChat() {
                   {reportFeedback}
                 </div>
               ) : null}
-
-              <div className="mt-auto rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
-                Navigation locks only while an active random session is running.
-              </div>
             </div>
           </section>
         </div>
