@@ -360,7 +360,11 @@ function createRandomAnalyticsStore(options = {}) {
     return reportLogs.slice(0, safeLimit);
   }
 
-  function getAnalyticsSnapshot({ days = 7, queueSize = 0, activeSessions = 0 } = {}) {
+  function getAnalyticsSnapshot({
+    days = 7,
+    queueSize = 0,
+    activeSessions = 0,
+  } = {}) {
     const dayKeys = getRecentDayKeys(days);
 
     let totalMatches = 0;
@@ -386,13 +390,18 @@ function createRandomAnalyticsStore(options = {}) {
 
       const dayAverageRounds =
         dayStats.completedSessions > 0
-          ? Number((dayStats.totalRounds / dayStats.completedSessions).toFixed(2))
+          ? Number(
+              (dayStats.totalRounds / dayStats.completedSessions).toFixed(2),
+            )
           : 0;
 
       const dayExtendRate =
         dayStats.completedSessions > 0
           ? Number(
-              ((dayStats.extendedSessions / dayStats.completedSessions) * 100).toFixed(2),
+              (
+                (dayStats.extendedSessions / dayStats.completedSessions) *
+                100
+              ).toFixed(2),
             )
           : 0;
 
@@ -413,7 +422,9 @@ function createRandomAnalyticsStore(options = {}) {
 
     const extendRate =
       totalCompletedSessions > 0
-        ? Number(((totalExtendedSessions / totalCompletedSessions) * 100).toFixed(2))
+        ? Number(
+            ((totalExtendedSessions / totalCompletedSessions) * 100).toFixed(2),
+          )
         : 0;
 
     const todayStats = analyticsByDay.get(getDayKey()) || {
