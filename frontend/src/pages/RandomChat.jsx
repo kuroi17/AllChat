@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  BarChart3,
   Clock3,
+  Flag,
   ImagePlus,
   Loader2,
   MessageCircleHeart,
+  RefreshCw,
+  ShieldAlert,
   Shuffle,
   Timer,
   X,
@@ -13,12 +17,15 @@ import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
 import {
   getRandomChatSocket,
+  fetchRandomAnalytics,
+  fetchRandomReports,
   getRandomSessionState,
   joinRandomQueue,
   leaveRandomQueue,
   leaveRandomSession,
   sendRandomSessionMessage,
   sendRandomSessionTyping,
+  submitRandomSessionReport,
   subscribeRandomChatEvents,
   uploadRandomChatImage,
   voteRandomSession,
@@ -54,6 +61,15 @@ function normalizeMessage(rawMessage) {
   };
 }
 
+const REPORT_REASON_OPTIONS = [
+  "Harassment",
+  "Hate speech",
+  "Sexual content",
+  "Spam",
+  "Threats",
+  "Other",
+];
+
 export default function RandomChat() {
   const { user, profile } = useUser();
   const fileInputRef = useRef(null);
@@ -79,6 +95,20 @@ export default function RandomChat() {
   const [voteMap, setVoteMap] = useState({});
   const [queueSize, setQueueSize] = useState(null);
   const [clockTick, setClockTick] = useState(Date.now());
+  const [lastSessionSummary, setLastSessionSummary] = useState(null);
+
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [recentReports, setRecentReports] = useState([]);
+  const [canViewAdminAnalytics, setCanViewAdminAnalytics] = useState(false);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState(REPORT_REASON_OPTIONS[0]);
+  const [reportDescription, setReportDescription] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState("");
+  const [reportFeedbackTone, setReportFeedbackTone] = useState("success");
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -120,7 +150,49 @@ export default function RandomChat() {
       locked: true,
       sessionId: sessionPayload.sessionId,
     });
+
+    setLastSessionSummary({
+      sessionId: sessionPayload.sessionId,
+      partnerProfile: sessionPayload.partnerProfile || null,
+      selfProfile: sessionPayload.selfProfile || null,
+      round: sessionPayload.round || 1,
+      endedReason: null,
+      endedAt: null,
+    });
   }, []);
+
+  const loadAdminAnalytics = useCallback(async () => {
+    setIsAnalyticsLoading(true);
+    setAnalyticsError("");
+
+    try {
+      const [analytics, reports] = await Promise.all([
+        fetchRandomAnalytics(7),
+        fetchRandomReports(8),
+      ]);
+
+      setAnalyticsData(analytics || null);
+      setRecentReports(Array.isArray(reports) ? reports : []);
+      setCanViewAdminAnalytics(true);
+    } catch (requestError) {
+      if (requestError?.status === 403) {
+        setCanViewAdminAnalytics(false);
+        setAnalyticsData(null);
+        setRecentReports([]);
+      } else {
+        setCanViewAdminAnalytics(false);
+        setAnalyticsError(
+          requestError.message || "Unable to load random analytics.",
+        );
+      }
+    } finally {
+      setIsAnalyticsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAdminAnalytics();
+  }, [loadAdminAnalytics]);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -248,7 +320,19 @@ export default function RandomChat() {
             activeSessionIdRef.current = null;
 
             setStatus("ended");
-            setSession(null);
+            setSession((previous) => {
+              if (previous?.sessionId === payload.sessionId) {
+                setLastSessionSummary({
+                  sessionId: previous.sessionId,
+                  partnerProfile: previous.partnerProfile || null,
+                  selfProfile: previous.selfProfile || null,
+                  round: previous.round || 1,
+                  endedReason: payload.reason || "ended",
+                  endedAt: payload.endedAt || Date.now(),
+                });
+              }
+              return null;
+            });
             setPartnerTyping(false);
             setWarningActive(false);
             setVoteDecision("");
@@ -510,6 +594,61 @@ export default function RandomChat() {
     }
   };
 
+  const reportSessionTarget = session || lastSessionSummary;
+  const canReportSession =
+    !!reportSessionTarget?.sessionId &&
+    !!reportSessionTarget?.partnerProfile?.id &&
+    reportSessionTarget.partnerProfile.id !== currentUserId;
+
+  const openReportModal = () => {
+    if (!canReportSession) return;
+
+    setReportFeedback("");
+    setReportFeedbackTone("success");
+    setReportReason(REPORT_REASON_OPTIONS[0]);
+    setReportDescription("");
+    setShowReportModal(true);
+  };
+
+  const closeReportModal = () => {
+    if (isSubmittingReport) return;
+    setShowReportModal(false);
+  };
+
+  const handleSubmitReport = async (event) => {
+    event.preventDefault();
+
+    if (!canReportSession || !reportSessionTarget?.sessionId) {
+      setReportFeedback("No session available to report.");
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    setReportFeedback("");
+
+    try {
+      await submitRandomSessionReport({
+        sessionId: reportSessionTarget.sessionId,
+        reportedUserId: reportSessionTarget.partnerProfile.id,
+        reason: reportReason,
+        description: reportDescription,
+      });
+
+      setReportFeedback("Report submitted. The moderation log has been saved.");
+      setReportFeedbackTone("success");
+      setShowReportModal(false);
+
+      if (canViewAdminAnalytics) {
+        loadAdminAnalytics();
+      }
+    } catch (reportError) {
+      setReportFeedbackTone("error");
+      setReportFeedback(reportError.message || "Unable to submit report.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   const statusChipLabel =
     status === "queueing"
       ? "Queueing"
@@ -618,6 +757,17 @@ export default function RandomChat() {
                       <AlertCircle size={16} />
                     )}
                     Leave Session
+                  </button>
+                ) : null}
+
+                {canReportSession ? (
+                  <button
+                    type="button"
+                    onClick={openReportModal}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-2 text-sm font-semibold hover:bg-amber-100"
+                  >
+                    <Flag size={16} />
+                    Report Partner
                   </button>
                 ) : null}
               </div>
@@ -814,6 +964,78 @@ export default function RandomChat() {
                 </p>
               </div>
 
+              {canViewAdminAnalytics ? (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider inline-flex items-center gap-1">
+                      <BarChart3 size={13} /> Admin Analytics
+                    </p>
+                    <button
+                      type="button"
+                      onClick={loadAdminAnalytics}
+                      disabled={isAnalyticsLoading}
+                      className="text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                      title="Refresh admin analytics"
+                    >
+                      <RefreshCw
+                        size={14}
+                        className={isAnalyticsLoading ? "animate-spin" : ""}
+                      />
+                    </button>
+                  </div>
+
+                  {analyticsData ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-blue-900">
+                      <div className="rounded-lg bg-white/70 px-2 py-1">
+                        <p className="font-semibold">Matches Today</p>
+                        <p>{analyticsData.summary?.matchesToday ?? 0}</p>
+                      </div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1">
+                        <p className="font-semibold">Avg Rounds</p>
+                        <p>{analyticsData.summary?.averageRounds ?? 0}</p>
+                      </div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1">
+                        <p className="font-semibold">Extend Rate</p>
+                        <p>{analyticsData.summary?.extendRate ?? 0}%</p>
+                      </div>
+                      <div className="rounded-lg bg-white/70 px-2 py-1">
+                        <p className="font-semibold">Reports Today</p>
+                        <p>{analyticsData.summary?.reportsToday ?? 0}</p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3">
+                    <p className="text-[11px] font-semibold text-blue-800 inline-flex items-center gap-1">
+                      <ShieldAlert size={13} /> Recent Random Reports
+                    </p>
+
+                    {recentReports.length === 0 ? (
+                      <p className="text-[11px] text-blue-700 mt-1">
+                        No reports in recent logs.
+                      </p>
+                    ) : (
+                      <div className="mt-1 space-y-1 max-h-24 overflow-y-auto pr-1">
+                        {recentReports.slice(0, 5).map((report) => (
+                          <div
+                            key={report.id}
+                            className="rounded-lg bg-white/70 px-2 py-1 text-[11px] text-blue-900"
+                          >
+                            <p className="font-semibold truncate">
+                              {report.reason || "Report"}
+                            </p>
+                            <p className="truncate">
+                              Session{" "}
+                              {String(report.sessionId || "").slice(0, 8)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
               {session?.phase === "vote" && status === "matched" ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-sm font-semibold text-amber-900">
@@ -863,6 +1085,24 @@ export default function RandomChat() {
                 </div>
               ) : null}
 
+              {analyticsError ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  {analyticsError}
+                </div>
+              ) : null}
+
+              {reportFeedback ? (
+                <div
+                  className={`rounded-xl p-3 text-xs ${
+                    reportFeedbackTone === "error"
+                      ? "border border-red-200 bg-red-50 text-red-700"
+                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {reportFeedback}
+                </div>
+              ) : null}
+
               <div className="mt-auto rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
                 Side navigation is locked while session is active so users stay
                 focused in the current random match.
@@ -871,6 +1111,88 @@ export default function RandomChat() {
           </section>
         </div>
       </main>
+
+      {showReportModal && canReportSession ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
+                <ShieldAlert size={16} className="text-amber-700" />
+                Report Random Session
+              </h2>
+              <button
+                type="button"
+                onClick={closeReportModal}
+                disabled={isSubmittingReport}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">
+              Report target:{" "}
+              {reportSessionTarget?.partnerProfile?.username || "User"}
+            </p>
+
+            <form className="mt-3 space-y-3" onSubmit={handleSubmitReport}>
+              <div>
+                <label className="text-xs font-semibold text-gray-700">
+                  Reason
+                </label>
+                <select
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                >
+                  {REPORT_REASON_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-700">
+                  Details (optional)
+                </label>
+                <textarea
+                  value={reportDescription}
+                  onChange={(event) => setReportDescription(event.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-200"
+                  placeholder="Share short context for moderation logs"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeReportModal}
+                  disabled={isSubmittingReport}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReport}
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-700 text-white px-4 py-2 text-sm font-semibold hover:bg-red-800 disabled:opacity-60"
+                >
+                  {isSubmittingReport ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Flag size={14} />
+                  )}
+                  Submit Report
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

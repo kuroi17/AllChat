@@ -1,6 +1,60 @@
 import { getChatSocket, uploadRoomMessageImage } from "./messages";
+import { supabase } from "./supabase";
+import { API_BASE_URL } from "./runtimeConfig";
 
 const SOCKET_ACK_TIMEOUT_MS = 12000;
+
+async function getAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Not authenticated");
+  }
+
+  return session.access_token;
+}
+
+async function readErrorResponse(response, fallbackMessage) {
+  try {
+    const payload = await response.json();
+    return payload?.error || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function requestRandomApi(path, { method = "GET", body } = {}) {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const errorMessage = await readErrorResponse(
+      response,
+      `Request failed (${method} ${path})`,
+    );
+
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    throw error;
+  }
+
+  if (response.status === 204) return null;
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) return null;
+
+  return response.json();
+}
 
 function emitWithAck(
   socket,
@@ -129,5 +183,38 @@ export async function uploadRandomChatImage({ sessionId, file }) {
   return uploadRoomMessageImage({
     roomId: `random-${sessionId}`,
     file,
+  });
+}
+
+export async function fetchRandomAnalytics(days = 7) {
+  const safeDays = Number.isFinite(days) ? Math.max(1, Math.min(30, days)) : 7;
+  return requestRandomApi(`/api/random/analytics?days=${safeDays}`, {
+    method: "GET",
+  });
+}
+
+export async function fetchRandomReports(limit = 20) {
+  const safeLimit = Number.isFinite(limit)
+    ? Math.max(1, Math.min(200, limit))
+    : 20;
+  return requestRandomApi(`/api/random/reports?limit=${safeLimit}`, {
+    method: "GET",
+  });
+}
+
+export async function submitRandomSessionReport({
+  sessionId,
+  reportedUserId,
+  reason,
+  description,
+}) {
+  return requestRandomApi("/api/random/reports", {
+    method: "POST",
+    body: {
+      sessionId,
+      reportedUserId,
+      reason,
+      description,
+    },
   });
 }
