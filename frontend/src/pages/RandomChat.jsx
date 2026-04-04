@@ -72,31 +72,84 @@ const REPORT_REASON_OPTIONS = [
   "Other",
 ];
 
+const RANDOM_PAGE_CACHE_KEY = "bsu_random_page_cache_v1";
+const RANDOM_PAGE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readRandomPageCache() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(RANDOM_PAGE_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    if (Date.now() - Number(parsed.cachedAt || 0) > RANDOM_PAGE_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(RANDOM_PAGE_CACHE_KEY);
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeRandomPageCache(payload) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(
+      RANDOM_PAGE_CACHE_KEY,
+      JSON.stringify({ ...payload, cachedAt: Date.now() }),
+    );
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function clearRandomPageCache() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(RANDOM_PAGE_CACHE_KEY);
+}
+
 export default function RandomChat() {
   const { user, profile } = useUser();
+  const initialCacheRef = useRef(readRandomPageCache());
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingResetTimerRef = useRef(null);
   const lastTypingEmitAtRef = useRef(0);
   const activeSessionIdRef = useRef(null);
+  const reconnectSyncInFlightRef = useRef(false);
+
+  const initialCache = initialCacheRef.current;
+  const hasWarmCache = !!initialCache;
 
   const [socket, setSocket] = useState(null);
-  const [isBootstrapping, setIsBootstrapping] = useState(true);
-  const [status, setStatus] = useState("idle");
-  const [session, setSession] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const [isBootstrapping, setIsBootstrapping] = useState(!hasWarmCache);
+  const [status, setStatus] = useState(initialCache?.status || "idle");
+  const [session, setSession] = useState(initialCache?.session || null);
+  const [messages, setMessages] = useState(
+    Array.isArray(initialCache?.messages) ? initialCache.messages : [],
+  );
   const [draft, setDraft] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("Tap Start to enter the queue.");
+  const [notice, setNotice] = useState(
+    initialCache?.notice || "Tap Start to enter the queue.",
+  );
   const [warningActive, setWarningActive] = useState(false);
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [voteDecision, setVoteDecision] = useState("");
   const [voteMap, setVoteMap] = useState({});
-  const [queueSize, setQueueSize] = useState(null);
+  const [queueSize, setQueueSize] = useState(initialCache?.queueSize ?? null);
   const [clockTick, setClockTick] = useState(Date.now());
-  const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  const [lastSessionSummary, setLastSessionSummary] = useState(
+    initialCache?.lastSessionSummary || null,
+  );
 
   const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState("");
@@ -119,8 +172,53 @@ export default function RandomChat() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (session?.sessionId) {
+      activeSessionIdRef.current = session.sessionId;
+    } else if (status !== "matched") {
+      activeSessionIdRef.current = null;
+    }
+  }, [session?.sessionId, status]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const cached = readRandomPageCache();
+    if (cached?.userId && cached.userId !== user.id) {
+      clearRandomPageCache();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    writeRandomPageCache({
+      userId: user.id,
+      status,
+      session,
+      messages: Array.isArray(messages) ? messages.slice(-120) : [],
+      notice,
+      queueSize,
+      lastSessionSummary,
+    });
+  }, [
+    user?.id,
+    status,
+    session,
+    messages,
+    notice,
+    queueSize,
+    lastSessionSummary,
+  ]);
+
   const applySession = useCallback((sessionPayload) => {
     if (!sessionPayload?.sessionId) return;
+
+    const isSameSession =
+      activeSessionIdRef.current === sessionPayload.sessionId;
+    const messageHistory = Array.isArray(sessionPayload.messages)
+      ? sessionPayload.messages.map(normalizeMessage).filter(Boolean)
+      : [];
 
     activeSessionIdRef.current = sessionPayload.sessionId;
 
@@ -145,7 +243,13 @@ export default function RandomChat() {
     setPartnerTyping(false);
     setVoteDecision("");
     setVoteMap({});
-    setMessages([]);
+    setMessages((previous) => {
+      if (isSameSession && previous.length > 0) {
+        return previous;
+      }
+
+      return messageHistory;
+    });
 
     setRandomSessionLock({
       locked: true,
@@ -243,7 +347,9 @@ export default function RandomChat() {
 
             setWarningActive(true);
             triggerNotificationHaptic();
-            playNotificationSoundEffect();
+            if (Number(payload?.secondsRemaining || 0) <= 20) {
+              playNotificationSoundEffect();
+            }
 
             window.setTimeout(() => {
               setWarningActive(false);
@@ -401,23 +507,56 @@ export default function RandomChat() {
           },
         });
 
-        const existingState = await getRandomSessionState(liveSocket);
-        if (isDisposed) return;
+        const syncSessionState = async ({
+          finalizeBootstrapping = false,
+        } = {}) => {
+          if (reconnectSyncInFlightRef.current) return;
 
-        if (existingState?.state === "matched" && existingState?.session) {
-          applySession(existingState.session);
-        } else if (existingState?.state === "queued") {
-          setStatus("queueing");
-          setQueueSize(existingState.queueSize ?? null);
-          setNotice("Finding a partner...");
-          clearRandomSessionLock();
-        } else {
-          setStatus("idle");
-          activeSessionIdRef.current = null;
-          clearRandomSessionLock();
-        }
+          reconnectSyncInFlightRef.current = true;
 
-        setIsBootstrapping(false);
+          try {
+            const existingState = await getRandomSessionState(liveSocket);
+            if (isDisposed) return;
+
+            if (existingState?.state === "matched" && existingState?.session) {
+              applySession(existingState.session);
+            } else if (existingState?.state === "queued") {
+              setStatus("queueing");
+              setQueueSize(existingState.queueSize ?? null);
+              setNotice("Finding a partner...");
+              clearRandomSessionLock();
+            } else {
+              setStatus("idle");
+              activeSessionIdRef.current = null;
+              setSession(null);
+              setMessages([]);
+              clearRandomSessionLock();
+            }
+          } catch {
+            // Ignore transient reconnect sync failures.
+          } finally {
+            reconnectSyncInFlightRef.current = false;
+            if (finalizeBootstrapping) {
+              setIsBootstrapping(false);
+            }
+          }
+        };
+
+        const handleSocketReconnect = () => {
+          syncSessionState({ finalizeBootstrapping: false });
+        };
+
+        liveSocket.on("connect", handleSocketReconnect);
+
+        await syncSessionState({ finalizeBootstrapping: true });
+
+        unsubscribe = (() => {
+          const originalUnsubscribe = unsubscribe;
+          return () => {
+            originalUnsubscribe();
+            liveSocket.off("connect", handleSocketReconnect);
+          };
+        })();
       } catch (setupError) {
         setError(setupError.message || "Failed to initialize random chat");
         setIsBootstrapping(false);
@@ -657,8 +796,8 @@ export default function RandomChat() {
         <Sidebar showExtras={true} />
       </div>
 
-      <main className="flex-1 min-w-0 p-3 md:p-5 overflow-hidden">
-        <div className="max-w-5xl mx-auto h-full flex flex-col gap-3">
+      <main className="flex-1 min-w-0 p-3 md:p-6 overflow-hidden">
+        <div className="max-w-6xl mx-auto h-full flex flex-col gap-4">
           <section className="rounded-2xl bg-linear-to-r from-red-800 to-red-700 text-white p-4 md:p-5 shadow-lg">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -715,7 +854,7 @@ export default function RandomChat() {
                     ) : (
                       <MessageCircleHeart size={16} />
                     )}
-                    Start Random Chat
+                    Start
                   </button>
                 ) : null}
 
@@ -749,8 +888,8 @@ export default function RandomChat() {
             </div>
           </section>
 
-          <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white flex flex-col min-h-0 shadow-sm">
+          <section className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-8 rounded-2xl border border-gray-200 bg-white flex flex-col min-h-0 shadow-sm">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
@@ -902,7 +1041,7 @@ export default function RandomChat() {
               </form>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex flex-col gap-3">
+            <div className="lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex flex-col gap-3 min-h-0 overflow-y-auto">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                   Partner

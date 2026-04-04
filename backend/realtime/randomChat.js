@@ -19,6 +19,7 @@ const DEFAULT_SESSION_SECONDS = 180;
 const DEFAULT_WARNING_SECONDS = 160;
 const DEFAULT_VOTE_WINDOW_SECONDS = 20;
 const MAX_RANDOM_MESSAGE_CHARS = 500;
+const MAX_RANDOM_SESSION_MESSAGES = 120;
 const MAX_REPORT_REASON_CHARS = 120;
 const MAX_REPORT_DESCRIPTION_CHARS = 1000;
 
@@ -52,12 +53,17 @@ function createRandomChatGateway(io) {
   const activeSessions = new Map();
   const userToSessionId = new Map();
   const randomMediaQuota = new Map();
+  const profileCache = new Map();
   const analyticsByDay = new Map();
   const sessionAuditLog = new Map();
   const reportLogs = [];
 
   const maxReportLogs = parsePositiveInt("RANDOM_REPORT_LOG_LIMIT", 1000);
   const maxAuditSessions = parsePositiveInt("RANDOM_AUDIT_SESSION_LIMIT", 2000);
+  const profileCacheTtlMs = parsePositiveInt(
+    "RANDOM_PROFILE_CACHE_TTL_MS",
+    10 * 60 * 1000,
+  );
 
   let isMatchingInProgress = false;
 
@@ -433,6 +439,16 @@ function createRandomChatGateway(io) {
   async function resolveUserProfile(userId) {
     if (!userId) return buildFallbackProfile(userId);
 
+    const cacheKey = String(userId);
+    const cached = profileCache.get(cacheKey);
+    if (
+      cached &&
+      cached.profile &&
+      Date.now() - Number(cached.cachedAt || 0) <= profileCacheTtlMs
+    ) {
+      return cached.profile;
+    }
+
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -443,11 +459,27 @@ function createRandomChatGateway(io) {
       if (error) throw error;
       if (!data) return buildFallbackProfile(userId);
 
-      return {
+      const resolvedProfile = {
         id: data.id,
         username: data.username || buildFallbackProfile(userId).username,
         avatar_url: data.avatar_url || null,
       };
+
+      profileCache.set(cacheKey, {
+        profile: resolvedProfile,
+        cachedAt: Date.now(),
+      });
+
+      if (profileCache.size > 5000) {
+        const now = Date.now();
+        for (const [key, value] of profileCache.entries()) {
+          if (now - Number(value?.cachedAt || 0) > profileCacheTtlMs) {
+            profileCache.delete(key);
+          }
+        }
+      }
+
+      return resolvedProfile;
     } catch {
       return buildFallbackProfile(userId);
     }
@@ -520,6 +552,9 @@ function createRandomChatGateway(io) {
       voteDeadlineAt: session.voteDeadlineAt || null,
       selfProfile: self?.profile || buildFallbackProfile(userId),
       partnerProfile: partner?.profile || null,
+      messages: Array.isArray(session.messages)
+        ? session.messages.slice(-MAX_RANDOM_SESSION_MESSAGES)
+        : [],
     };
   }
 
@@ -697,10 +732,10 @@ function createRandomChatGateway(io) {
         queuedUsers.delete(firstUserId);
         queuedUsers.delete(secondUserId);
 
-        const firstProfile =
-          firstQueued.profile || (await resolveUserProfile(firstUserId));
-        const secondProfile =
-          secondQueued.profile || (await resolveUserProfile(secondUserId));
+        const [firstProfile, secondProfile] = await Promise.all([
+          firstQueued.profile || resolveUserProfile(firstUserId),
+          secondQueued.profile || resolveUserProfile(secondUserId),
+        ]);
 
         const sessionId = crypto.randomUUID();
         const roomName = `random:${sessionId}`;
@@ -728,6 +763,7 @@ function createRandomChatGateway(io) {
           voteWindowSeconds: RANDOM_VOTE_WINDOW_SECONDS,
           voteDeadlineAt: null,
           votes: new Map(),
+          messages: [],
           warningTimer: null,
           voteOpenTimer: null,
           voteDeadlineTimer: null,
@@ -931,6 +967,15 @@ function createRandomChatGateway(io) {
         avatar_url: profile.avatar_url,
       },
     };
+
+    if (!Array.isArray(session.messages)) {
+      session.messages = [];
+    }
+
+    session.messages.push(messagePayload);
+    if (session.messages.length > MAX_RANDOM_SESSION_MESSAGES) {
+      session.messages = session.messages.slice(-MAX_RANDOM_SESSION_MESSAGES);
+    }
 
     io.to(session.roomName).emit("random:message", messagePayload);
 

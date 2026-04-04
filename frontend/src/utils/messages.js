@@ -37,10 +37,13 @@ export async function getChatSocket() {
     socketInstance = io(API_BASE_URL, {
       auth: { token },
       autoConnect: false,
-      // allow polling fallback when websocket upgrades fail (some proxies/load-balancers)
-      transports: ["websocket", "polling"],
+      // Start with polling, then upgrade to websocket to avoid early websocket-close errors on some proxies.
+      transports: ["polling", "websocket"],
+      upgrade: true,
+      rememberUpgrade: true,
       withCredentials: true,
       path: "/socket.io",
+      timeout: 20000,
       reconnection: true,
       // Keep retrying in mobile/background resume scenarios.
       reconnectionAttempts: Infinity,
