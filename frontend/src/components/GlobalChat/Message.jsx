@@ -8,6 +8,7 @@ import {
 } from "../../utils/mediaLinks";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
+import MessageLinkPreview from "../common/MessageLinkPreview";
 
 const GLOBAL_REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
 
@@ -299,6 +300,13 @@ export default function Message({
             />
           )}
 
+          <MessageLinkPreview
+            text={messageDisplayText}
+            excludeUrls={messageMediaUrl ? [messageMediaUrl] : []}
+            disabled={!!roomLink}
+            className="bg-white"
+          />
+
           {isMobileViewport && showMobileActionSheet && (
             <div className="fixed inset-0 z-80 sm:hidden">
               <button
@@ -525,6 +533,12 @@ export default function Message({
             inviteToken={roomLink.type === "invite" ? roomLink.value : null}
           />
         )}
+
+        <MessageLinkPreview
+          text={messageDisplayText}
+          excludeUrls={messageMediaUrl ? [messageMediaUrl] : []}
+          disabled={!!roomLink}
+        />
 
         {isMobileViewport && showMobileActionSheet && (
           <div className="fixed inset-0 z-80 sm:hidden">

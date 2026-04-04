@@ -19,6 +19,7 @@ import {
   extractRenderableMediaUrl,
   stripMediaUrlFromText,
 } from "../../utils/mediaLinks";
+import MessageLinkPreview from "../common/MessageLinkPreview";
 
 const DELETED_MARKER = "__BSUALLCHAT_ROOM_DELETED__";
 
@@ -563,6 +564,12 @@ export default function RoomMessagesList({ roomId, onMediaUpdate }) {
                             {displayText}
                           </p>
                         )}
+
+                        <MessageLinkPreview
+                          text={displayText}
+                          excludeUrls={displayMediaUrl ? [displayMediaUrl] : []}
+                          className={isMe ? "bg-red-50 border-red-100" : ""}
+                        />
                       </>
                     )}
 

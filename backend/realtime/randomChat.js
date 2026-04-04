@@ -22,6 +22,7 @@ const MAX_RANDOM_MESSAGE_CHARS = 500;
 const MAX_RANDOM_SESSION_MESSAGES = 120;
 const MAX_REPORT_REASON_CHARS = 120;
 const MAX_REPORT_DESCRIPTION_CHARS = 1000;
+const MAX_RANDOM_REACTION_EMOJI_CHARS = 16;
 
 const RANDOM_SESSION_SECONDS = parsePositiveInt(
   "RANDOM_CHAT_SESSION_SECONDS",
@@ -79,6 +80,13 @@ function createRandomChatGateway(io) {
     windowMs: 10000,
     maxRequests: 8,
     errorMessage: "You are sending too fast. Please slow down.",
+  });
+
+  const reactionRateLimiter = createSocketRateLimiter({
+    scope: "random-message-reaction",
+    windowMs: 10000,
+    maxRequests: 20,
+    errorMessage: "Too many reaction actions. Please slow down.",
   });
 
   const typingRateLimiter = createSocketRateLimiter({
@@ -553,8 +561,29 @@ function createRandomChatGateway(io) {
       selfProfile: self?.profile || buildFallbackProfile(userId),
       partnerProfile: partner?.profile || null,
       messages: Array.isArray(session.messages)
-        ? session.messages.slice(-MAX_RANDOM_SESSION_MESSAGES)
+        ? session.messages
+            .slice(-MAX_RANDOM_SESSION_MESSAGES)
+            .map((message) => ({
+              ...message,
+              reply_message: message?.reply_message || null,
+              reactions: Array.isArray(message?.reactions)
+                ? message.reactions
+                : [],
+            }))
         : [],
+    };
+  }
+
+  function buildReplyMessagePayload(message) {
+    if (!message?.id) return null;
+
+    return {
+      id: message.id,
+      user_id: message.user_id,
+      content: message.content || "",
+      image_url: message.image_url || null,
+      profiles: message.profiles || null,
+      created_at: message.created_at || null,
     };
   }
 
@@ -920,6 +949,27 @@ function createRandomChatGateway(io) {
 
     const imageUrl = mediaValidation.value;
 
+    const rawReplyToMessageId =
+      typeof payload?.replyToMessageId === "string"
+        ? payload.replyToMessageId.trim()
+        : "";
+
+    let replyMessage = null;
+    if (rawReplyToMessageId) {
+      const replyTarget = Array.isArray(session.messages)
+        ? session.messages.find((item) => item?.id === rawReplyToMessageId)
+        : null;
+
+      if (!replyTarget) {
+        if (typeof ack === "function") {
+          ack({ ok: false, error: "Reply target not found" });
+        }
+        return;
+      }
+
+      replyMessage = buildReplyMessagePayload(replyTarget);
+    }
+
     if (!sanitizedContent && !imageUrl) {
       if (typeof ack === "function") {
         ack({ ok: false, error: "Message cannot be empty" });
@@ -960,6 +1010,9 @@ function createRandomChatGateway(io) {
       user_id: userId,
       content: sanitizedContent || "",
       image_url: imageUrl || null,
+      reply_to_message_id: replyMessage?.id || null,
+      reply_message: replyMessage,
+      reactions: [],
       created_at: new Date().toISOString(),
       profiles: {
         id: profile.id,
@@ -981,6 +1034,80 @@ function createRandomChatGateway(io) {
 
     if (typeof ack === "function") {
       ack({ ok: true, messageId: messagePayload.id });
+    }
+  }
+
+  function handleMessageReaction(socket, payload, ack) {
+    if (!reactionRateLimiter(socket, ack)) return;
+
+    const userId = socket.userId;
+    const sessionId = payload?.sessionId;
+    const messageId =
+      typeof payload?.messageId === "string" ? payload.messageId.trim() : "";
+    const emoji =
+      typeof payload?.emoji === "string" ? payload.emoji.trim() : "";
+    const session = findSessionByUserId(userId);
+
+    if (!session || session.id !== sessionId) {
+      if (typeof ack === "function") {
+        ack({ ok: false, error: "No active random chat session" });
+      }
+      return;
+    }
+
+    if (!messageId) {
+      if (typeof ack === "function") {
+        ack({ ok: false, error: "messageId is required" });
+      }
+      return;
+    }
+
+    if (!emoji || emoji.length > MAX_RANDOM_REACTION_EMOJI_CHARS) {
+      if (typeof ack === "function") {
+        ack({ ok: false, error: "Invalid emoji reaction" });
+      }
+      return;
+    }
+
+    const message = Array.isArray(session.messages)
+      ? session.messages.find((item) => item?.id === messageId)
+      : null;
+
+    if (!message) {
+      if (typeof ack === "function") {
+        ack({ ok: false, error: "Message not found" });
+      }
+      return;
+    }
+
+    const reactions = Array.isArray(message.reactions)
+      ? [...message.reactions]
+      : [];
+
+    const reactionIndex = reactions.findIndex(
+      (item) => item?.user_id === userId && item?.emoji === emoji,
+    );
+
+    if (reactionIndex >= 0) {
+      reactions.splice(reactionIndex, 1);
+    } else {
+      reactions.push({
+        user_id: userId,
+        emoji,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    message.reactions = reactions;
+
+    io.to(session.roomName).emit("random:message:reaction", {
+      sessionId,
+      messageId,
+      reactions,
+    });
+
+    if (typeof ack === "function") {
+      ack({ ok: true, messageId, reactions });
     }
   }
 
@@ -1120,6 +1247,10 @@ function createRandomChatGateway(io) {
 
     socket.on("random:session:message", (payload, ack) => {
       handleSessionMessage(socket, payload, ack);
+    });
+
+    socket.on("random:message:reaction", (payload, ack) => {
+      handleMessageReaction(socket, payload, ack);
     });
 
     socket.on("random:session:typing", (payload, ack) => {

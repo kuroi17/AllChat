@@ -149,7 +149,7 @@ export async function leaveRandomQueue(socket) {
 
 export async function sendRandomSessionMessage(
   socket,
-  { sessionId, content = "", imageUrl = "" },
+  { sessionId, content = "", imageUrl = "", replyToMessageId = null },
 ) {
   if (!sessionId) {
     throw new Error("Missing random chat session ID");
@@ -159,6 +159,30 @@ export async function sendRandomSessionMessage(
     sessionId,
     content,
     imageUrl,
+    replyToMessageId,
+  });
+}
+
+export async function toggleRandomMessageReaction(
+  socket,
+  { sessionId, messageId, emoji },
+) {
+  if (!sessionId) {
+    throw new Error("Missing random chat session ID");
+  }
+
+  if (!messageId) {
+    throw new Error("Missing random chat message ID");
+  }
+
+  if (!emoji) {
+    throw new Error("Missing emoji reaction");
+  }
+
+  return emitWithAck(socket, "random:message:reaction", {
+    sessionId,
+    messageId,
+    emoji,
   });
 }
 
@@ -203,6 +227,7 @@ export function subscribeRandomChatEvents(socket, handlers = {}) {
     ["random:round:started", handlers.onRoundStarted],
     ["random:session:ended", handlers.onSessionEnded],
     ["random:message", handlers.onMessage],
+    ["random:message:reaction", handlers.onReaction],
     ["random:typing", handlers.onTyping],
   ];
 

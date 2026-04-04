@@ -6,6 +6,7 @@ import {
 } from "../../utils/mediaLinks";
 import { extractRoomLink } from "../../utils/roomLinks";
 import RoomLinkPreviewCard from "../rooms/RoomLinkPreviewCard";
+import MessageLinkPreview from "../common/MessageLinkPreview";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 const DM_REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
@@ -462,6 +463,13 @@ export default function DirectMessageMessagesPane({
                             }
                           />
                         )}
+
+                        <MessageLinkPreview
+                          text={displayText}
+                          excludeUrls={displayMediaUrl ? [displayMediaUrl] : []}
+                          disabled={!!roomLink}
+                          className={isMe ? "bg-red-50 border-red-100" : ""}
+                        />
                       </div>
                     )}
 

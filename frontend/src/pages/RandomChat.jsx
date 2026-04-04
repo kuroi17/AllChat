@@ -14,9 +14,13 @@ import {
   Users,
   X,
   XCircle,
+  SmilePlus,
+  CornerUpLeft,
 } from "lucide-react";
 import Sidebar from "../layouts/Sidebar";
 import { useUser } from "../contexts/UserContext";
+import EmojiPickerButton from "../components/common/EmojiPickerButton";
+import MessageLinkPreview from "../components/common/MessageLinkPreview";
 import {
   fetchRandomAccess,
   getRandomChatSocket,
@@ -29,6 +33,7 @@ import {
   sendRandomSessionTyping,
   submitRandomSessionReport,
   subscribeRandomChatEvents,
+  toggleRandomMessageReaction,
   uploadRandomChatImage,
   voteRandomSession,
 } from "../utils/randomChat";
@@ -58,9 +63,38 @@ function normalizeMessage(rawMessage) {
     userId: rawMessage.user_id,
     content: rawMessage.content || "",
     imageUrl: rawMessage.image_url || "",
+    replyToMessageId: rawMessage.reply_to_message_id || null,
+    replyMessage: rawMessage.reply_message || null,
+    reactions: Array.isArray(rawMessage.reactions) ? rawMessage.reactions : [],
     createdAt: rawMessage.created_at,
     profile: rawMessage.profiles || null,
   };
+}
+
+const RANDOM_REACTION_EMOJIS = ["❤️", "😂", "😮", "😢", "😡", "👍"];
+
+function buildReactionGroups(reactions, currentUserId) {
+  const grouped = new Map();
+
+  (Array.isArray(reactions) ? reactions : []).forEach((item) => {
+    if (!item?.emoji) return;
+
+    const existing = grouped.get(item.emoji) || {
+      emoji: item.emoji,
+      count: 0,
+      reactedByMe: false,
+    };
+
+    existing.count += 1;
+
+    if (item.user_id === currentUserId) {
+      existing.reactedByMe = true;
+    }
+
+    grouped.set(item.emoji, existing);
+  });
+
+  return Array.from(grouped.values());
 }
 
 const REPORT_REASON_OPTIONS = [
@@ -134,6 +168,8 @@ export default function RandomChat() {
   const [messages, setMessages] = useState(
     Array.isArray(initialCache?.messages) ? initialCache.messages : [],
   );
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState(null);
   const [draft, setDraft] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -243,6 +279,8 @@ export default function RandomChat() {
     setPartnerTyping(false);
     setVoteDecision("");
     setVoteMap({});
+    setReplyTarget(null);
+    setActiveReactionPickerId(null);
     setMessages((previous) => {
       if (isSameSession && previous.length > 0) {
         return previous;
@@ -455,6 +493,8 @@ export default function RandomChat() {
             setWarningActive(false);
             setVoteDecision("");
             setVoteMap({});
+            setReplyTarget(null);
+            setActiveReactionPickerId(null);
             setQueueSize(null);
 
             if (payload.reason === "partner_left") {
@@ -481,11 +521,44 @@ export default function RandomChat() {
             if (!normalized) return;
 
             setMessages((previous) => {
-              if (previous.some((message) => message.id === normalized.id)) {
-                return previous;
+              const existingIndex = previous.findIndex(
+                (message) => message.id === normalized.id,
+              );
+
+              if (existingIndex === -1) {
+                return [...previous, normalized];
               }
-              return [...previous, normalized];
+
+              const next = [...previous];
+              next[existingIndex] = {
+                ...next[existingIndex],
+                ...normalized,
+              };
+              return next;
             });
+          },
+          onReaction: (payload) => {
+            if (
+              !payload?.sessionId ||
+              payload.sessionId !== activeSessionIdRef.current
+            ) {
+              return;
+            }
+
+            if (!payload?.messageId) return;
+
+            setMessages((previous) =>
+              previous.map((message) =>
+                message.id === payload.messageId
+                  ? {
+                      ...message,
+                      reactions: Array.isArray(payload.reactions)
+                        ? payload.reactions
+                        : [],
+                    }
+                  : message,
+              ),
+            );
           },
           onTyping: (payload) => {
             if (
@@ -608,6 +681,7 @@ export default function RandomChat() {
   }, [session?.partnerProfile?.id, voteMap]);
 
   const canSendMessage = status === "matched" && session?.phase === "chat";
+  const canReactToMessages = status === "matched" && !!session?.sessionId;
 
   const handleJoinQueue = async () => {
     if (!socket) return;
@@ -644,6 +718,21 @@ export default function RandomChat() {
     }
   };
 
+  const applyMessageReactions = useCallback((messageId, reactions) => {
+    if (!messageId) return;
+
+    setMessages((previous) =>
+      previous.map((message) =>
+        message.id === messageId
+          ? {
+              ...message,
+              reactions: Array.isArray(reactions) ? reactions : [],
+            }
+          : message,
+      ),
+    );
+  }, []);
+
   const handleSendMessage = async (event) => {
     event.preventDefault();
 
@@ -658,10 +747,69 @@ export default function RandomChat() {
       await sendRandomSessionMessage(socket, {
         sessionId: session.sessionId,
         content: trimmedDraft,
+        replyToMessageId: replyTarget?.id || null,
       });
       setDraft("");
+      setReplyTarget(null);
     } catch (messageError) {
       setError(messageError.message || "Unable to send message");
+    }
+  };
+
+  const handleInsertEmoji = (emoji) => {
+    if (!emoji) return;
+    setDraft((previous) => `${previous}${emoji}`);
+  };
+
+  const handleSelectReply = (message) => {
+    if (!message?.id) return;
+    setReplyTarget(message);
+    setActiveReactionPickerId(null);
+  };
+
+  const handleClearReply = () => {
+    setReplyTarget(null);
+  };
+
+  const handleToggleReaction = async ({ messageId, emoji, reactedByMe }) => {
+    if (
+      !socket ||
+      !session?.sessionId ||
+      !messageId ||
+      !emoji ||
+      !currentUserId
+    )
+      return;
+
+    const targetMessage = messages.find((item) => item.id === messageId);
+    const previousReactions = Array.isArray(targetMessage?.reactions)
+      ? targetMessage.reactions
+      : [];
+
+    const nextReactions = reactedByMe
+      ? previousReactions.filter(
+          (item) => !(item?.user_id === currentUserId && item?.emoji === emoji),
+        )
+      : [
+          ...previousReactions,
+          {
+            user_id: currentUserId,
+            emoji,
+            created_at: new Date().toISOString(),
+          },
+        ];
+
+    applyMessageReactions(messageId, nextReactions);
+
+    try {
+      await toggleRandomMessageReaction(socket, {
+        sessionId: session.sessionId,
+        messageId,
+        emoji,
+      });
+    } catch (reactionError) {
+      applyMessageReactions(messageId, previousReactions);
+      setError(reactionError.message || "Unable to update reaction");
     }
   };
 
@@ -699,9 +847,11 @@ export default function RandomChat() {
         sessionId: session.sessionId,
         content: draft.trim(),
         imageUrl,
+        replyToMessageId: replyTarget?.id || null,
       });
 
       setDraft("");
+      setReplyTarget(null);
     } catch (uploadError) {
       setError(uploadError.message || "Unable to upload image");
     } finally {
@@ -936,39 +1086,181 @@ export default function RandomChat() {
                 ) : (
                   messages.map((message) => {
                     const isMine = message.userId === currentUserId;
+                    const reactionGroups = buildReactionGroups(
+                      message.reactions,
+                      currentUserId,
+                    );
+                    const reactionMap = reactionGroups.reduce((acc, group) => {
+                      acc[group.emoji] = group;
+                      return acc;
+                    }, {});
                     return (
                       <div
                         key={message.id}
                         className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                       >
-                        <div
-                          className={`max-w-[82%] rounded-2xl px-3 py-2 shadow-sm ${
-                            isMine
-                              ? "bg-red-700 text-white"
-                              : "bg-white border border-gray-200 text-gray-800"
-                          }`}
-                        >
-                          <p
-                            className={`text-[11px] font-semibold mb-1 ${
-                              isMine ? "text-red-100" : "text-gray-500"
+                        <div className="max-w-[82%]">
+                          <div
+                            className={`rounded-2xl px-3 py-2 shadow-sm ${
+                              isMine
+                                ? "bg-red-700 text-white"
+                                : "bg-white border border-gray-200 text-gray-800"
                             }`}
                           >
-                            {message.profile?.username || "User"}
-                          </p>
-
-                          {message.content ? (
-                            <p className="text-sm whitespace-pre-wrap wrap-break-word">
-                              {message.content}
+                            <p
+                              className={`text-[11px] font-semibold mb-1 ${
+                                isMine ? "text-red-100" : "text-gray-500"
+                              }`}
+                            >
+                              {message.profile?.username || "User"}
                             </p>
-                          ) : null}
 
-                          {message.imageUrl ? (
-                            <img
-                              src={message.imageUrl}
-                              alt="Shared"
-                              className="mt-2 rounded-xl max-h-64 w-auto object-cover border border-black/10"
+                            {message.replyMessage && (
+                              <div
+                                className={`mb-2 rounded-xl px-2.5 py-1.5 border ${
+                                  isMine
+                                    ? "bg-red-600/70 border-red-300/40"
+                                    : "bg-gray-50 border-gray-200"
+                                }`}
+                              >
+                                <p
+                                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                                    isMine ? "text-red-100" : "text-gray-500"
+                                  }`}
+                                >
+                                  Replying to{" "}
+                                  {message.replyMessage?.profiles?.username ||
+                                    "User"}
+                                </p>
+                                <p
+                                  className={`text-xs truncate ${
+                                    isMine ? "text-red-100" : "text-gray-600"
+                                  }`}
+                                >
+                                  {message.replyMessage?.content ||
+                                    (message.replyMessage?.image_url
+                                      ? "(image)"
+                                      : "(no text)")}
+                                </p>
+                              </div>
+                            )}
+
+                            {message.content ? (
+                              <p className="text-sm whitespace-pre-wrap wrap-break-word">
+                                {message.content}
+                              </p>
+                            ) : null}
+
+                            {message.imageUrl ? (
+                              <img
+                                src={message.imageUrl}
+                                alt="Shared"
+                                className="mt-2 rounded-xl max-h-64 w-auto object-cover border border-black/10"
+                              />
+                            ) : null}
+
+                            <MessageLinkPreview
+                              text={message.content}
+                              excludeUrls={
+                                message.imageUrl ? [message.imageUrl] : []
+                              }
+                              className={
+                                isMine ? "bg-red-50 border-red-100" : ""
+                              }
                             />
-                          ) : null}
+                          </div>
+
+                          {canReactToMessages && (
+                            <div
+                              className={`mt-1 flex items-center gap-1.5 ${
+                                isMine ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleSelectReply(message)}
+                                className="h-7 px-2 rounded-full border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 text-[11px] inline-flex items-center gap-1"
+                                title="Reply"
+                              >
+                                <CornerUpLeft size={12} /> Reply
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveReactionPickerId((previous) =>
+                                    previous === message.id ? null : message.id,
+                                  )
+                                }
+                                className="h-7 w-7 rounded-full border border-gray-200 bg-white text-gray-600 hover:text-gray-800 hover:border-gray-300 inline-flex items-center justify-center"
+                                title="React"
+                              >
+                                <SmilePlus size={14} />
+                              </button>
+                            </div>
+                          )}
+
+                          {activeReactionPickerId === message.id && (
+                            <div
+                              className={`mt-1 flex flex-wrap gap-1.5 ${
+                                isMine ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              {RANDOM_REACTION_EMOJIS.map((emoji) => {
+                                const current = reactionMap[emoji];
+                                return (
+                                  <button
+                                    key={`${message.id}-${emoji}`}
+                                    type="button"
+                                    onClick={() => {
+                                      handleToggleReaction({
+                                        messageId: message.id,
+                                        emoji,
+                                        reactedByMe: !!current?.reactedByMe,
+                                      });
+                                      setActiveReactionPickerId(null);
+                                    }}
+                                    className={`h-8 w-8 rounded-full border text-base flex items-center justify-center ${
+                                      current?.reactedByMe
+                                        ? "bg-red-50 border-red-200"
+                                        : "bg-white border-gray-200"
+                                    }`}
+                                  >
+                                    {emoji}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {reactionGroups.length > 0 && (
+                            <div
+                              className={`mt-1 flex gap-1.5 flex-wrap ${
+                                isMine ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              {reactionGroups.map((group) => (
+                                <button
+                                  key={`${message.id}-reaction-${group.emoji}`}
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleReaction({
+                                      messageId: message.id,
+                                      emoji: group.emoji,
+                                      reactedByMe: group.reactedByMe,
+                                    })
+                                  }
+                                  className={`text-[11px] rounded-full border px-2 py-0.5 ${
+                                    group.reactedByMe
+                                      ? "bg-red-50 border-red-200 text-red-700"
+                                      : "bg-white border-gray-200 text-gray-600"
+                                  }`}
+                                >
+                                  {group.emoji} {group.count}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -988,56 +1280,85 @@ export default function RandomChat() {
 
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 border-t border-gray-100 flex items-end gap-2 min-w-0"
+                className="p-3 border-t border-gray-100 min-w-0"
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImagePicked}
-                />
+                {replyTarget && (
+                  <div className="mb-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">
+                        Replying to {replyTarget?.profile?.username || "User"}
+                      </p>
+                      <p className="text-red-700 truncate">
+                        {replyTarget?.content ||
+                          (replyTarget?.imageUrl ? "(image)" : "(no text)")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearReply}
+                      className="text-red-700 hover:text-red-900 font-semibold"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={!canSendMessage || isUploading}
-                  className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-                  title="Send image"
-                >
-                  {isUploading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <ImagePlus size={16} />
-                  )}
-                </button>
+                <div className="flex items-end gap-2 min-w-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImagePicked}
+                  />
 
-                <textarea
-                  value={draft}
-                  onChange={handleMessageInputChange}
-                  placeholder={
-                    canSendMessage
-                      ? "Type your message..."
-                      : "You can send messages while chat is active"
-                  }
-                  rows={1}
-                  disabled={!canSendMessage || isUploading}
-                  className="flex-1 min-w-0 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:text-gray-400"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      handleSendMessage(event);
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!canSendMessage || isUploading}
+                    className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    title="Send image"
+                  >
+                    {isUploading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <ImagePlus size={16} />
+                    )}
+                  </button>
+
+                  <EmojiPickerButton
+                    onSelect={handleInsertEmoji}
+                    disabled={!canSendMessage || isUploading}
+                    align="left"
+                  />
+
+                  <textarea
+                    value={draft}
+                    onChange={handleMessageInputChange}
+                    placeholder={
+                      canSendMessage
+                        ? "Type your message..."
+                        : "You can send messages while chat is active"
                     }
-                  }}
-                />
+                    rows={1}
+                    disabled={!canSendMessage || isUploading}
+                    className="flex-1 min-w-0 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 disabled:bg-gray-100 disabled:text-gray-400"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        handleSendMessage(event);
+                      }
+                    }}
+                  />
 
-                <button
-                  type="submit"
-                  disabled={!canSendMessage || !draft.trim() || isUploading}
-                  className="h-10 shrink-0 rounded-xl bg-red-700 text-white px-4 text-sm font-semibold hover:bg-red-800 disabled:opacity-50"
-                >
-                  Send
-                </button>
+                  <button
+                    type="submit"
+                    disabled={!canSendMessage || !draft.trim() || isUploading}
+                    className="h-10 shrink-0 rounded-xl bg-red-700 text-white px-4 text-sm font-semibold hover:bg-red-800 disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
               </form>
             </div>
 
