@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,13 +15,10 @@ import {
 import { supabase } from "../utils/supabase";
 import { useUser } from "../contexts/UserContext";
 import {
-  fetchFollowing,
-  fetchOnlineUsers,
   fetchUnreadDirectMessageCount,
   subscribeUserRealtime,
   unsubscribeUserRealtime,
 } from "../utils/social";
-import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../utils/runtimeConfig";
 import {
   defaultSettings,
   playNotificationSoundEffect,
@@ -51,30 +48,6 @@ export default function Sidebar({ showExtras, onNavigate }) {
     staleTime: 2 * 60 * 1000,
     refetchInterval: false,
   });
-
-  const { data: onlineUsers = [] } = useQuery({
-    queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(100),
-    staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
-    refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
-  });
-
-  const { data: followingUsers = [] } = useQuery({
-    queryKey: ["follows", "following", user?.id],
-    queryFn: () => fetchFollowing(user.id),
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
-
-  const onlineFollowingCount = useMemo(() => {
-    if (!Array.isArray(onlineUsers) || !Array.isArray(followingUsers)) return 0;
-
-    const onlineIds = new Set(
-      onlineUsers.map((item) => item?.id).filter(Boolean),
-    );
-    return followingUsers.filter((item) => onlineIds.has(item?.id)).length;
-  }, [onlineUsers, followingUsers]);
 
   useEffect(() => {
     settingsRef.current = chatSettings;
@@ -258,24 +231,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
           {/* (rooms icon moved into main nav) */}
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-              Online
-            </p>
-            <p className="text-sm font-bold text-emerald-800">
-              {Array.isArray(onlineUsers) ? onlineUsers.length : 0}
-            </p>
-          </div>
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-              Friends
-            </p>
-            <p className="text-sm font-bold text-rose-800">
-              {onlineFollowingCount}
-            </p>
-          </div>
-        </div>
+        {/* Online/Friends stat boxes intentionally removed */}
       </div>
 
       <nav className="p-3 space-y-1">

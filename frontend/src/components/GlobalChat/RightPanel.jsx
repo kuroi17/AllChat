@@ -1,23 +1,13 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchOnlineUsers,
-  isUserOnline,
-  fetchFollowing,
-} from "../../utils/social";
-import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
+import { isUserOnline, fetchFollowing } from "../../utils/social";
 import PublicRooms from "../PublicRooms";
 import { useUser } from "../../contexts/UserContext";
+import { usePresence } from "../../contexts/PresenceContext";
 
 export default function Sidebar() {
   const { user } = useUser();
-
-  const { data: onlineUsers = [] } = useQuery({
-    queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(100),
-    staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
-    refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
-  });
+  const { onlineUsers } = usePresence();
 
   const { data: followingUsers = [] } = useQuery({
     queryKey: ["follows", "following", user?.id],
@@ -56,7 +46,7 @@ export default function Sidebar() {
             ONLINE NOW
           </span>
           <span className="text-xs text-red-800 font-semibold">
-            {onlineUsers.length} online
+            {onlineFollowings.length} following online
           </span>
         </div>
         <div className="space-y-3 max-h-64 overflow-y-auto pr-1">

@@ -10,11 +10,10 @@ import {
   markNotificationRead,
 } from "../../utils/notifications";
 import {
-  fetchOnlineUsers,
   subscribeUserRealtime,
   unsubscribeUserRealtime,
 } from "../../utils/social";
-import { ONLINE_USERS_REFETCH_INTERVAL_MS } from "../../utils/runtimeConfig";
+import { usePresence } from "../../contexts/PresenceContext";
 
 export default function ChatHeader() {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -22,6 +21,7 @@ export default function ChatHeader() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useUser();
+  const { onlineCount } = usePresence();
   const notificationsQueryKey = ["notifications", "header", user?.id];
 
   const {
@@ -34,13 +34,6 @@ export default function ChatHeader() {
     enabled: !!user?.id,
     staleTime: 2 * 60 * 1000,
     refetchInterval: false,
-  });
-
-  const { data: onlineUsers = [] } = useQuery({
-    queryKey: ["presence", "onlineUsers"],
-    queryFn: () => fetchOnlineUsers(100),
-    staleTime: ONLINE_USERS_REFETCH_INTERVAL_MS,
-    refetchInterval: ONLINE_USERS_REFETCH_INTERVAL_MS,
   });
 
   // Close dropdown when clicking outside
@@ -111,7 +104,6 @@ export default function ChatHeader() {
     queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
   }
 
-  const onlineCount = onlineUsers.length;
   const unreadCount = notifications.filter((n) => !n.read).length;
   const showNotificationLoading =
     notificationsFetching && notifications.length === 0;
