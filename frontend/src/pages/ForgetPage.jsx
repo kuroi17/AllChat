@@ -163,7 +163,7 @@ export default function ForgetPage() {
                   Reset Password
                 </h2>
                 <p className="text-gray-500 text-xs sm:text-sm mt-1 px-3">
-                  {sent ? "Check your email" : "Enter your university email"}
+                  {sent ? "Check your email" : "Enter your email"}
                 </p>
               </div>
             </div>
@@ -218,14 +218,14 @@ export default function ForgetPage() {
                 // Form State
                 <form onSubmit={handleResetPassword} className="space-y-6">
                   <p className="text-gray-600 text-sm">
-                    Enter your university email address and we'll send you a
+                    Enter your email address and we'll send you a
                     link to reset your password.
                   </p>
 
                   {/* Email Input */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
-                      University Email
+                      Email
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-600 transition-colors">

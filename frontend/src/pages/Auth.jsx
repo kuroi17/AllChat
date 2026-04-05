@@ -325,15 +325,11 @@ export default function Auth() {
                 </div>
               </div>
 
-              <h3 className="text-sm font-bold text-gray-700 mb-4">
-                {isLogin ? "Sign in with Email" : "Sign up with Email"}
-              </h3>
-
               <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit}>
                 {/* Email Input */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    University Email
+                    Email
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-800 transition-colors">
