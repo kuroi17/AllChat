@@ -206,9 +206,7 @@ export default function Auth() {
         setLoading(false);
         setSignupCooldownSeconds(remainingCooldown);
         setPendingSignupEmail(validatedEmail);
-        setError(
-          `Please wait ${formatCooldownLabel(remainingCooldown)} before requesting another confirmation email.`,
-        );
+        setError(`Please wait before requesting another confirmation email.`);
         return;
       }
 
@@ -509,14 +507,7 @@ export default function Auth() {
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
             <p>© 2026 AllChat. All university guidelines apply.</p>
-            <div className="mt-2 flex justify-center gap-4">
-              <Link to="/privacy" className="hover:underline">
-                Privacy Policy
-              </Link>
-              <Link to="/terms" className="hover:underline">
-                Terms of Service
-              </Link>
-            </div>
+            <div className="mt-2 flex justify-center gap-4"></div>
           </footer>
         </div>
       </main>
