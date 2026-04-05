@@ -389,7 +389,7 @@ export default function RandomChat() {
             setQueueSize(null);
 
             if (payload.reason === "partner_left") {
-              setNotice("Partner left. Start again when ready.");
+              setNotice("Match left! Start again when ready!");
             } else if (payload.reason === "ended_by_vote") {
               setNotice("Session ended by vote.");
             } else if (payload.reason === "vote_timeout") {
