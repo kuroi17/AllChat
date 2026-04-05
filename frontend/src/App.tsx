@@ -5,6 +5,8 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import ForgetPage from "./pages/ForgetPage";
 import ChangePassword from "./pages/ChangePassword";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import UserProfile from "./pages/UserProfile";
 import DirectMessage from "./pages/DirectMessage";
 import DirectMessages from "./pages/DirectMessages";
@@ -43,6 +45,8 @@ export default function App() {
               }
             />
             <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route
               path="/"
               element={
