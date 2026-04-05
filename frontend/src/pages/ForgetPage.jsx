@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
 import { Link } from "react-router-dom";
 import {
@@ -9,29 +9,93 @@ import {
   CheckCircle,
 } from "lucide-react";
 import Skeleton from "../components/ui/Skeleton";
+import {
+  formatCooldownLabel,
+  getRemainingCooldownSeconds,
+  startEmailCooldown,
+  validateEmailFormat,
+} from "../utils/authEmailGuards";
+
+const PASSWORD_RESET_ACTION = "password-reset";
 
 export default function ForgetPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [lastSentEmail, setLastSentEmail] = useState("");
 
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    const sourceEmail = lastSentEmail || email;
+
+    if (!sourceEmail) {
+      setCooldownSeconds(0);
+      return undefined;
+    }
+
+    const refreshCooldown = () => {
+      setCooldownSeconds(
+        getRemainingCooldownSeconds(PASSWORD_RESET_ACTION, sourceEmail),
+      );
+    };
+
+    refreshCooldown();
+    const intervalId = window.setInterval(refreshCooldown, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [email, lastSentEmail]);
+
+  const sendResetEmail = async () => {
+    const validation = validateEmailFormat(email);
+    if (!validation.isValid) {
+      setError(validation.errorMessage);
+      return;
+    }
+
+    const normalizedEmail = validation.normalizedEmail;
+
+    const remainingCooldown = getRemainingCooldownSeconds(
+      PASSWORD_RESET_ACTION,
+      normalizedEmail,
+    );
+    if (remainingCooldown > 0) {
+      setCooldownSeconds(remainingCooldown);
+      setError(
+        `Please wait ${formatCooldownLabel(remainingCooldown)} before requesting another reset email.`,
+      );
+      return;
+    }
+
+    setEmail(normalizedEmail);
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/change-password`,
-    });
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+      {
+        redirectTo: `${window.location.origin}/change-password`,
+      },
+    );
 
     setLoading(false);
 
-    if (error) {
-      setError(error.message);
-    } else {
-      setSent(true);
+    if (resetError) {
+      setError(resetError.message);
+      return;
     }
+
+    setSent(true);
+    setLastSentEmail(normalizedEmail);
+    startEmailCooldown(PASSWORD_RESET_ACTION, normalizedEmail);
+    setCooldownSeconds(5 * 60);
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    await sendResetEmail();
   };
 
   return (
@@ -96,10 +160,26 @@ export default function ForgetPage() {
                     </h3>
                     <p className="text-gray-600 text-sm">
                       We've sent a password reset link to{" "}
-                      <strong>{email}</strong>. Please check your inbox and
-                      follow the instructions.
+                      <strong>{lastSentEmail || email}</strong>. Please check
+                      your inbox and follow the instructions.
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      Cooldown: You can request another reset email in{" "}
+                      <strong>{formatCooldownLabel(cooldownSeconds)}</strong>.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={sendResetEmail}
+                    disabled={loading || cooldownSeconds > 0}
+                    className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg disabled:cursor-not-allowed disabled:opacity-60 hover:bg-gray-50 transition-colors"
+                  >
+                    {loading
+                      ? "Sending..."
+                      : cooldownSeconds > 0
+                        ? `Resend available in ${formatCooldownLabel(cooldownSeconds)}`
+                        : "Resend reset link"}
+                  </button>
                   <div className="pt-4">
                     <Link
                       to="/auth"
@@ -148,7 +228,7 @@ export default function ForgetPage() {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || cooldownSeconds > 0}
                     className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 sm:py-3.5 rounded-lg shadow-lg shadow-red-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                   >
                     {loading ? (
@@ -158,6 +238,13 @@ export default function ForgetPage() {
                           className="w-5 h-5 rounded-full inline-block"
                         />
                         <span>Sending...</span>
+                      </>
+                    ) : cooldownSeconds > 0 ? (
+                      <>
+                        <span>
+                          Resend available in{" "}
+                          {formatCooldownLabel(cooldownSeconds)}
+                        </span>
                       </>
                     ) : (
                       <>
@@ -184,10 +271,7 @@ export default function ForgetPage() {
 
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
-            <p>
-              © 2024 AllChat. All university guidelines
-              apply.
-            </p>
+            <p>© 2024 AllChat. All university guidelines apply.</p>
           </footer>
         </div>
       </main>

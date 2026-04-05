@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabase";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   Mail,
@@ -10,6 +10,15 @@ import {
   ArrowRight,
   MessageCircle,
 } from "lucide-react";
+import {
+  formatCooldownLabel,
+  getRemainingCooldownSeconds,
+  startEmailCooldown,
+  validateEmailFormat,
+} from "../utils/authEmailGuards";
+
+const SIGNUP_CONFIRMATION_ACTION = "signup-confirmation";
+
 export default function Auth() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
@@ -17,11 +26,56 @@ export default function Auth() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [pendingSignupEmail, setPendingSignupEmail] = useState("");
+  const [signupCooldownSeconds, setSignupCooldownSeconds] = useState(0);
+  const [resendingSignupEmail, setResendingSignupEmail] = useState(false);
+
+  useEffect(() => {
+    if (!pendingSignupEmail) {
+      setSignupCooldownSeconds(0);
+      return undefined;
+    }
+
+    const refreshCooldown = () => {
+      setSignupCooldownSeconds(
+        getRemainingCooldownSeconds(
+          SIGNUP_CONFIRMATION_ACTION,
+          pendingSignupEmail,
+        ),
+      );
+    };
+
+    refreshCooldown();
+    const intervalId = window.setInterval(refreshCooldown, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [pendingSignupEmail]);
+
+  const getValidatedEmail = () => {
+    const validation = validateEmailFormat(email);
+
+    if (!validation.isValid) {
+      setError(validation.errorMessage);
+      return null;
+    }
+
+    return validation.normalizedEmail;
+  };
 
   // Handle Google OAuth Sign-In
   const handleGoogleSignIn = async () => {
+    setError("");
+    setNotice("");
+    setLoading(true);
+
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: window.location.origin, // Redirect back to home after sign-in
@@ -29,39 +83,125 @@ export default function Auth() {
       });
 
       if (error) {
-        alert(error.message);
+        setError(error.message);
       }
       // Note: User will be redirected to Google, then back to your app automatically
     } catch (err) {
-      alert("Failed to sign in with Google: " + err.message);
+      setError("Failed to sign in with Google. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!pendingSignupEmail) {
+      return;
+    }
+
+    const remainingCooldown = getRemainingCooldownSeconds(
+      SIGNUP_CONFIRMATION_ACTION,
+      pendingSignupEmail,
+    );
+
+    if (remainingCooldown > 0) {
+      setSignupCooldownSeconds(remainingCooldown);
+      setError(
+        `Please wait ${formatCooldownLabel(remainingCooldown)} before resending the confirmation email.`,
+      );
+      return;
+    }
+
+    setResendingSignupEmail(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingSignupEmail,
+      });
+
+      if (resendError) {
+        setError(resendError.message);
+        return;
+      }
+
+      startEmailCooldown(SIGNUP_CONFIRMATION_ACTION, pendingSignupEmail);
+      setSignupCooldownSeconds(5 * 60);
+      setNotice(
+        "Confirmation email sent again. Please wait up to 5 minutes before another resend.",
+      );
+    } finally {
+      setResendingSignupEmail(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent form from refreshing the page
+
+    setError("");
+    setNotice("");
+
+    const validatedEmail = getValidatedEmail();
+    if (!validatedEmail) {
+      return;
+    }
+
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    if (!isLogin && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: validatedEmail,
         password,
       });
+
+      setLoading(false);
+
       if (error) {
-        alert(error.message);
+        setError(error.message);
       } else {
-        alert("Logged in successfully!");
         navigate("/"); // Redirect to global chat after successful login
       }
     } else {
+      const remainingCooldown = getRemainingCooldownSeconds(
+        SIGNUP_CONFIRMATION_ACTION,
+        validatedEmail,
+      );
+
+      if (remainingCooldown > 0) {
+        setLoading(false);
+        setSignupCooldownSeconds(remainingCooldown);
+        setPendingSignupEmail(validatedEmail);
+        setError(
+          `Please wait ${formatCooldownLabel(remainingCooldown)} before requesting another confirmation email.`,
+        );
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: validatedEmail,
         password,
       });
+
+      setLoading(false);
+
       if (error) {
-        alert(error.message);
+        setError(error.message);
       } else if (data.user) {
         // Create profile entry
         const { error: profileError } = await supabase.from("profiles").insert({
           id: data.user.id,
-          username: email.split("@")[0], // Default username from email
+          username: validatedEmail.split("@")[0], // Default username from email
           bio: "",
           avatar_url: "",
         });
@@ -70,15 +210,16 @@ export default function Auth() {
           console.error("Profile creation error:", profileError);
         }
 
-        alert("Check your email for confirmation!");
-        setIsLogin(true);
+        startEmailCooldown(SIGNUP_CONFIRMATION_ACTION, validatedEmail);
+        setPendingSignupEmail(validatedEmail);
+        setSignupCooldownSeconds(5 * 60);
+        setConfirmPassword("");
+        setPassword("");
+        setNotice(
+          "Check your email for confirmation. We added a 5-minute cooldown to prevent email spam.",
+        );
       }
     }
-  };
-
-  const handleForget = (e) => {
-    e.preventDefault();
-    navigate("/forget");
   };
 
   return (
@@ -140,6 +281,7 @@ export default function Auth() {
                       className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -151,13 +293,12 @@ export default function Auth() {
                       Password
                     </label>
                     {isLogin && (
-                      <a
-                        href="#"
+                      <Link
+                        to="/forget"
                         className="text-xs font-medium text-red-600 hover:underline"
-                        onClick={() => navigate("/forget")}
                       >
                         Forgot password?
-                      </a>
+                      </Link>
                     )}
                   </div>
                   <div className="relative group">
@@ -170,6 +311,7 @@ export default function Auth() {
                       className="block w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      required
                     />
                     <button
                       type="button"
@@ -195,20 +337,62 @@ export default function Auth() {
                         type="password"
                         placeholder="••••••••"
                         className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
                       />
                     </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                {notice && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm">
+                    {notice}
                   </div>
                 )}
 
                 {/* Sign In / Sign Up Button */}
                 <button
                   type="submit"
+                  disabled={loading}
                   className="cursor-pointer w-full bg-red-800 hover:bg-red-800 text-white font-bold py-3 sm:py-3.5 rounded-lg shadow-lg shadow-red-800/20 transform transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  <span>{isLogin ? "Sign In" : "Sign Up"}</span>
+                  <span>
+                    {loading
+                      ? "Please wait..."
+                      : isLogin
+                        ? "Sign In"
+                        : "Sign Up"}
+                  </span>
                   <ArrowRight size={18} />
                 </button>
               </form>
+
+              {!isLogin && pendingSignupEmail && (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-600 mb-2">
+                    Didn't get your confirmation email?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendingSignupEmail || signupCooldownSeconds > 0}
+                    className="text-sm font-semibold text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {resendingSignupEmail
+                      ? "Resending..."
+                      : signupCooldownSeconds > 0
+                        ? `Resend available in ${formatCooldownLabel(signupCooldownSeconds)}`
+                        : "Resend confirmation email"}
+                  </button>
+                </div>
+              )}
 
               {/* Divider */}
               <div className="relative my-6 sm:my-8">
@@ -265,7 +449,11 @@ export default function Auth() {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setIsLogin(!isLogin)} // click the button to toggle between login and sign up
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError("");
+                    setNotice("");
+                  }}
                   className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-red-800 transition-colors group"
                 >
                   {isLogin ? "Create an account" : "Sign in instead"}
@@ -280,10 +468,7 @@ export default function Auth() {
 
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
-            <p>
-              © 2026 AllChat. All university guidelines
-              apply.
-            </p>
+            <p>© 2026 AllChat. All university guidelines apply.</p>
             <div className="mt-2 flex justify-center gap-4">
               <a href="#" className="hover:underline">
                 Privacy Policy
