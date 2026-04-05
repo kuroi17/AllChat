@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import {
   formatCooldownLabel,
+  getLastCooldownEmail,
   getRemainingCooldownSeconds,
+  mapAuthEmailError,
   startEmailCooldown,
   validateEmailFormat,
 } from "../utils/authEmailGuards";
@@ -33,6 +35,23 @@ export default function Auth() {
   const [pendingSignupEmail, setPendingSignupEmail] = useState("");
   const [signupCooldownSeconds, setSignupCooldownSeconds] = useState(0);
   const [resendingSignupEmail, setResendingSignupEmail] = useState(false);
+
+  useEffect(() => {
+    const rememberedEmail = getLastCooldownEmail(SIGNUP_CONFIRMATION_ACTION);
+    if (!rememberedEmail) {
+      return;
+    }
+
+    const remaining = getRemainingCooldownSeconds(
+      SIGNUP_CONFIRMATION_ACTION,
+      rememberedEmail,
+    );
+
+    if (remaining > 0) {
+      setPendingSignupEmail(rememberedEmail);
+      setSignupCooldownSeconds(remaining);
+    }
+  }, []);
 
   useEffect(() => {
     if (!pendingSignupEmail) {
@@ -122,7 +141,12 @@ export default function Auth() {
       });
 
       if (resendError) {
-        setError(resendError.message);
+        setError(
+          mapAuthEmailError(
+            resendError,
+            "Failed to resend confirmation email.",
+          ),
+        );
         return;
       }
 
@@ -191,32 +215,30 @@ export default function Auth() {
       const { data, error } = await supabase.auth.signUp({
         email: validatedEmail,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+        },
       });
 
       setLoading(false);
 
       if (error) {
-        setError(error.message);
+        setError(mapAuthEmailError(error, "Unable to create account."));
       } else if (data.user) {
-        // Create profile entry
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          username: validatedEmail.split("@")[0], // Default username from email
-          bio: "",
-          avatar_url: "",
-        });
-
-        if (profileError) {
-          console.error("Profile creation error:", profileError);
-        }
-
         startEmailCooldown(SIGNUP_CONFIRMATION_ACTION, validatedEmail);
         setPendingSignupEmail(validatedEmail);
         setSignupCooldownSeconds(5 * 60);
         setConfirmPassword("");
         setPassword("");
+
+        if (data.session) {
+          setNotice("Account created successfully. Redirecting to chat...");
+          navigate("/");
+          return;
+        }
+
         setNotice(
-          "Check your email for confirmation. We added a 5-minute cooldown to prevent email spam.",
+          "Account created. Check your inbox for the confirmation link. If email delivery is delayed, you can use Google sign-in for now.",
         );
       }
     }

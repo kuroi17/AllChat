@@ -11,7 +11,9 @@ import {
 import Skeleton from "../components/ui/Skeleton";
 import {
   formatCooldownLabel,
+  getLastCooldownEmail,
   getRemainingCooldownSeconds,
+  mapAuthEmailError,
   startEmailCooldown,
   validateEmailFormat,
 } from "../utils/authEmailGuards";
@@ -24,7 +26,27 @@ export default function ForgetPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [lastSentEmail, setLastSentEmail] = useState("");
+  const [lastSentEmail, setLastSentEmail] = useState(() =>
+    getLastCooldownEmail(PASSWORD_RESET_ACTION),
+  );
+
+  useEffect(() => {
+    if (!lastSentEmail) {
+      return;
+    }
+
+    const remainingCooldown = getRemainingCooldownSeconds(
+      PASSWORD_RESET_ACTION,
+      lastSentEmail,
+    );
+
+    if (remainingCooldown > 0) {
+      setCooldownSeconds(remainingCooldown);
+      if (!email) {
+        setEmail(lastSentEmail);
+      }
+    }
+  }, [email, lastSentEmail]);
 
   useEffect(() => {
     const sourceEmail = lastSentEmail || email;
@@ -83,7 +105,9 @@ export default function ForgetPage() {
     setLoading(false);
 
     if (resetError) {
-      setError(resetError.message);
+      setError(
+        mapAuthEmailError(resetError, "Failed to send password reset email."),
+      );
       return;
     }
 

@@ -2,9 +2,14 @@ const EMAIL_REGEX =
   /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
 export const EMAIL_COOLDOWN_SECONDS = 5 * 60;
+const LAST_COOLDOWN_EMAIL_KEY_PREFIX = "auth-email-last:";
 
 function getCooldownStorageKey(action, email) {
   return `auth-email-cooldown:${action}:${email}`;
+}
+
+function getLastEmailStorageKey(action) {
+  return `${LAST_COOLDOWN_EMAIL_KEY_PREFIX}${action}`;
 }
 
 function getExpiryTimestamp(key) {
@@ -89,9 +94,51 @@ export function startEmailCooldown(
 
   try {
     window.localStorage.setItem(key, String(expiry));
+    window.localStorage.setItem(
+      getLastEmailStorageKey(action),
+      normalizedEmail,
+    );
   } catch {
     // Ignore localStorage errors.
   }
+}
+
+export function getLastCooldownEmail(action) {
+  try {
+    return window.localStorage.getItem(getLastEmailStorageKey(action)) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function mapAuthEmailError(error, fallbackMessage) {
+  const rawMessage = String(error?.message || fallbackMessage || "")
+    .trim()
+    .replace(/\s+/g, " ");
+
+  if (!rawMessage) {
+    return "Something went wrong while sending an authentication email.";
+  }
+
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes("rate limit") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("email rate")
+  ) {
+    return "Email request limit reached. Please wait 5 minutes before trying again.";
+  }
+
+  if (
+    normalized.includes("bounce") ||
+    normalized.includes("temporarily disabled") ||
+    normalized.includes("smtp")
+  ) {
+    return "Email sending is temporarily restricted right now. Please use Google sign-in or try again later.";
+  }
+
+  return rawMessage;
 }
 
 export function formatCooldownLabel(totalSeconds) {
