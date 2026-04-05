@@ -54,6 +54,79 @@ function dedupeAndSortMessages(messages) {
   );
 }
 
+function DirectMessageConversationSkeleton() {
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      <div className="hidden md:block">
+        <Sidebar showExtras={false} />
+      </div>
+
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="border-b border-gray-200 bg-white px-4 sm:px-6 py-3 sm:py-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <Skeleton className="w-10 h-10 rounded-full" />
+              <div className="space-y-2 min-w-0">
+                <Skeleton className="h-3.5 w-28 rounded" />
+                <Skeleton className="h-3 w-20 rounded" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-20 rounded-lg" />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-hidden bg-gray-50">
+          <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 space-y-4 sm:space-y-5 animate-pulse">
+            {Array.from({ length: 7 }).map((_, index) => (
+              <div
+                key={`dm-layout-skeleton-${index}`}
+                className={`flex ${index % 3 === 1 ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`space-y-2 max-w-[80%] ${
+                    index % 3 === 1
+                      ? "bg-red-100/80 rounded-2xl rounded-br-sm px-4 py-3"
+                      : "bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm"
+                  }`}
+                >
+                  <Skeleton
+                    className={`h-3 rounded ${index % 3 === 1 ? "w-24 bg-red-200/70" : "w-28"}`}
+                  />
+                  <Skeleton
+                    className={`h-3 rounded ${index % 2 === 0 ? "w-52" : "w-40"}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 bg-white px-3 sm:px-6 py-3 sm:py-4">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <Skeleton className="h-10 flex-1 rounded-xl" />
+            <Skeleton className="h-10 w-20 rounded-xl" />
+          </div>
+        </div>
+      </main>
+
+      <aside className="w-80 bg-white border-l border-gray-200 overflow-y-auto hidden xl:block">
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-12 h-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-3.5 w-24 rounded" />
+              <Skeleton className="h-3 w-16 rounded" />
+            </div>
+          </div>
+          <Skeleton className="h-9 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function DirectMessage() {
   const { conversationId: routeConversationId } = useParams();
   const [searchParams] = useSearchParams();
@@ -830,16 +903,7 @@ export default function DirectMessage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <div className="hidden md:block">
-          <Sidebar showExtras={false} />
-        </div>
-        <main className="flex-1 flex items-center justify-center">
-          <Skeleton className="w-8 h-8 rounded-full text-red-600" />
-        </main>
-      </div>
-    );
+    return <DirectMessageConversationSkeleton />;
   }
 
   if (!loading && error) {
@@ -874,16 +938,7 @@ export default function DirectMessage() {
   }
 
   if (!otherUser) {
-    return (
-      <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-        <div className="hidden md:block">
-          <Sidebar showExtras={false} />
-        </div>
-        <main className="flex-1 flex items-center justify-center">
-          <Skeleton className="w-8 h-8 rounded-full text-red-600" />
-        </main>
-      </div>
-    );
+    return <DirectMessageConversationSkeleton />;
   }
 
   return (
