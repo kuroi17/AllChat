@@ -2,7 +2,10 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../utils/supabase";
 import { updatePresence } from "../utils/social";
 import { defaultSettings, subscribeChatSettings } from "../utils/settings";
-import { PRESENCE_UPDATE_INTERVAL_MS } from "../utils/runtimeConfig";
+import {
+  API_BASE_URL,
+  PRESENCE_UPDATE_INTERVAL_MS,
+} from "../utils/runtimeConfig";
 
 const UserContext = createContext();
 
@@ -125,6 +128,29 @@ export default function UserProvider({ children }) {
   }, [user?.id, showOnlineStatus]);
 
   const fetchProfile = async (userId) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const token = session?.access_token;
+      if (token) {
+        const response = await fetch(`${API_BASE_URL}/api/users/me/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const profileFromApi = await response.json();
+          setProfile(profileFromApi);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("[UserContext] Backend profile fetch failed:", err);
+    }
+
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -133,35 +159,6 @@ export default function UserProvider({ children }) {
 
     if (data) {
       setProfile(data);
-    } else if (error && error.code === "PGRST116") {
-      // Profile doesn't exist - create one automatically (for OAuth users)
-      // Get user metadata from auth
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      const username =
-        authUser?.user_metadata?.full_name ||
-        authUser?.email?.split("@")[0] ||
-        userId.slice(0, 8);
-
-      const { data: newProfile, error: insertError } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          username,
-          bio: "",
-          avatar_url: authUser?.user_metadata?.avatar_url || "",
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (newProfile) {
-        setProfile(newProfile);
-      } else if (insertError) {
-        console.error("[UserContext] Error creating profile:", insertError);
-      }
     } else if (error) {
       console.error("[UserContext] Error fetching profile:", error);
     }

@@ -32,6 +32,23 @@ function parseLimit(value, fallback = 20, max = 100) {
   return Math.min(parsed, max);
 }
 
+function buildDefaultProfilePayload(user) {
+  const metadata = user?.user_metadata || {};
+  const displayName =
+    metadata.full_name ||
+    metadata.name ||
+    user?.email?.split("@")[0] ||
+    (user?.id || "user").slice(0, 8);
+
+  return {
+    id: user?.id,
+    username: String(displayName).trim().slice(0, 30),
+    bio: "",
+    avatar_url: metadata.avatar_url || metadata.picture || "",
+    last_seen: new Date().toISOString(),
+  };
+}
+
 // GET all users (for discovering people)
 router.get("/", async (req, res) => {
   try {
@@ -93,11 +110,35 @@ router.get("/me/profile", verifyToken, async (req, res) => {
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
-    res.json(data);
+
+    if (data) {
+      return res.json(data);
+    }
+
+    // Auto-provision profile for newly confirmed users.
+    const payload = buildDefaultProfilePayload(req.user);
+    const { data: created, error: createError } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "id" })
+      .select("*")
+      .single();
+
+    if (createError) {
+      throw createError;
+    }
+
+    res.json(created);
   } catch (err) {
+    if (err?.code === "42501") {
+      return res.status(500).json({
+        error:
+          "Profile provisioning is blocked by database RLS policy. Apply database/fix_profiles_rls_for_auth.sql.",
+      });
+    }
+
     res.status(500).json({ error: err.message });
   }
 });
