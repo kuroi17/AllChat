@@ -93,7 +93,7 @@ router.post("/cloudinary/signature", verifyToken, async (req, res) => {
       uploadUrl: `https://api.cloudinary.com/v1_1/${credentials.cloudName}/${resourceType}/upload`,
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message || "Signing failed" });
+    return res.status(500).json({ error: "Signing failed" });
   }
 });
 

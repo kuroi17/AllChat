@@ -53,9 +53,7 @@ router.get(
       const analytics = gateway.getAnalyticsSnapshot({ days });
       res.json(analytics);
     } catch (error) {
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to fetch analytics" });
+      res.status(500).json({ error: "Failed to fetch analytics" });
     }
   },
 );
@@ -73,7 +71,7 @@ router.get("/reports", verifyToken, requireRandomAnalyticsAdmin, (req, res) => {
     const reports = gateway.getRecentReports({ limit });
     res.json(Array.isArray(reports) ? reports : []);
   } catch (error) {
-    res.status(500).json({ error: error.message || "Failed to fetch reports" });
+    res.status(500).json({ error: "Failed to fetch reports" });
   }
 });
 
@@ -121,9 +119,7 @@ router.post("/reports", verifyToken, randomReportRateLimiter, (req, res) => {
       createdAt: result.report?.createdAt,
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ error: error.message || "Failed to submit report" });
+    return res.status(500).json({ error: "Failed to submit report" });
   }
 });
 

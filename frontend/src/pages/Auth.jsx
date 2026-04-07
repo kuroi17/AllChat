@@ -20,6 +20,7 @@ import {
 } from "../utils/authEmailGuards";
 import ProfileSetupModal from "../components/auth/ProfileSetupModal";
 import { normalizeNicknameInput } from "../utils/profileIdentity";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 const SIGNUP_CONFIRMATION_ACTION = "signup-confirmation";
 
@@ -233,7 +234,12 @@ export default function Auth() {
         return;
       }
 
-      setError(guestError.message || "Unable to continue as guest right now.");
+      setError(
+        toSafeErrorMessage(
+          guestError,
+          "Unable to continue as guest right now.",
+        ),
+      );
       return;
     }
 
@@ -267,7 +273,7 @@ export default function Auth() {
       });
 
       if (error) {
-        setError(error.message);
+        setError(toSafeErrorMessage(error, "Unable to sign in."));
       }
       // Note: User will be redirected to Google, then back to your app automatically
     } catch (err) {
@@ -357,7 +363,7 @@ export default function Auth() {
       setLoading(false);
 
       if (error) {
-        setError(error.message);
+        setError(toSafeErrorMessage(error, "Unable to sign in."));
       } else {
         navigate("/"); // Redirect to global chat after successful login
       }

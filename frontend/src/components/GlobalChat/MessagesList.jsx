@@ -19,6 +19,7 @@ import {
   subscribeChatSettings,
   triggerNotificationHaptic,
 } from "../../utils/settings";
+import { toSafeErrorMessage } from "../../utils/safeErrorMessage";
 
 const GLOBAL_MESSAGES_CACHE_KEY = "global_messages_cache_v1";
 
@@ -181,7 +182,7 @@ export default function MessagesList({ scrollRef }) {
       applyMessageReactions(messageId, previousReactions);
       setToast({
         type: "error",
-        message: error.message || "Failed to update reaction.",
+        message: toSafeErrorMessage(error, "Failed to update reaction."),
       });
       queryClient.invalidateQueries({ queryKey: ["messages", "global"] });
     }
@@ -249,7 +250,7 @@ export default function MessagesList({ scrollRef }) {
       console.error("[MessagesList] Report submit failed:", error);
       setToast({
         type: "error",
-        message: error.message || "Failed to submit report.",
+        message: toSafeErrorMessage(error, "Failed to submit report."),
       });
     } finally {
       setReporting(false);

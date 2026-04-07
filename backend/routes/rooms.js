@@ -160,7 +160,10 @@ router.get("/", async (req, res) => {
     res.json(enriched);
   } catch (err) {
     const status = err.status || 500;
-    res.status(status).json({ error: err.message });
+    res.status(status).json({
+      error:
+        status >= 500 ? "Something went wrong. Please try again." : err.message,
+    });
   }
 });
 
@@ -184,7 +187,7 @@ router.get("/joined", verifyToken, async (req, res) => {
 
     res.json(rooms);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -212,7 +215,7 @@ router.get("/archive", verifyToken, async (req, res) => {
 
     res.json(Array.isArray(data) ? data : []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -301,7 +304,7 @@ router.get("/invites/:token/preview", async (req, res) => {
       is_member: isMember,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -441,7 +444,7 @@ router.post("/invites/:token/join", verifyToken, async (req, res) => {
       roomId: inviteRoomId,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -498,7 +501,7 @@ router.post("/:roomId/invites", verifyToken, async (req, res) => {
 
     res.json({ token: data.token, roomId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -546,7 +549,7 @@ router.get("/:roomId/preview", async (req, res) => {
       is_member: isMember,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -578,7 +581,7 @@ router.get("/:roomId", verifyToken, async (req, res) => {
       is_member: !!membership || data.creator_id === req.userId,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -645,7 +648,7 @@ router.post("/", verifyToken, async (req, res) => {
 
     res.status(201).json(room);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -747,7 +750,7 @@ router.post("/:roomId/join", verifyToken, async (req, res) => {
 
     res.json({ participantCount, alreadyMember: false });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -828,7 +831,7 @@ router.post("/:roomId/leave", verifyToken, async (req, res) => {
       alreadyLeft: false,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -849,7 +852,7 @@ router.get("/:roomId/members", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(Array.isArray(data) ? data : []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -889,7 +892,7 @@ router.patch("/:roomId/avatar", verifyToken, async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -920,7 +923,7 @@ router.delete("/:roomId", verifyToken, async (req, res) => {
 
     res.json({ message: "Room deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

@@ -6,6 +6,7 @@ import { useUser } from "../contexts/UserContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchPublicRooms, joinPublicRoom } from "../utils/social";
 import { getChatSocket } from "../utils/messages";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function PublicRooms() {
   const { profile } = useUser();
@@ -143,7 +144,7 @@ export default function PublicRooms() {
         });
       } catch (err) {
         console.error("Join failed:", err);
-        setJoinError(err.message || "Failed to join room");
+        setJoinError(toSafeErrorMessage(err, "Failed to join room."));
       }
     })();
   }

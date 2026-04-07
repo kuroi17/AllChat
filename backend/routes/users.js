@@ -84,7 +84,7 @@ router.get("/", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -119,7 +119,7 @@ router.get("/online", async (req, res) => {
 
     res.json(onlineUsersCache.data.slice(0, limit));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -161,7 +161,7 @@ router.get("/me/profile", verifyToken, async (req, res) => {
       });
     }
 
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -197,7 +197,7 @@ router.patch("/me/presence", verifyToken, async (req, res) => {
 
     res.json({ ok: true, lastSeen });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -224,7 +224,7 @@ router.get(
       if (error) throw error;
       res.json({ isFollowing: !!data });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -242,7 +242,7 @@ router.get("/:userId", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -269,7 +269,7 @@ router.put("/:userId", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -287,7 +287,7 @@ router.get("/:userId/followers", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -305,7 +305,7 @@ router.get("/:userId/following", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -337,7 +337,7 @@ router.post("/:userId/follow", verifyToken, async (req, res) => {
 
     res.status(201).json({ message: "Followed" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -357,7 +357,7 @@ router.delete("/:userId/follow", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json({ message: "Unfollowed" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

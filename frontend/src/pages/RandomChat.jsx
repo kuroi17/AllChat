@@ -38,6 +38,7 @@ import {
   REPORT_REASON_OPTIONS,
   writeRandomPageCache,
 } from "../utils/randomChatPageUtils";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function RandomChat() {
   const { user, profile } = useUser();
@@ -226,7 +227,7 @@ export default function RandomChat() {
       } else {
         setCanViewAdminAnalytics(false);
         setAnalyticsError(
-          requestError.message || "Unable to load random analytics.",
+          toSafeErrorMessage(requestError, "Unable to load random analytics."),
         );
       }
     } finally {
@@ -522,7 +523,9 @@ export default function RandomChat() {
           };
         })();
       } catch (setupError) {
-        setError(setupError.message || "Failed to initialize random chat");
+        setError(
+          toSafeErrorMessage(setupError, "Failed to initialize random chat."),
+        );
         setIsBootstrapping(false);
       }
     })();
@@ -584,7 +587,7 @@ export default function RandomChat() {
       setStatus("queueing");
       setNotice("Finding a match!");
     } catch (queueError) {
-      setError(queueError.message || "Unable to join queue");
+      setError(toSafeErrorMessage(queueError, "Unable to join queue."));
     } finally {
       setIsActionLoading(false);
     }
@@ -602,7 +605,7 @@ export default function RandomChat() {
       setQueueSize(null);
       setNotice("Queue canceled.");
     } catch (queueError) {
-      setError(queueError.message || "Unable to leave queue");
+      setError(toSafeErrorMessage(queueError, "Unable to leave queue."));
     } finally {
       setIsActionLoading(false);
     }
@@ -642,7 +645,7 @@ export default function RandomChat() {
       setDraft("");
       setReplyTarget(null);
     } catch (messageError) {
-      setError(messageError.message || "Unable to send message");
+      setError(toSafeErrorMessage(messageError, "Unable to send message."));
     }
   };
 
@@ -699,7 +702,7 @@ export default function RandomChat() {
       });
     } catch (reactionError) {
       applyMessageReactions(messageId, previousReactions);
-      setError(reactionError.message || "Unable to update reaction");
+      setError(toSafeErrorMessage(reactionError, "Unable to update reaction."));
     }
   };
 
@@ -743,7 +746,7 @@ export default function RandomChat() {
       setDraft("");
       setReplyTarget(null);
     } catch (uploadError) {
-      setError(uploadError.message || "Unable to upload image");
+      setError(toSafeErrorMessage(uploadError, "Unable to upload image."));
     } finally {
       setIsUploading(false);
     }
@@ -761,7 +764,7 @@ export default function RandomChat() {
       });
       setVoteDecision(decision);
     } catch (voteError) {
-      setError(voteError.message || "Unable to submit vote");
+      setError(toSafeErrorMessage(voteError, "Unable to submit vote."));
     }
   };
 
@@ -814,7 +817,9 @@ export default function RandomChat() {
       }
     } catch (reportError) {
       setReportFeedbackTone("error");
-      setReportFeedback(reportError.message || "Unable to submit report.");
+      setReportFeedback(
+        toSafeErrorMessage(reportError, "Unable to submit report."),
+      );
     } finally {
       setIsSubmittingReport(false);
     }

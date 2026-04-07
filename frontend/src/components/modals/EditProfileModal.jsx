@@ -3,6 +3,7 @@ import { X, Save, Camera } from "lucide-react";
 import Skeleton from "../ui/Skeleton";
 import { useUser } from "../../contexts/UserContext";
 import { supabase } from "../../utils/supabase";
+import { toSafeErrorMessage } from "../../utils/safeErrorMessage";
 import {
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
@@ -239,7 +240,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
         setLoading(false);
         return;
       }
-      setError(err.message || "Failed to upload profile media");
+      setError(toSafeErrorMessage(err, "Failed to upload profile media."));
       setLoading(false);
     }
   };

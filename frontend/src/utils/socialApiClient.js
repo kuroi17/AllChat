@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { API_BASE_URL } from "./runtimeConfig";
+import { sanitizeApiErrorMessage } from "./safeErrorMessage";
 
 const REQUEST_CACHE_TTL_MS = 20000;
 const apiGetCache = new Map();
@@ -41,9 +42,9 @@ async function getAccessToken() {
 export async function readErrorResponse(response, fallbackMessage) {
   try {
     const data = await response.json();
-    return data?.error || fallbackMessage;
+    return sanitizeApiErrorMessage(data?.error, fallbackMessage);
   } catch {
-    return fallbackMessage;
+    return sanitizeApiErrorMessage("", fallbackMessage);
   }
 }
 
@@ -90,7 +91,7 @@ export async function requestApi(
     });
 
     if (!response.ok) {
-      const fallbackMessage = `Request failed (${normalizedMethod} ${path})`;
+      const fallbackMessage = "Unable to complete the request right now.";
       const errorMessage = await readErrorResponse(response, fallbackMessage);
       throw new Error(errorMessage);
     }

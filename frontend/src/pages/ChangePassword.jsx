@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import Skeleton from "../components/ui/Skeleton";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function ChangePassword() {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function ChangePassword() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(toSafeErrorMessage(error, "Unable to update password."));
     } else {
       setSuccess(true);
       // Sign out and redirect to login after 2 seconds
@@ -92,7 +93,7 @@ export default function ChangePassword() {
             <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-base sm:text-xl font-bold text-gray-900 tracking-tight">
-          AllChat
+            AllChat
           </h1>
         </div>
       </header>
@@ -253,10 +254,7 @@ export default function ChangePassword() {
 
           {/* Footer */}
           <footer className="mt-6 sm:mt-8 text-center text-gray-500 text-xs px-2">
-            <p>
-              © 2024 AllChat. All university guidelines
-              apply.
-            </p>
+            <p>© 2024 AllChat. All university guidelines apply.</p>
           </footer>
         </div>
       </main>

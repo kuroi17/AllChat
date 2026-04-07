@@ -105,7 +105,7 @@ router.get("/", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -129,7 +129,7 @@ router.get("/:room", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -232,7 +232,13 @@ router.post(
 
       res.status(201).json(createdMessage);
     } catch (err) {
-      res.status(err.status || 500).json({ error: err.message });
+      const status = Number(err?.status) || 500;
+      res.status(status).json({
+        error:
+          status >= 500
+            ? "Something went wrong. Please try again."
+            : err?.message || "Unable to create message.",
+      });
     }
   },
 );
@@ -288,7 +294,13 @@ router.post("/:id/reactions", verifyToken, async (req, res) => {
 
     res.status(201).json({ messageId: id, reactions });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
+    const status = Number(err?.status) || 500;
+    res.status(status).json({
+      error:
+        status >= 500
+          ? "Something went wrong. Please try again."
+          : err?.message || "Unable to add reaction.",
+    });
   }
 });
 
@@ -335,7 +347,13 @@ router.delete("/:id/reactions", verifyToken, async (req, res) => {
 
     res.json({ messageId: id, reactions });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
+    const status = Number(err?.status) || 500;
+    res.status(status).json({
+      error:
+        status >= 500
+          ? "Something went wrong. Please try again."
+          : err?.message || "Unable to remove reaction.",
+    });
   }
 });
 
@@ -395,7 +413,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
 
     res.json({ message: "Message deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

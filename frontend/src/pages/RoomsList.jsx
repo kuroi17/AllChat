@@ -17,6 +17,7 @@ import RoomsHeader from "../components/rooms/RoomsHeader";
 import RoomCard from "../components/rooms/RoomCard";
 import RoomPreviewModal from "../components/rooms/RoomPreviewModal";
 import RoomCreateModal from "../components/rooms/RoomCreateModal";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function RoomsList() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -119,7 +120,7 @@ export default function RoomsList() {
       }
     },
     onError: (err) => {
-      setJoinError(err.message || "Failed to join room");
+      setJoinError(toSafeErrorMessage(err, "Failed to join room."));
     },
   });
 
@@ -161,7 +162,7 @@ export default function RoomsList() {
       });
     },
     onError: (err) => {
-      setCreateError(err.message || "Failed to create room");
+      setCreateError(toSafeErrorMessage(err, "Failed to create room."));
     },
   });
 

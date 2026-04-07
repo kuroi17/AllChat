@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -40,7 +40,7 @@ router.get("/:announcementId", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -69,7 +69,7 @@ router.post("/", verifyToken, async (req, res) => {
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -104,7 +104,7 @@ router.put("/:announcementId", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -138,7 +138,7 @@ router.delete("/:announcementId", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json({ message: "Announcement deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -41,7 +41,7 @@ router.get("/:eventId", async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -74,7 +74,7 @@ router.post("/", verifyToken, async (req, res) => {
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -109,7 +109,7 @@ router.put("/:eventId", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -140,7 +140,7 @@ router.delete("/:eventId", verifyToken, async (req, res) => {
     if (error) throw error;
     res.json({ message: "Event deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

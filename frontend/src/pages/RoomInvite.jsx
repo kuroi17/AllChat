@@ -4,6 +4,7 @@ import { Users, Lock } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "../layouts/Sidebar";
 import { fetchRoomInvitePreview, joinRoomWithInvite } from "../utils/social";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function RoomInvite() {
   const { token } = useParams();
@@ -30,7 +31,7 @@ export default function RoomInvite() {
       });
     },
     onError: (err) => {
-      setError(err.message || "Failed to join room");
+      setError(toSafeErrorMessage(err, "Failed to join room."));
     },
   });
 

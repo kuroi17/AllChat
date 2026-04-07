@@ -61,7 +61,7 @@ router.post("/", verifyToken, reportRateLimiter, async (req, res) => {
 
     res.status(201).json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

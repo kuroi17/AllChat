@@ -1000,7 +1000,7 @@ function createRandomChatGateway(io) {
         await handleQueueJoin(socket, ack);
       } catch (error) {
         if (typeof ack === "function") {
-          ack({ ok: false, error: error.message || "Failed to join queue" });
+          ack({ ok: false, error: "Failed to join queue" });
         }
       }
     });

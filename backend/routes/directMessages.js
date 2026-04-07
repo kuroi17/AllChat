@@ -310,7 +310,7 @@ router.get("/conversations/unread-count", verifyToken, async (req, res) => {
 
     res.json({ count: total });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -343,7 +343,7 @@ router.get(
 
       res.json(summary);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -381,7 +381,7 @@ router.get(
       if (error) throw error;
       res.json(data || []);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -416,7 +416,7 @@ router.patch(
       if (error) throw error;
       res.json({ ok: true, lastReadAt: timestamp });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -516,7 +516,7 @@ router.post(
 
       res.status(201).json({ conversationId: conversation.id, created: true });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -550,7 +550,7 @@ router.delete(
       if (error) throw error;
       res.json({ message: "Conversation deleted" });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -583,7 +583,7 @@ router.get("/conversations", verifyToken, async (req, res) => {
 
     res.json(summaries.filter((item) => item.otherUser));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -617,7 +617,7 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
     );
     res.json((messages || []).map(normalizeDeletedMessagePayload));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -749,7 +749,7 @@ router.post(
 
       res.status(201).json(createdMessage);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );
@@ -815,7 +815,7 @@ router.post("/:messageId/reactions", verifyToken, async (req, res) => {
 
     res.status(201).json({ messageId, reactions });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -870,7 +870,7 @@ router.delete("/:messageId/reactions", verifyToken, async (req, res) => {
 
     res.json({ messageId, reactions });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 
@@ -963,7 +963,7 @@ router.delete(
 
       res.json({ message: "Message deleted" });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Something went wrong. Please try again." });
     }
   },
 );

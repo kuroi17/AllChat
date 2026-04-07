@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { io } from "socket.io-client";
+import { sanitizeApiErrorMessage } from "./safeErrorMessage";
 import {
   API_BASE_URL,
   CLOUDINARY_UPLOAD_FOLDER,
@@ -16,9 +17,9 @@ let socketToken = null;
 async function readErrorResponse(response, fallbackMessage) {
   try {
     const data = await response.json();
-    return data?.error || fallbackMessage;
+    return sanitizeApiErrorMessage(data?.error, fallbackMessage);
   } catch {
-    return fallbackMessage;
+    return sanitizeApiErrorMessage("", fallbackMessage);
   }
 }
 
