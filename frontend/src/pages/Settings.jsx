@@ -21,6 +21,7 @@ import {
   setChatSettings,
 } from "../utils/settings";
 import AppToast from "../components/common/AppToast";
+import { useAppDialog } from "../contexts/DialogContext";
 
 function ToggleRow({
   icon: Icon,
@@ -82,6 +83,7 @@ export default function Settings() {
   const { user, profile } = useUser();
   const [settings, setSettings] = useState(defaultSettings);
   const [toast, setToast] = useState(null);
+  const { confirm } = useAppDialog();
 
   useEffect(() => {
     setSettings(getChatSettings());
@@ -220,10 +222,15 @@ export default function Settings() {
     };
   }
 
-  function resetSettings() {
-    const confirmed = window.confirm(
-      "Reset all chat settings to default values?",
-    );
+  async function resetSettings() {
+    const confirmed = await confirm({
+      title: "Reset chat settings?",
+      message:
+        "This will restore all chat preferences to their default values.",
+      confirmLabel: "Reset",
+      cancelLabel: "Keep current",
+      danger: true,
+    });
     if (!confirmed) return;
 
     setSettings(defaultSettings);

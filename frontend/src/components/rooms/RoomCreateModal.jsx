@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
+import { useAppDialog } from "../../contexts/DialogContext";
 
 const defaultForm = {
   title: "",
@@ -14,6 +15,7 @@ export default function RoomCreateModal({
   creating,
   error,
 }) {
+  const { confirm } = useAppDialog();
   const [form, setForm] = useState(defaultForm);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState("");
@@ -68,13 +70,17 @@ export default function RoomCreateModal({
     setLogoError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!logoFile) {
-      const proceed = window.confirm(
-        "Add a room logo now for better recognition? You can still continue without one.",
-      );
+      const proceed = await confirm({
+        title: "Create room without logo?",
+        message:
+          "Adding a logo improves room recognition. You can still continue without one.",
+        confirmLabel: "Continue",
+        cancelLabel: "Add logo",
+      });
       if (!proceed) return;
     }
 

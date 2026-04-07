@@ -37,6 +37,8 @@ import {
   MAX_MEDIA_UPLOAD_BYTES,
   MAX_MEDIA_UPLOAD_MB,
 } from "../utils/runtimeConfig";
+import { useAppDialog } from "../contexts/DialogContext";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 const DELETED_MESSAGE_MARKER = "__BSUALLCHAT_DM_DELETED__";
 const DM_MESSAGES_CACHE_PREFIX = "dm_messages_cache:";
@@ -158,6 +160,7 @@ export default function DirectMessage() {
   const [showMobileInfoPanel, setShowMobileInfoPanel] = useState(false);
   const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
+  const { confirm, alert } = useAppDialog();
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -589,7 +592,7 @@ export default function DirectMessage() {
       console.error("Error submitting report:", error);
       setToast({
         type: "error",
-        message: error.message || "Failed to submit report.",
+        message: toSafeErrorMessage(error, "Failed to submit report."),
       });
     } finally {
       setReporting(false);
@@ -605,9 +608,14 @@ export default function DirectMessage() {
   async function handleUnsendForEveryone(messageId) {
     if (!user?.id || deletingMessageId) return;
 
-    const confirmed = window.confirm(
-      "Unsend this message for everyone in this conversation?",
-    );
+    const confirmed = await confirm({
+      title: "Unsend message for everyone?",
+      message:
+        "This will remove the message for all participants in this conversation.",
+      confirmLabel: "Unsend",
+      cancelLabel: "Cancel",
+      danger: true,
+    });
 
     if (!confirmed) return;
 
@@ -641,7 +649,14 @@ export default function DirectMessage() {
       });
     } catch (error) {
       console.error("Error unsending message for everyone:", error);
-      alert(error.message || "Failed to unsend message for everyone.");
+      await alert({
+        title: "Unable to unsend message",
+        message: toSafeErrorMessage(
+          error,
+          "Failed to unsend message for everyone.",
+        ),
+        danger: true,
+      });
     } finally {
       setDeletingMessageId(null);
       setActiveMessageMenuId(null);
@@ -662,12 +677,18 @@ export default function DirectMessage() {
     }
 
     if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file.");
+      setToast({
+        type: "error",
+        message: "Please select a valid image file.",
+      });
       return;
     }
 
     if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
-      alert(`Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less.`);
+      setToast({
+        type: "error",
+        message: `Image size must be ${MAX_MEDIA_UPLOAD_MB}MB or less.`,
+      });
       return;
     }
 
@@ -791,7 +812,10 @@ export default function DirectMessage() {
         setMessageText(trimmedText);
       }
 
-      alert(error.message || "Failed to send message");
+      setToast({
+        type: "error",
+        message: toSafeErrorMessage(error, "Failed to send message."),
+      });
     } finally {
       setSending(false);
       setUploadingImage(false);
@@ -897,7 +921,7 @@ export default function DirectMessage() {
       applyMessageReactions(messageId, previousReactions);
       setToast({
         type: "error",
-        message: error.message || "Failed to update reaction.",
+        message: toSafeErrorMessage(error, "Failed to update reaction."),
       });
     }
   }

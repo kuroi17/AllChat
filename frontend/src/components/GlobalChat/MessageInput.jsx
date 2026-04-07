@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useUser } from "../../contexts/UserContext";
 import { emitRoomTyping, sendMessage } from "../../utils/messages";
 import EmojiPickerButton from "../common/EmojiPickerButton";
+import { useAppDialog } from "../../contexts/DialogContext";
+import { toSafeErrorMessage } from "../../utils/safeErrorMessage";
 
 const GLOBAL_CHAT_COOLDOWN_SECONDS = 2;
 
 export default function MessageInput() {
   const { user } = useUser();
+  const { alert } = useAppDialog();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -34,7 +37,11 @@ export default function MessageInput() {
       setText("");
       setCooldownRemaining(GLOBAL_CHAT_COOLDOWN_SECONDS);
     } catch (err) {
-      alert(err.message);
+      await alert({
+        title: "Message not sent",
+        message: toSafeErrorMessage(err, "Unable to send message right now."),
+        danger: true,
+      });
     } finally {
       setSending(false);
     }

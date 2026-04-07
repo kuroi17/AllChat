@@ -13,6 +13,8 @@ import {
 import DirectMessagesHeader from "../components/directMessages/DirectMessagesHeader";
 import ConversationCard from "../components/directMessages/ConversationCard";
 import DeleteConversationModal from "../components/directMessages/DeleteConversationModal";
+import { useAppDialog } from "../contexts/DialogContext";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 // Format relative time
 function getRelativeTime(dateString) {
@@ -37,6 +39,7 @@ export default function DirectMessages() {
   const [searchQuery, setSearchQuery] = useState("");
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
+  const { alert } = useAppDialog();
   const queryClient = useQueryClient();
 
   const {
@@ -63,9 +66,14 @@ export default function DirectMessages() {
     },
     onError: (error) => {
       console.error("Error deleting conversation:", error);
-      alert(
-        "Failed to delete conversation. Check your database delete policy and try again.",
-      );
+      void alert({
+        title: "Unable to delete conversation",
+        message: toSafeErrorMessage(
+          error,
+          "Failed to delete conversation. Please try again.",
+        ),
+        danger: true,
+      });
       refetchConversations();
     },
   });

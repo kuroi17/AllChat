@@ -29,6 +29,8 @@ import {
   getRandomSessionLock,
   subscribeRandomSessionLock,
 } from "../utils/randomSessionLock";
+import { useAppDialog } from "../contexts/DialogContext";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function Sidebar({ showExtras, onNavigate }) {
   const navigate = useNavigate();
@@ -37,6 +39,7 @@ export default function Sidebar({ showExtras, onNavigate }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [chatSettings, setChatSettings] = useState(defaultSettings);
   const [randomLockState, setRandomLockState] = useState(getRandomSessionLock);
+  const { confirm, alert } = useAppDialog();
   const userMenuRef = useRef(null);
   const settingsRef = useRef(defaultSettings);
   const unreadCountQueryKey = ["directMessages", "unreadCount", user?.id];
@@ -168,10 +171,14 @@ export default function Sidebar({ showExtras, onNavigate }) {
   }, [user?.id, queryClient, refetchUnreadCount]);
 
   const handleLogout = async () => {
-    // Ask for confirmation before logging out
-    const confirmed = window.confirm(
-      "Are you sure you want to logout? You will need to sign in again to access your account.",
-    );
+    const confirmed = await confirm({
+      title: "Log out of AllChat?",
+      message:
+        "You will need to sign in again to access your account and messages.",
+      confirmLabel: "Log out",
+      cancelLabel: "Stay signed in",
+      danger: true,
+    });
 
     if (!confirmed) return;
 
@@ -179,14 +186,22 @@ export default function Sidebar({ showExtras, onNavigate }) {
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error logging out:", error);
-        alert("Error logging out: " + error.message);
+        await alert({
+          title: "Unable to log out",
+          message: toSafeErrorMessage(error, "Please try again."),
+          danger: true,
+        });
       } else {
         // Force navigation and reload to clear all state
         window.location.href = "/auth";
       }
     } catch (err) {
       console.error("Logout error:", err);
-      alert("Error logging out. Please try again.");
+      await alert({
+        title: "Unable to log out",
+        message: toSafeErrorMessage(err, "Please try again."),
+        danger: true,
+      });
     }
   };
 

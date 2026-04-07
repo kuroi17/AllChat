@@ -36,12 +36,15 @@ import {
   MAX_MEDIA_UPLOAD_BYTES,
   MAX_MEDIA_UPLOAD_MB,
 } from "../utils/runtimeConfig";
+import { useAppDialog } from "../contexts/DialogContext";
+import { toSafeErrorMessage } from "../utils/safeErrorMessage";
 
 export default function Room() {
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user } = useUser();
+  const { confirm } = useAppDialog();
   const queryClient = useQueryClient();
 
   const [room, setRoom] = useState(null);
@@ -184,11 +187,11 @@ export default function Room() {
     } catch (err) {
       console.error("Join failed:", err);
       if (closeModal) {
-        setJoinError(err.message || "Failed to join room");
+        setJoinError(toSafeErrorMessage(err, "Failed to join room."));
       } else {
         setToast({
           type: "error",
-          message: err.message || "Failed to join room",
+          message: toSafeErrorMessage(err, "Failed to join room."),
         });
       }
     } finally {
@@ -206,7 +209,10 @@ export default function Room() {
       setInviteLink(link);
       setToast({ type: "success", message: "Room link copied" });
     } catch (err) {
-      setToast({ type: "error", message: err.message || "Copy failed" });
+      setToast({
+        type: "error",
+        message: toSafeErrorMessage(err, "Copy failed."),
+      });
     } finally {
       setInviteLoading(false);
     }
@@ -224,7 +230,10 @@ export default function Room() {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setToast({ type: "success", message: "Room logo updated" });
     } catch (err) {
-      setToast({ type: "error", message: err.message || "Upload failed" });
+      setToast({
+        type: "error",
+        message: toSafeErrorMessage(err, "Upload failed."),
+      });
     } finally {
       setAvatarUploading(false);
     }
@@ -233,9 +242,14 @@ export default function Room() {
   const handleLeaveRoom = async () => {
     if (!room?.id || isCreator || !isMember || leavingRoom) return;
 
-    const confirmed = window.confirm(
-      `Leave "${room.title}"? The room will be moved to your archive in Settings.`,
-    );
+    const confirmed = await confirm({
+      title: `Leave \"${room.title}\"?`,
+      message:
+        "The room will be moved to your archive in Settings so you can rejoin later.",
+      confirmLabel: "Leave room",
+      cancelLabel: "Stay",
+      danger: true,
+    });
 
     if (!confirmed) return;
 
@@ -247,7 +261,7 @@ export default function Room() {
     } catch (err) {
       setToast({
         type: "error",
-        message: err.message || "Failed to leave room",
+        message: toSafeErrorMessage(err, "Failed to leave room."),
       });
     } finally {
       setLeavingRoom(false);
@@ -364,7 +378,10 @@ export default function Room() {
         setSelectedImage(imageToSend);
         setImagePreviewUrl(previewUrl);
       }
-      setToast({ type: "error", message: err.message || "Send failed" });
+      setToast({
+        type: "error",
+        message: toSafeErrorMessage(err, "Send failed."),
+      });
     } finally {
       setUploadingImage(false);
       setSendingMessage(false);
