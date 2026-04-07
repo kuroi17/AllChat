@@ -18,6 +18,8 @@ import {
   startEmailCooldown,
   validateEmailFormat,
 } from "../utils/authEmailGuards";
+import ProfileSetupModal from "../components/auth/ProfileSetupModal";
+import { normalizeNicknameInput } from "../utils/profileIdentity";
 
 const SIGNUP_CONFIRMATION_ACTION = "signup-confirmation";
 
@@ -35,6 +37,9 @@ export default function Auth() {
   const [pendingSignupEmail, setPendingSignupEmail] = useState("");
   const [signupCooldownSeconds, setSignupCooldownSeconds] = useState(0);
   const [resendingSignupEmail, setResendingSignupEmail] = useState(false);
+  const [isProfileSetupOpen, setIsProfileSetupOpen] = useState(false);
+  const [pendingSignupCredentials, setPendingSignupCredentials] =
+    useState(null);
 
   useEffect(() => {
     const rememberedEmail = getLastCooldownEmail(SIGNUP_CONFIRMATION_ACTION);
@@ -85,6 +90,94 @@ export default function Auth() {
     }
 
     return validation.normalizedEmail;
+  };
+
+  const getSignupNicknameSeed = () => {
+    const sourceEmail =
+      pendingSignupCredentials?.email || email || pendingSignupEmail;
+    const baseNickname = sourceEmail.split("@")[0] || "newuser";
+    return normalizeNicknameInput(baseNickname);
+  };
+
+  const closeProfileSetupModal = () => {
+    if (loading) {
+      return;
+    }
+
+    setIsProfileSetupOpen(false);
+    setPendingSignupCredentials(null);
+  };
+
+  const completeSignupWithProfile = async ({ nickname, avatarUrl }) => {
+    if (!pendingSignupCredentials) {
+      setError("Signup session expired. Please try again.");
+      setIsProfileSetupOpen(false);
+      return;
+    }
+
+    const { email: signupEmail, password: signupPassword } =
+      pendingSignupCredentials;
+
+    const remainingCooldown = getRemainingCooldownSeconds(
+      SIGNUP_CONFIRMATION_ACTION,
+      signupEmail,
+    );
+
+    if (remainingCooldown > 0) {
+      setSignupCooldownSeconds(remainingCooldown);
+      setPendingSignupEmail(signupEmail);
+      setError(`Please wait before requesting another confirmation email.`);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    const { data, error } = await supabase.auth.signUp({
+      email: signupEmail,
+      password: signupPassword,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth`,
+        data: {
+          full_name: nickname,
+          name: nickname,
+          avatar_url: avatarUrl || "",
+          is_guest: false,
+        },
+      },
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setError(mapAuthEmailError(error, "Unable to create account."));
+      return;
+    }
+
+    if (!data.user) {
+      setError("Unable to create account right now. Please try again.");
+      return;
+    }
+
+    setIsProfileSetupOpen(false);
+    setPendingSignupCredentials(null);
+
+    startEmailCooldown(SIGNUP_CONFIRMATION_ACTION, signupEmail);
+    setPendingSignupEmail(signupEmail);
+    setSignupCooldownSeconds(5 * 60);
+    setConfirmPassword("");
+    setPassword("");
+
+    if (data.session) {
+      setNotice("Account created successfully. Redirecting to chat...");
+      navigate("/");
+      return;
+    }
+
+    setNotice(
+      "Account created. Check your inbox for the confirmation link. If email delivery is delayed, you can use Google sign-in for now.",
+    );
   };
 
   // Handle Google OAuth Sign-In
@@ -210,35 +303,12 @@ export default function Auth() {
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      setLoading(false);
+      setPendingSignupCredentials({
         email: validatedEmail,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-        },
       });
-
-      setLoading(false);
-
-      if (error) {
-        setError(mapAuthEmailError(error, "Unable to create account."));
-      } else if (data.user) {
-        startEmailCooldown(SIGNUP_CONFIRMATION_ACTION, validatedEmail);
-        setPendingSignupEmail(validatedEmail);
-        setSignupCooldownSeconds(5 * 60);
-        setConfirmPassword("");
-        setPassword("");
-
-        if (data.session) {
-          setNotice("Account created successfully. Redirecting to chat...");
-          navigate("/");
-          return;
-        }
-
-        setNotice(
-          "Account created. Check your inbox for the confirmation link. If email delivery is delayed, you can use Google sign-in for now.",
-        );
-      }
+      setIsProfileSetupOpen(true);
     }
   };
 
@@ -519,6 +589,15 @@ export default function Auth() {
           className="text-red-50 rotate-12 translate-x-20 translate-y-20"
         />
       </div>
+
+      <ProfileSetupModal
+        isOpen={isProfileSetupOpen}
+        mode="signup"
+        defaultNickname={getSignupNicknameSeed()}
+        submitting={loading}
+        onClose={closeProfileSetupModal}
+        onSubmit={completeSignupWithProfile}
+      />
     </div>
   );
 }
