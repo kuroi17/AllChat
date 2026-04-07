@@ -3,6 +3,12 @@ import { X, Save, Camera } from "lucide-react";
 import Skeleton from "../ui/Skeleton";
 import { useUser } from "../../contexts/UserContext";
 import { supabase } from "../../utils/supabase";
+import {
+  NICKNAME_MAX_LENGTH,
+  NICKNAME_MIN_LENGTH,
+  normalizeNicknameInput,
+  validateNickname,
+} from "../../utils/profileIdentity";
 
 export default function EditProfileModal({ isOpen, onClose }) {
   const { user, profile, updateProfile } = useUser();
@@ -49,10 +55,19 @@ export default function EditProfileModal({ isOpen, onClose }) {
   }, [isOpen, profile]);
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    const nextValue =
+      name === "username" ? normalizeNicknameInput(value) : value;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: nextValue,
     });
+
+    if (name === "username") {
+      setError("");
+    }
   };
 
   function normalizeLinkInput(rawValue, type) {
@@ -170,6 +185,13 @@ export default function EditProfileModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    const nicknameValidation = validateNickname(formData.username);
+    if (!nicknameValidation.isValid) {
+      setError(nicknameValidation.errorMessage);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -195,6 +217,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
       // Update profile with avatar and banner URL
       const result = await updateProfile({
         ...formData,
+        username: nicknameValidation.nickname,
         ...normalizedSocialLinks,
         avatar_url: avatarUrl,
         banner_url: bannerUrl,
@@ -336,9 +359,14 @@ export default function EditProfileModal({ isOpen, onClose }) {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              maxLength={NICKNAME_MAX_LENGTH}
               placeholder="Enter username"
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-800/20 focus:border-red-800 transition-all"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              {NICKNAME_MIN_LENGTH}-{NICKNAME_MAX_LENGTH} chars. Allowed:
+              letters, numbers, _, ., -
+            </p>
           </div>
 
           {/* Full Name */}
