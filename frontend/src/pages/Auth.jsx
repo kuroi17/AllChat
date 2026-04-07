@@ -23,6 +23,12 @@ import { normalizeNicknameInput } from "../utils/profileIdentity";
 
 const SIGNUP_CONFIRMATION_ACTION = "signup-confirmation";
 
+function createGuestNicknameSeed() {
+  return normalizeNicknameInput(
+    `guest${Math.floor(1000 + Math.random() * 9000)}`,
+  );
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true); // Toggle between Login and Sign Up
@@ -40,6 +46,10 @@ export default function Auth() {
   const [isProfileSetupOpen, setIsProfileSetupOpen] = useState(false);
   const [pendingSignupCredentials, setPendingSignupCredentials] =
     useState(null);
+  const [profileSetupMode, setProfileSetupMode] = useState("signup");
+  const [guestNicknameSeed, setGuestNicknameSeed] = useState(
+    createGuestNicknameSeed,
+  );
 
   useEffect(() => {
     const rememberedEmail = getLastCooldownEmail(SIGNUP_CONFIRMATION_ACTION);
@@ -106,6 +116,15 @@ export default function Auth() {
 
     setIsProfileSetupOpen(false);
     setPendingSignupCredentials(null);
+    setProfileSetupMode("signup");
+  };
+
+  const openGuestProfileSetup = () => {
+    setError("");
+    setNotice("");
+    setGuestNicknameSeed(createGuestNicknameSeed());
+    setProfileSetupMode("guest");
+    setIsProfileSetupOpen(true);
   };
 
   const completeSignupWithProfile = async ({ nickname, avatarUrl }) => {
@@ -178,6 +197,59 @@ export default function Auth() {
     setNotice(
       "Account created. Check your inbox for the confirmation link. If email delivery is delayed, you can use Google sign-in for now.",
     );
+  };
+
+  const completeGuestSignInWithProfile = async ({ nickname, avatarUrl }) => {
+    if (typeof supabase.auth.signInAnonymously !== "function") {
+      setError(
+        "Guest sign-in is not available in this app build. Please use Google or email sign-in.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    const { error: guestError } = await supabase.auth.signInAnonymously({
+      options: {
+        data: {
+          full_name: nickname,
+          name: nickname,
+          avatar_url: avatarUrl || "",
+          is_guest: true,
+        },
+      },
+    });
+
+    setLoading(false);
+
+    if (guestError) {
+      const rawMessage = String(guestError.message || "").toLowerCase();
+      if (rawMessage.includes("anonymous") && rawMessage.includes("disabled")) {
+        setError(
+          "Guest sign-in is disabled in Supabase settings. Enable Anonymous Provider in Supabase Auth to use this feature.",
+        );
+        return;
+      }
+
+      setError(guestError.message || "Unable to continue as guest right now.");
+      return;
+    }
+
+    setIsProfileSetupOpen(false);
+    setProfileSetupMode("signup");
+    setNotice("Guest session started. Redirecting to chat...");
+    navigate("/");
+  };
+
+  const handleProfileSetupSubmit = async (profilePayload) => {
+    if (profileSetupMode === "guest") {
+      await completeGuestSignInWithProfile(profilePayload);
+      return;
+    }
+
+    await completeSignupWithProfile(profilePayload);
   };
 
   // Handle Google OAuth Sign-In
@@ -308,6 +380,7 @@ export default function Auth() {
         email: validatedEmail,
         password,
       });
+      setProfileSetupMode("signup");
       setIsProfileSetupOpen(true);
     }
   };
@@ -381,6 +454,15 @@ export default function Auth() {
                   />
                 </svg>
                 <span>Continue with Google (Recommended)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openGuestProfileSetup}
+                disabled={loading}
+                className="mt-3 w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 rounded-lg transform transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Continue as Guest
               </button>
 
               {/* Divider */}
@@ -592,11 +674,15 @@ export default function Auth() {
 
       <ProfileSetupModal
         isOpen={isProfileSetupOpen}
-        mode="signup"
-        defaultNickname={getSignupNicknameSeed()}
+        mode={profileSetupMode}
+        defaultNickname={
+          profileSetupMode === "guest"
+            ? guestNicknameSeed
+            : getSignupNicknameSeed()
+        }
         submitting={loading}
         onClose={closeProfileSetupModal}
-        onSubmit={completeSignupWithProfile}
+        onSubmit={handleProfileSetupSubmit}
       />
     </div>
   );

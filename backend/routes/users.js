@@ -32,17 +32,39 @@ function parseLimit(value, fallback = 20, max = 100) {
   return Math.min(parsed, max);
 }
 
+function normalizeProfileUsername(rawValue, fallback = "user") {
+  const normalized = String(rawValue || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 24);
+
+  if (normalized.length >= 3) {
+    return normalized;
+  }
+
+  return String(fallback || "user")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 24);
+}
+
 function buildDefaultProfilePayload(user) {
   const metadata = user?.user_metadata || {};
+  const isGuest = Boolean(user?.is_anonymous || metadata.is_guest === true);
+  const fallbackName = isGuest
+    ? `guest${String(user?.id || "")
+        .replace(/-/g, "")
+        .slice(0, 6)}`
+    : (user?.id || "user").slice(0, 8);
   const displayName =
     metadata.full_name ||
     metadata.name ||
     user?.email?.split("@")[0] ||
-    (user?.id || "user").slice(0, 8);
+    fallbackName;
 
   return {
     id: user?.id,
-    username: String(displayName).trim().slice(0, 30),
+    username: normalizeProfileUsername(displayName, fallbackName),
     bio: "",
     avatar_url: metadata.avatar_url || metadata.picture || "",
     last_seen: new Date().toISOString(),
